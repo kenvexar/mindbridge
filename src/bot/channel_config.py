@@ -17,8 +17,8 @@ from ..utils.mixins import LoggerMixin
 class ChannelCategory(Enum):
     """Simplified channel categories"""
 
-    CAPTURE = "capture"  # memo, voice, files
-    SYSTEM = "system"  # notifications, commands
+    CAPTURE = "capture"  # memo （統合：テキスト・音声・ファイル）
+    SYSTEM = "system"  # notifications, commands  # notifications, commands
 
 
 @dataclass

@@ -150,9 +150,22 @@ class MessageHandler(LoggerMixin):
             f"🔍 DEBUG: process_message called for channel {message.channel.id} (#{getattr(message.channel, 'name', 'unknown')})"
         )
 
-        # Skip bot messages
-        if message.author.bot:
+        # Skip bot messages (but log what's happening for debugging)
+        # 🔧 TEMPORARY FIX: Allow processing bot messages for testing MCP integration
+        if message.author.bot and not message.content.startswith("🔧"):
+            self.logger.info(
+                f"🤖 DEBUG: Skipping bot message from {message.author} (bot={message.author.bot})"
+            )
             return None
+        elif message.author.bot and message.content.startswith("🔧"):
+            content_preview = (
+                str(message.content)[:50]
+                if hasattr(message.content, "__getitem__")
+                else str(message.content)
+            )
+            self.logger.info(
+                f"🧪 DEBUG: Processing bot message for testing - from {message.author} (content preview: {content_preview}...)"
+            )
 
         # Check if channel is monitored
         is_monitored = self.channel_config.is_monitored_channel(message.channel.id)
@@ -195,7 +208,12 @@ class MessageHandler(LoggerMixin):
 
         # AI 処理を実行（テキストがある場合のみ）
         ai_result: AIProcessingResult | None = None
-        if message.content and len(message.content.strip()) > 20:
+        content_length = len(message.content.strip()) if message.content else 0
+        self.logger.info(
+            f"🤖 DEBUG: Checking AI processing conditions - content_length={content_length}, threshold=20"
+        )
+
+        if message.content and content_length > 5:  # より緩い条件に変更
             try:
                 result = await self.ai_processor.process_text(
                     text=message.content, message_id=message.id
@@ -262,10 +280,16 @@ class MessageHandler(LoggerMixin):
         }
 
         # Route message based on channel category
+        self.logger.info(
+            f"🚀 DEBUG: Routing message to category handler - category={channel_info.category.value}"
+        )
         await self._route_message_by_category(
             message_data, channel_info.category, message
         )
 
+        self.logger.info(
+            f"✅ DEBUG: Message processing completed successfully for message {message.id}"
+        )
         return message_data
 
     async def _update_feedback_message(
@@ -371,6 +395,10 @@ class MessageHandler(LoggerMixin):
                 )
 
         # Obsidian ノートの生成と保存（新しい TemplateEngine を使用）
+        self.logger.info(
+            f"📝 DEBUG: Starting Obsidian note creation - obsidian_manager={self.obsidian_manager is not None}, template_engine={self.template_engine is not None}"
+        )
+
         if self.obsidian_manager and self.template_engine:
             try:
                 # AI 処理結果を AIProcessingResult オブジェクトに変換
@@ -511,7 +539,20 @@ class MessageHandler(LoggerMixin):
                             )
 
             except Exception as e:
-                self.logger.error("Failed to create Obsidian note", error=str(e))
+                self.logger.error(
+                    "Failed to create Obsidian note",
+                    error=str(e),
+                    exc_info=True,
+                    message_id=message_data.get("metadata", {})
+                    .get("basic", {})
+                    .get("id"),
+                    template_engine_available=self.template_engine is not None,
+                    obsidian_manager_available=self.obsidian_manager is not None,
+                )
+        else:
+            self.logger.warning(
+                f"📝 DEBUG: Skipping Obsidian note creation - missing dependencies: obsidian_manager={self.obsidian_manager is not None}, template_engine={self.template_engine is not None}"
+            )
 
     def _generate_activity_log_title(
         self,
@@ -565,13 +606,11 @@ class MessageHandler(LoggerMixin):
                 category = ai_result.category.category
                 return f"📝 {category}メモ - #{channel_name}"
 
-            # 通常のテキストメッセージ
+            # 通常のテキストメッセージ（全文表示）
             raw_content = content_info.get("raw_content", "").strip()
             if raw_content and len(raw_content) > 10:
-                if len(raw_content) > 30:
-                    preview = raw_content[:30] + "..."
-                else:
-                    preview = raw_content
+                # 全文を表示（省略なし）
+                preview = raw_content
                 return f"📝 {preview} - #{channel_name}"
 
             # フォールバック: ノートタイトルを使用

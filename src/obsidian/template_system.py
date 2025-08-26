@@ -474,6 +474,7 @@ class CustomFunctionProcessor:
         content = re.sub(r"\{\{truncate\((.*?)\)\}\}", truncate_func, content)
 
         # 日付フォーマット: {{date_format(date, format)}}
+        # 日付オフセット機能付き: {{date_format(date, format, offset)}}
         def date_format_func(match: re.Match[str]) -> str:
             args_str = match.group(1)
             args = [arg.strip() for arg in args_str.split(",")]
@@ -481,8 +482,21 @@ class CustomFunctionProcessor:
                 date_key = args[0].strip()
                 format_str = args[1].strip().strip("\"'")
 
+                # オフセット（日数）がある場合
+                offset_days = 0
+                if len(args) >= 3:
+                    try:
+                        offset_days = int(args[2].strip())
+                    except ValueError:
+                        self.logger.debug(f"Invalid offset parameter: {args[2]}")
+
                 if date_key in context and isinstance(context[date_key], datetime):
                     date_value = cast("datetime", context[date_key])
+                    # オフセットを適用
+                    if offset_days != 0:
+                        from datetime import timedelta
+
+                        date_value = date_value + timedelta(days=offset_days)
                     return date_value.strftime(format_str)
                 else:
                     self.logger.debug(
@@ -1919,12 +1933,33 @@ class TemplateEngine(LoggerMixin):
 
             frontmatter = NoteFrontmatter(**frontmatter_dict)
 
-            # ファイル名とパスを生成
-            filename = context.get(
-                "filename", f"{context['date_ymd']}-{template_name}.md"
-            )
-            if not filename.endswith(".md"):
-                filename += ".md"
+            # ファイル名とパスを生成（メッセージ固有の一意名）
+            if "message_id" in context:
+                # メッセージ固有のファイル名を生成
+                from datetime import datetime
+
+                from .models import NoteFilename
+
+                timestamp = datetime.now()
+                ai_category = (
+                    ai_result.category.category.value
+                    if ai_result and ai_result.category
+                    else None
+                )
+                title = context.get("content", "")[
+                    :30
+                ]  # 最初の 30 文字をタイトルに使用
+
+                filename = NoteFilename.generate_message_note_filename(
+                    timestamp=timestamp, category=ai_category, title=title
+                )
+            else:
+                # 従来のファイル名生成
+                filename = context.get(
+                    "filename", f"{context['date_ymd']}-{template_name}.md"
+                )
+                if not filename.endswith(".md"):
+                    filename += ".md"
 
             # カスタムファイルパスが指定されている場合はそれを使用
             if additional_context and "file_path" in additional_context:
@@ -2662,8 +2697,8 @@ modified: {{date_iso}}
 {{#if channel_name}}
 - **Discord チャンネル**: #{{channel_name}}
 {{/if}}
-- **昨日**: [[{{date_format(current_date, "%Y-%m-%d")}}]]
-- **明日**: [[{{date_format(current_date, "%Y-%m-%d")}}]]
+- **昨日**: [[{{date_format(current_date, "%Y-%m-%d", -1)}}]]
+- **明日**: [[{{date_format(current_date, "%Y-%m-%d", 1)}}]]
 
 {{#if ai_tags and length(ai_tags) > 0}}
 ## 🏷️ タグ
