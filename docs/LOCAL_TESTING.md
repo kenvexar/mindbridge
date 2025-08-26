@@ -1,10 +1,10 @@
 # ローカルテスト手順
 
-Discord-Obsidian Memo Botをローカル環境でテストする方法を説明します。
+Discord-Obsidian Memo Bot をローカル環境でテストする方法を説明します。
 
 ## 🏗️ モックモードでのテスト（推奨）
 
-**実際のAPIキーを必要とせず、安全にテストできます。**
+**実際の API キーを必要とせず、安全にテストできます。**
 
 ### 1. モック環境の設定
 
@@ -16,7 +16,7 @@ cp .env.development .env
 `.env.development`は既にモック設定になっています：
 
 ```env
-# モック環境設定（API不要）
+# モック環境設定（ API 不要）
 ENVIRONMENT=development
 ENABLE_MOCK_MODE=true
 MOCK_DISCORD_ENABLED=true
@@ -50,19 +50,19 @@ uv run python -m src.main
 ### 4. 個別機能テスト
 
 ```bash
-# AI処理のテスト
+# AI 処理のテスト
 uv run python test_advanced_ai.py
 
 # 音声処理のテスト
 uv run python test_speech_processor.py
 
-# Garmin統合のテスト
+# Garmin 統合のテスト
 uv run python test_garmin_integration.py
 
 # 健康データ分析のテスト
 uv run python test_health_analysis.py
 
-# URL処理のテスト
+# URL 処理のテスト
 uv run python test_url_processor_only.py
 ```
 
@@ -82,11 +82,11 @@ import asyncio
 
 async def test_channels():
     config = ChannelConfig()
-    # モックボットを設定（実際のテストではDiscordボットを使用）
+    # モックボットを設定（実際のテストでは Discord ボットを使用）
 
     # チャンネル名での検索
-    inbox = config.get_channel_by_name('inbox')
-    print(f'Inbox channel: {inbox}')
+    memo = config.get_channel_by_name('memo')
+    print(f'Memo channel: {memo}')
 
     # 監視チャンネル一覧
     monitored = config.get_all_monitored_channel_names()
@@ -96,24 +96,24 @@ asyncio.run(test_channels())
 "
 ```
 
-## 🎯 実APIを使用したテスト
+## 🎯 実 API を使用したテスト
 
-実際のAPIを使用してテストする場合は `ENVIRONMENT=testing` を設定します。
+実際の API を使用してテストする場合は `ENVIRONMENT=testing` を設定します。
 (`staging`、`integration` も同等に機能します)
 
 ### 前提条件
 
-1. **Discord Bot設定**
-   - [Discord Developer Portal](https://discord.com/developers/applications)でBotを作成
-   - 適切な権限を付与（Send Messages、Read Message History、Attach Files、Use Slash Commands）
+1. **Discord Bot 設定**
+   - [Discord Developer Portal](https://discord.com/developers/applications) で Bot を作成
+   - 適切な権限を付与（ Send Messages 、 Read Message History 、 Attach Files 、 Use Slash Commands ）
 
-2. **Gemini APIキー**
-   - Google AI Studioでキーを取得
+2. **Gemini API キー**
+   - Google AI Studio でキーを取得
    - `GEMINI_API_KEY`に設定
 
 3. **チャンネル設定**
-   - テスト用Discordサーバーで標準名のチャンネルを作成
-   - 最低限`#inbox`, `#notifications`, `#commands`を作成
+   - テスト用 Discord サーバーで標準名のチャンネルを作成
+   - 最低限`#memo`, `#notifications`, `#commands`を作成
    - ボットが自動的にチャンネルを検出することを確認
 
 ### 実行方法
@@ -129,25 +129,21 @@ cp .env.example .env.testing
 # テスト環境設定
 ENVIRONMENT=testing
 
-# 実際のAPI設定
+# 実際の API 設定
 DISCORD_BOT_TOKEN=your_actual_discord_token
 DISCORD_GUILD_ID=your_discord_server_id
 GEMINI_API_KEY=your_actual_gemini_api_key
 OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 
 # Discord チャンネル（以下のチャンネルを作成するだけ）
-# 必須チャンネル：
-# - #inbox           (メインメモ)
+# 必須チャンネル（ 3 つのみ）：
+# - #memo            (統合メイン入力 - テキスト・音声・ファイル全て統合)
 # - #notifications   (システム通知)
 # - #commands        (ボットコマンド)
-#
-# 推奨チャンネル：
-# - #voice           (音声メモ)
-# - #files           (ファイル)
 # - #money           (家計簿)
 # - #tasks           (タスク管理)
 #
-# チャンネルIDの設定は不要です
+# チャンネル ID の設定は不要です
 
 # 環境設定とモックモード
 ENVIRONMENT=testing
@@ -227,13 +223,13 @@ rm -rf test_vault/ .pytest_cache/
 uv run pytest tests/unit/ -v
 ```
 
-### 実APIテストで認証エラー
+### 実 API テストで認証エラー
 
 **確認項目:**
-- Discord Botトークンの有効性
-- Gemini APIキーの有効性
-- ボットがDiscordサーバーに参加済みか
-- 必要なチャンネル（#inbox、#notifications、#commands）が作成済みか
+- Discord Bot トークンの有効性
+- Gemini API キーの有効性
+- ボットが Discord サーバーに参加済みか
+- 必要なチャンネル（#memo 、#notifications 、#commands ）が作成済みか
 
 ## 📊 テスト結果の確認
 
@@ -251,9 +247,9 @@ open report.html
 
 ## 💡 ヒント
 
-1. **段階的テスト**: モック→単体テスト→統合テスト→実API の順で進める
+1. **段階的テスト**: モック→単体テスト→統合テスト→実 API の順で進める
 2. **ログ活用**: `LOG_LEVEL=DEBUG`でより詳細な情報を確認
-3. **安全テスト**: 本番環境のAPIキーは絶対に使用しない
+3. **安全テスト**: 本番環境の API キーは絶対に使用しない
 4. **継続的テスト**: 変更後は必ずテストを実行して動作確認
 
 このガイドに従って、安全かつ効率的にローカルテストを実行してください。

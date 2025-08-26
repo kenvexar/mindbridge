@@ -110,10 +110,13 @@ class ExpenseManager:
         end_date: date,
         category: BudgetCategory | None = None,
     ) -> list[ExpenseRecord]:
-        """Get expenses for a specific period."""
+        """Get expenses for a specific period with enhanced type safety."""
+        if start_date > end_date:
+            raise ValueError("Start date must be before or equal to end date")
+
         expenses = await self._load_expenses()
 
-        result = []
+        result: list[ExpenseRecord] = []
         for expense_data in expenses.values():
             expense = (
                 ExpenseRecord(**expense_data)
@@ -121,9 +124,11 @@ class ExpenseManager:
                 else expense_data
             )
 
-            if start_date <= expense.date <= end_date and (
-                category is None or expense.category == category
-            ):
+            # Enhanced filtering with proper type checking
+            date_match = start_date <= expense.date <= end_date
+            category_match = category is None or expense.category == category
+
+            if date_match and category_match:
                 result.append(expense)
 
         return sorted(result, key=lambda x: x.date, reverse=True)

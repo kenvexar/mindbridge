@@ -229,32 +229,112 @@ class StatsCommands(commands.Cog, CommandMixin):
     async def _get_obsidian_stats(self) -> dict[str, Any] | None:
         """Get Obsidian vault statistics."""
         try:
-            # This would integrate with the actual Obsidian file manager
-            # For now, return placeholder data
+            from src.config import get_settings
+            from src.obsidian.analytics.vault_statistics import VaultStatistics
+
+            settings = get_settings()
+            vault_stats = VaultStatistics(settings.obsidian_vault_path)
+            stats = await vault_stats.get_vault_stats()
+
             return {
-                "total_notes": 0,
-                "notes_today": 0,
-                "notes_this_week": 0,
-                "total_characters": 0,
-                "avg_note_size": 0,
-                "last_updated": "未取得",
+                "total_notes": stats.total_notes,
+                "notes_today": stats.notes_today,
+                "notes_this_week": stats.notes_this_week,
+                "total_characters": stats.total_characters,
+                "avg_note_size": stats.avg_note_size,
+                "last_updated": stats.last_updated.strftime("%Y-%m-%d %H:%M")
+                if stats.last_updated
+                else "未取得",
             }
         except Exception as e:
             logger.error("Failed to get Obsidian stats", error=str(e))
             return None
 
     async def _get_finance_stats(self) -> dict[str, Any] | None:
-        """Get finance statistics."""
+        """Get financial statistics with improved type safety."""
         try:
-            # This would integrate with the actual finance manager
-            # For now, return placeholder data
+            from datetime import date
+            from decimal import Decimal
+
+            from src.config import get_settings
+            from src.finance.budget_manager import BudgetManager
+            from src.finance.expense_manager import ExpenseManager
+            from src.finance.subscription_manager import SubscriptionManager
+            from src.obsidian.refactored_file_manager import ObsidianFileManager
+
+            settings = get_settings()
+            file_manager = ObsidianFileManager(settings.obsidian_vault_path)
+            expense_manager = ExpenseManager(file_manager)
+            subscription_manager = SubscriptionManager(file_manager)
+            budget_manager = BudgetManager(file_manager, expense_manager)
+
+            # Calculate date ranges
+            today = date.today()
+            month_start = today.replace(day=1)
+            year_start = today.replace(month=1, day=1)
+
+            # Get monthly expenses
+            monthly_expenses_data = await expense_manager.get_expenses_by_period(
+                month_start, today
+            )
+            monthly_expenses = sum(exp.amount for exp in monthly_expenses_data)
+
+            # Get yearly expenses
+            yearly_expenses_data = await expense_manager.get_expenses_by_period(
+                year_start, today
+            )
+            yearly_expenses = sum(exp.amount for exp in yearly_expenses_data)
+
+            # Get monthly subscription total using the new convenience method
+            monthly_subscriptions = await subscription_manager.get_monthly_cost()
+            active_subscriptions = await subscription_manager.get_active_subscriptions()
+
+            # Get expense categories with proper type handling
+            budget_categories = await budget_manager.get_all_budgets()
+            category_totals: dict[str, Decimal] = {}
+
+            for category_budget in budget_categories:
+                category_expenses = [
+                    exp
+                    for exp in monthly_expenses_data
+                    if exp.category == category_budget.category.value
+                ]
+                if category_expenses:
+                    total_amount: Decimal = sum(
+                        exp.amount for exp in category_expenses
+                    ) or Decimal(0)
+                    category_totals[category_budget.category.value] = total_amount
+
+            # Get top category with proper type safety
+            top_category_name = "未取得"
+            if category_totals:
+                top_category_key = max(category_totals, key=category_totals.__getitem__)
+                # Convert to display format if it's a BudgetCategory
+                from src.finance.models import BudgetCategory
+
+                try:
+                    budget_cat = BudgetCategory(top_category_key)
+                    top_category_name = budget_cat.display_name
+                except ValueError:
+                    top_category_name = top_category_key.title()
+
+            # Get last expense
+            recent_expenses = await expense_manager.get_expenses_by_period(
+                year_start, today
+            )
+            last_expense_date = (
+                recent_expenses[0].date.strftime("%m/%d")
+                if recent_expenses
+                else "未取得"
+            )
+
             return {
-                "monthly_expenses": 0,
-                "monthly_subscriptions": 0,
-                "yearly_expenses": 0,
-                "active_subscriptions": 0,
-                "top_category": "未取得",
-                "last_expense_date": "未取得",
+                "monthly_expenses": int(monthly_expenses),
+                "monthly_subscriptions": int(monthly_subscriptions),
+                "yearly_expenses": int(yearly_expenses),
+                "active_subscriptions": len(active_subscriptions),
+                "top_category": top_category_name,
+                "last_expense_date": last_expense_date,
             }
         except Exception as e:
             logger.error("Failed to get finance stats", error=str(e))
@@ -263,15 +343,69 @@ class StatsCommands(commands.Cog, CommandMixin):
     async def _get_task_stats(self) -> dict[str, Any] | None:
         """Get task management statistics."""
         try:
-            # This would integrate with the actual task manager
-            # For now, return placeholder data
+            from datetime import date
+
+            from src.config import get_settings
+            from src.obsidian.refactored_file_manager import ObsidianFileManager
+            from src.tasks.models import TaskStatus
+            from src.tasks.task_manager import TaskManager
+
+            settings = get_settings()
+            file_manager = ObsidianFileManager(settings.obsidian_vault_path)
+            task_manager = TaskManager(file_manager)
+
+            # Get all tasks
+            all_tasks = await task_manager.list_tasks()
+            active_tasks = await task_manager.list_tasks(active_only=True)
+            overdue_tasks = await task_manager.get_overdue_tasks()
+
+            # Calculate date ranges
+            today = date.today()
+            month_start = today.replace(day=1)
+
+            # Count completed tasks this month
+            completed_this_month = 0
+            total_completion_days = 0
+            completed_tasks = 0
+
+            for task in all_tasks:
+                if task.status == TaskStatus.DONE and task.completed_at:
+                    if task.completed_at.date() >= month_start:
+                        completed_this_month += 1
+
+                    # Calculate completion time
+                    if task.completed_at and task.created_at:
+                        completion_days = (
+                            task.completed_at.date() - task.created_at.date()
+                        ).days
+                        total_completion_days += completion_days
+                        completed_tasks += 1
+
+            # Calculate completion rate
+            total_tasks = len(all_tasks)
+            completed_total = len([t for t in all_tasks if t.status == TaskStatus.DONE])
+            completion_rate = (
+                (completed_total / total_tasks * 100) if total_tasks > 0 else 0
+            )
+
+            # Calculate average completion days
+            avg_completion_days = (
+                (total_completion_days / completed_tasks) if completed_tasks > 0 else 0
+            )
+
+            # Get last updated task
+            last_updated = "未取得"
+            if all_tasks:
+                latest_task = max(all_tasks, key=lambda t: t.updated_at)
+                last_updated = latest_task.updated_at.strftime("%m/%d")
+
             return {
-                "active_tasks": 0,
-                "completed_this_month": 0,
-                "overdue_tasks": 0,
-                "completion_rate": 0.0,
-                "avg_completion_days": 0.0,
-                "last_updated": "未取得",
+                "active_tasks": len(active_tasks),
+                "completed_this_month": completed_this_month,
+                "overdue_tasks": len(overdue_tasks),
+                "completion_rate": completion_rate,
+                "avg_completion_days": avg_completion_days,
+                "last_updated": last_updated,
             }
         except Exception as e:
             logger.error("Failed to get task stats", error=str(e))

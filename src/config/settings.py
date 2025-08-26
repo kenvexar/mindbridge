@@ -101,38 +101,15 @@ class Settings(BaseSettings):
     def get_channel_name_mapping(self) -> dict[str, str]:
         """Get mapping of configuration names to Discord channel names"""
         return {
-            "inbox": "inbox",
-            "voice": "voice",
-            "files": "files",
-            "money": "money",
-            "finance_reports": "finance-reports",
-            "tasks": "tasks",
-            "productivity_reviews": "productivity-reviews",
+            "memo": "memo",
             "notifications": "notifications",
             "commands": "commands",
-            "activity_log": "activity-log",
-            "daily_tasks": "daily-tasks",
-            "quick_notes": "quick-notes",
-            "income": "income",
-            "subscriptions": "subscriptions",
-            "projects": "projects",
-            "weekly_reviews": "weekly-reviews",
-            "goal_tracking": "goal-tracking",
-            "health_activities": "health-activities",
-            "health_sleep": "health-sleep",
-            "health_wellness": "health-wellness",
-            "health_analytics": "health-analytics",
-            "logs": "logs",
         }
 
     def get_default_channel_names(self) -> list[str]:
         """Get list of default channel names to look for"""
         return [
-            "inbox",  # Main memo channel (highest priority)
-            "voice",  # Voice memos
-            "files",  # File uploads
-            "money",  # Finance tracking
-            "tasks",  # Task management
+            "memo",  # Main unified channel for all content
             "notifications",  # System notifications
             "commands",  # Bot commands
         ]
@@ -140,34 +117,14 @@ class Settings(BaseSettings):
     def get_required_channel_names(self) -> list[str]:
         """Get list of required channel names for basic functionality"""
         return [
-            "inbox",  # Essential for memo functionality
+            "memo",  # Essential unified channel for all content
             "notifications",  # Essential for system feedback
             "commands",  # Essential for bot interaction
         ]
 
     def get_optional_channel_names(self) -> list[str]:
         """Get list of optional channel names for enhanced functionality"""
-        return [
-            "voice",  # Voice memo processing
-            "files",  # File uploads
-            "money",  # Financial tracking
-            "finance-reports",  # Financial analytics
-            "tasks",  # Task management
-            "productivity-reviews",  # Daily productivity reviews
-            "quick-notes",  # Quick notes without AI processing
-            "income",  # Income tracking
-            "subscriptions",  # Subscription management
-            "projects",  # Project management
-            "weekly-reviews",  # Weekly productivity reviews
-            "goal-tracking",  # Goal tracking and management
-            "health-activities",  # Activity and exercise tracking
-            "health-sleep",  # Sleep tracking and analysis
-            "health-wellness",  # General wellness and health tracking
-            "health-analytics",  # Health data analysis and reports
-            "activity-log",  # Daily activity log entries (legacy)
-            "daily-tasks",  # Daily task management (legacy)
-            "logs",  # System logs and debugging
-        ]
+        return []  # All functionality is now unified in the memo channel
 
     def get_all_supported_channel_names(self) -> list[str]:
         """Get all supported channel names"""

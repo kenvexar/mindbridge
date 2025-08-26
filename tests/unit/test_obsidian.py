@@ -377,9 +377,9 @@ async def test_obsidian_integration_with_message_handler() -> None:
 
             mock_channel_info = ChannelInfo(
                 id=123456789,
-                name="inbox",
+                name="memo",  # 2025 年アーキテクチャ更新: inbox → memo
                 category=ChannelCategory.CAPTURE,
-                description="Test inbox channel",
+                description="Test memo channel (unified input)",
             )
             channel_config.get_channel_info.return_value = mock_channel_info
 

@@ -53,8 +53,8 @@ Discord-Obsidian Memo Bot は、 Discord を統合インターフェースとし
 ### 2. インストール
 ```bash
 # リポジトリのクローン
-git clone https://github.com/kenvexar/discord-obsidian-memo-bot.git
-cd discord-obsidian-memo-bot
+git clone https://github.com/kenvexar/mindbridge.git
+cd mindbridge
 
 # 依存関係のインストール
 uv sync
@@ -81,27 +81,21 @@ OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 uv run python -m src.main
 ```
 
-### 5. Discord チャンネル作成（ 2025 年簡素化）
+### 5. Discord チャンネル作成（ 2025 年大幅簡素化）
 
 **必須チャンネル（ 3 つのみ）：**
 ```
-📝 memo           ← 統合メイン入力（必須）- 全てのコンテンツはここに
+📝 memo           ← 統合メイン入力（必須）- テキスト・音声・ファイル全て統合
 🔔 notifications  ← システム通知（必須）
 🤖 commands       ← ボットコマンド（必須）
 ```
 
-**オプションチャンネル（ 2 つまで）：**
-```
-🎤 voice     ← 音声メモ専用
-📎 files     ← ファイル共有専用
-```
-
-**🎯 大幅簡素化：最大 5 チャンネル**
-- 旧システム： 17+の専用チャンネル (inbox, money, tasks, health, etc.)
-- 新システム：最大 5 チャンネル + AI 自動分類
-- `#memo` チャンネルですべてのコンテンツを受信
+**🎯 大幅簡素化： 3 チャンネルのみ**
+- 旧システム： 17+の専用チャンネル (inbox, money, tasks, health, voice, files, etc.)
+- 新システム： 3 チャンネルのみ + AI 自動分類
+- `#memo` チャンネルですべてのコンテンツを受信（テキスト・音声・ファイル統合）
 - AI が自動的に内容を分析してフォルダ分類
-- 💰 Finance, ✅ Tasks, 🏃 Health 等は自動分類
+- 💰 Finance, ✅ Tasks, 🏃 Health, 🎙️ Voice Memos, 📁 Files 等は自動分類
 
 ### 6. 使用開始
 **#memo チャンネルにメッセージを投稿するだけ！** AI が自動的に処理して適切なフォルダに保存します。
@@ -111,9 +105,11 @@ uv run python -m src.main
 - `"TODO: 資料作成"` → ✅ Tasks フォルダ
 - `"体重 70kg"` → 🏃 Health フォルダ
 - `"Python 学習メモ"` → 📚 Learning フォルダ
+- 音声ファイル → 🎙️ 自動文字起こし → 適切なフォルダ
+- ファイル共有 → 📁 内容分析 → 適切なフォルダ
 
 > **✨ 特徴：チャンネル ID 設定不要**
-> 標準的なチャンネル名（`memo`, `voice`, `files`等）で自動検出します。
+> 標準的なチャンネル名（`memo`, `notifications`, `commands`）で自動検出します。
 > 面倒なチャンネル ID のコピペは不要です！
 
 ## ドキュメント
@@ -121,23 +117,19 @@ uv run python -m src.main
 詳細な情報については、以下のドキュメントをご参照ください：
 
 ### 📚 ユーザー向け
-- **[簡単セットアップガイド](docs/EASY_SETUP.md)** - 🆕 チャンネル ID 設定不要の 5 分セットアップ
-- **[チャンネル管理ガイド](docs/CHANNEL_MANAGEMENT.md)** - 詳細なチャンネル設定方法
+- **[簡単セットアップガイド](docs/EASY_SETUP.md)** - 5 分セットアップガイド
 - **[ローカルテスト手順](docs/LOCAL_TESTING.md)** - 開発・テスト環境での動作確認
+- **[基本的な使い方](docs/user/basic-usage.md)** - 基本操作
+- **[コマンドリファレンス](docs/user/commands-reference.md)** - 利用可能コマンド
 
 ### 🛠️ 開発者向け
 - **[開発ガイド](docs/developer/development-guide.md)** - 開発環境構築
 - **[アーキテクチャ](docs/developer/architecture.md)** - システム設計
-- **[API 仕様](docs/developer/api-reference.md)** - API 詳細
-- **[コントリビューション](docs/developer/contributing.md)** - 貢献方法
 
 ### 🚀 運用者向け
 - **[デプロイメント](docs/operations/deployment.md)** - 本番環境へのデプロイ
 - **[トラブルシューティング](docs/operations/troubleshooting.md)** - 問題解決
 - **[監視](docs/operations/monitoring.md)** - 監視とログ管理
-
-### 📖 完全ガイド
-すべての情報を網羅した **[ドキュメントインデックス](docs-index.md)** も利用可能です。
 
 ## 主な特徴
 
@@ -165,7 +157,7 @@ Google Cloud Secret Manager による安全な認証情報管理
 
 ## コミュニティとサポート
 
-- **Issues**: [GitHub Issues](https://github.com/kenvexar/discord-obsidian-memo-bot/issues) でバグ報告・機能要求
+- **Issues**: [GitHub Issues](https://github.com/kenvexar/mindbridge/issues) でバグ報告・機能要求
 - **Discussions**: プロジェクトについて議論
 - **Documentation**: 包括的なドキュメントでサポート
 
@@ -175,12 +167,12 @@ MIT License - 詳細は[LICENSE](LICENSE) ファイルをご覧ください。
 
 ## 貢献
 
-プロジェクトへの貢献を歓迎します！詳細は[コントリビューションガイド](docs/developer/contributing.md) をご確認ください。
+プロジェクトへの貢献を歓迎します！開発ガイドを参考に貢献してください。
 
 ---
 
 **プロジェクト情報**
-- バージョン: 0.2.0 (2025 年チャンネル簡素化アップデート)
+- バージョン: 0.1.0
 - Python 要求バージョン: 3.13 以上
 - メンテナー: Kent
-- 最終更新: 2025 年 8 月 22 日
+- 最終更新: 2025 年 8 月 26 日

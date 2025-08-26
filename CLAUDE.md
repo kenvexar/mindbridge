@@ -286,20 +286,16 @@ GEMINI_API_KEY=your_gemini_api_key
 OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 
 # ✅ SIMPLIFIED CHANNEL ARCHITECTURE (2025 年更新)
-# Discord チャンネル数を 5 チャンネルまで削減し、 AI によるコンテンツ自動分類を実現
+# Discord チャンネル数を 3 チャンネルに削減し、 AI によるコンテンツ自動分類を実現
 #
-# 必須チャンネル (3 つ):
-# - #memo            (統合入力チャンネル - 全てのコンテンツはここから)
+# 必須チャンネル (3 つのみ):
+# - #memo            (統合入力チャンネル - テキスト・音声・ファイル全て統合)
 # - #notifications   (システム通知)
 # - #commands        (ボットコマンド)
 #
-# オプションチャンネル (2 つ):
-# - #voice           (音声メモ専用)
-# - #files           (ファイル共有専用)
-#
 # 🎯 MAJOR ARCHITECTURAL CHANGE:
-# • 旧システム: 17+ の専用チャンネル (inbox, money, tasks, health, etc.)
-# • 新システム: 最大 5 チャンネル + AI 自動分類
+# • 旧システム: 17+ の専用チャンネル (inbox, money, tasks, health, voice, files, etc.)
+# • 新システム: 3 チャンネルのみ + AI 自動分類
 #
 # 🤖 AI CONTENT CLASSIFICATION:
 # #memo チャンネルに投稿された全てのコンテンツは AI により自動分類され、
@@ -308,11 +304,14 @@ OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 # • ✅ Tasks → "TODO: 資料作成", "期限: 明日まで" → ✅ Tasks フォルダ
 # • 🏃 Health → "体重 70kg", "ランニング 5km" → 🏃 Health フォルダ
 # • 📚 Learning → "Python 学習", "読書メモ" → 📚 Learning フォルダ
+# • 🎙️ Voice Memos → 音声ファイル → 📝 自動文字起こし
+# • 📁 Files → ファイル共有 → 📋 適切なフォルダに自動分類
 # • 📝 Quick Notes → 短いメモ → 📝 Quick Notes フォルダ
 # • 📋 Memos → その他全般 → 📋 Memos フォルダ
 #
 # 🔧 BACKWARD COMPATIBILITY REMOVED:
 # • 全ての旧チャンネル ID 設定を削除
+# • voice 、 files チャンネルも memo に統合
 # • レガシー API メソッドを削除
 # • シンプルな 2 カテゴリ構造 (CAPTURE/SYSTEM) に統一
 
@@ -343,7 +342,7 @@ All tests use `pytest-asyncio` with `asyncio_mode = "auto"` for seamless async t
 - **API Limits**: Respects Google Gemini free tier limits (1500/day, 15/minute)
 - **Security**: Uses `SecretStr` for sensitive data, gitleaks pre-commit hook for secret detection
 - **Voice Processing**: Optional feature with 60-minute monthly limit (Google Cloud Speech-to-Text free tier)
-- **Channel Management**: Simplified to 5 channels max (2025 年更新) - AI handles all categorization
+- **Channel Management**: Simplified to 3 channels only (2025 年更新) - AI handles all categorization
 - **Content Organization**: Obsidian-first approach with AI-powered folder assignment
 - **Backward Compatibility**: All legacy channel APIs removed for simplified architecture
 

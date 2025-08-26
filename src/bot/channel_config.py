@@ -41,13 +41,11 @@ class ChannelConfig(LoggerMixin):
         self.bot: DiscordBot | None = None
         self.guild: discord.Guild | None = None
 
-        # Simplified channel names for auto-discovery (5 channels only)
+        # Simplified channel names for auto-discovery (3 channels only)
         self.standard_channel_names = {
             "memo": ChannelCategory.CAPTURE,  # 統合メイン入力チャンネル
-            "voice": ChannelCategory.CAPTURE,  # 音声メモ（維持）
-            "files": ChannelCategory.CAPTURE,  # ファイル共有（維持）
-            "notifications": ChannelCategory.SYSTEM,  # システム通知（維持）
-            "commands": ChannelCategory.SYSTEM,  # ボットコマンド（維持）
+            "notifications": ChannelCategory.SYSTEM,  # システム通知
+            "commands": ChannelCategory.SYSTEM,  # ボットコマンド
         }
 
     async def set_bot(self, bot: "DiscordBot") -> None:

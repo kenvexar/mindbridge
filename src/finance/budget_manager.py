@@ -123,24 +123,36 @@ class BudgetManager:
         period_start: date | None = None,
         period_end: date | None = None,
     ) -> list[Budget]:
-        """Get all budgets, optionally filtered by period."""
+        """Get all budgets with enhanced type safety and validation."""
+        if period_start and period_end and period_start > period_end:
+            raise ValueError("Period start date must be before or equal to end date")
+
         budgets = await self._load_budgets()
 
-        result = []
+        result: list[Budget] = []
         for budget_data in budgets.values():
             budget = (
                 Budget(**budget_data) if isinstance(budget_data, dict) else budget_data
             )
 
+            # Enhanced period filtering with proper type checking
             if period_start and budget.period_end < period_start:
                 continue
             if period_end and budget.period_start > period_end:
                 continue
 
-            # Update spent amount
-            budget.spent_amount = await self._calculate_spent_amount(
-                budget.category, budget.period_start, budget.period_end
-            )
+            # Update spent amount with error handling
+            try:
+                budget.spent_amount = await self._calculate_spent_amount(
+                    budget.category, budget.period_start, budget.period_end
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to calculate spent amount for budget {budget.category.value}",
+                    error=str(e),
+                )
+                budget.spent_amount = Decimal(0)
+
             result.append(budget)
 
         return sorted(result, key=lambda x: (x.period_start, x.category.value))

@@ -25,7 +25,7 @@ class SubscriptionFrequency(str, Enum):
 
 
 class BudgetCategory(str, Enum):
-    """Budget category enum."""
+    """Budget category enum with improved type safety."""
 
     SUBSCRIPTIONS = "subscriptions"
     FOOD = "food"
@@ -37,9 +37,22 @@ class BudgetCategory(str, Enum):
     SHOPPING = "shopping"
     OTHER = "other"
 
+    @classmethod
+    def from_string(cls, value: str) -> "BudgetCategory":
+        """Convert string to BudgetCategory with validation."""
+        try:
+            return cls(value.lower())
+        except ValueError:
+            return cls.OTHER
+
+    @property
+    def display_name(self) -> str:
+        """Get human-readable display name."""
+        return self.value.replace("_", " ").title()
+
 
 class Subscription(BaseModel):
-    """Subscription data model."""
+    """Subscription data model with comprehensive type safety."""
 
     id: str = Field(..., description="Unique subscription ID")
     name: str = Field(..., description="Service name")
@@ -55,35 +68,57 @@ class Subscription(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now())
 
     @field_validator("currency")
+    @classmethod
     def validate_currency(cls, v: str) -> str:
-        """Validate currency code."""
-        valid_currencies = ["JPY", "USD", "EUR"]
-        if v not in valid_currencies:
+        """Validate currency code with comprehensive support."""
+        valid_currencies = ["JPY", "USD", "EUR", "GBP", "CAD", "AUD"]
+        if v.upper() not in valid_currencies:
             raise ValueError(f"Currency must be one of {valid_currencies}")
+        return v.upper()
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, v: Decimal) -> Decimal:
+        """Validate subscription amount is positive."""
+        if v <= 0:
+            raise ValueError("Subscription amount must be positive")
         return v
 
     def calculate_next_payment_date(self, from_date: date | None = None) -> date:
-        """Calculate next payment date based on frequency."""
+        """Calculate next payment date based on frequency with proper type handling."""
         base_date = from_date or self.next_payment_date
 
         if self.frequency == SubscriptionFrequency.WEEKLY:
             from datetime import timedelta
 
             return base_date + timedelta(weeks=1)
-        if self.frequency == SubscriptionFrequency.MONTHLY:
+        elif self.frequency == SubscriptionFrequency.MONTHLY:
             from dateutil.relativedelta import relativedelta
 
             return base_date + relativedelta(months=1)
-        if self.frequency == SubscriptionFrequency.QUARTERLY:
+        elif self.frequency == SubscriptionFrequency.QUARTERLY:
             from dateutil.relativedelta import relativedelta
 
             return base_date + relativedelta(months=3)
-        if self.frequency == SubscriptionFrequency.YEARLY:
+        elif self.frequency == SubscriptionFrequency.YEARLY:
             from dateutil.relativedelta import relativedelta
 
             return base_date + relativedelta(years=1)
+        else:
+            return base_date
 
-        return base_date
+    def get_monthly_amount(self) -> Decimal:
+        """Get equivalent monthly amount regardless of billing frequency."""
+        if self.frequency == SubscriptionFrequency.MONTHLY:
+            return self.amount
+        elif self.frequency == SubscriptionFrequency.YEARLY:
+            return self.amount / 12
+        elif self.frequency == SubscriptionFrequency.QUARTERLY:
+            return self.amount / 3
+        elif self.frequency == SubscriptionFrequency.WEEKLY:
+            return self.amount * Decimal("4.33")  # Average weeks per month
+        else:
+            return self.amount
 
     def is_due_soon(self, days: int = 3) -> bool:
         """Check if payment is due within specified days."""
@@ -95,6 +130,10 @@ class Subscription(BaseModel):
     def is_overdue(self) -> bool:
         """Check if payment is overdue."""
         return self.next_payment_date < date.today()
+
+    def is_active(self) -> bool:
+        """Check if subscription is currently active."""
+        return self.status == SubscriptionStatus.ACTIVE
 
 
 class PaymentRecord(BaseModel):

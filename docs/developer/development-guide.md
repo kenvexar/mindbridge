@@ -34,8 +34,8 @@ jq --version              # JSON 処理用
 
 ```bash
 # 1. リポジトリのクローン
-git clone https://github.com/kenvexar/discord-obsidian-memo-bot.git
-cd discord-obsidian-memo-bot
+git clone https://github.com/kenvexar/mindbridge.git
+cd mindbridge
 
 # 2. 開発用依存関係のインストール
 uv sync --dev
@@ -99,10 +99,8 @@ MOCK_SPEECH_ENABLED=true
 # テスト用 Obsidian ボルト
 OBSIDIAN_VAULT_PATH=./test_vault
 
-# テスト用チャンネル ID （任意の値で OK ）
-CHANNEL_INBOX=123456789012345678
-CHANNEL_VOICE=123456789012345679
-CHANNEL_TASKS=123456789012345680
+# 基本設定（実際の値でも動作）
+DISCORD_GUILD_ID=your_guild_id_here
 ```
 
 ## 📁 プロジェクト構造の理解
@@ -226,12 +224,10 @@ git commit -m "build: update dependencies"
 ### ブランチ戦略
 
 ```
-main           # 本番リリース用
-├── develop    # 開発統合ブランチ
+main           # 本番リリース・開発統合ブランチ
 ├── feature/*  # 新機能開発
 ├── bugfix/*   # バグ修正
-├── hotfix/*   # 緊急修正
-└── release/*  # リリース準備
+└── hotfix/*   # 緊急修正
 ```
 
 ## 🎨 コードスタイルとガイドライン

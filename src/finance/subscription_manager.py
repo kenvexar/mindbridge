@@ -246,6 +246,37 @@ class SubscriptionManager:
             == subscription_id
         ]
 
+    async def get_active_subscriptions(self) -> list[Subscription]:
+        """Get all active subscriptions.
+
+        This is a convenience method that wraps list_subscriptions(active_only=True)
+        for better API consistency and backward compatibility.
+        """
+        return await self.list_subscriptions(active_only=True)
+
+    async def get_monthly_cost(self) -> Decimal:
+        """Calculate total monthly cost of all active subscriptions."""
+        from decimal import Decimal
+
+        from .models import SubscriptionFrequency
+
+        active_subscriptions = await self.get_active_subscriptions()
+        monthly_cost = Decimal(0)
+
+        for subscription in active_subscriptions:
+            if subscription.frequency == SubscriptionFrequency.MONTHLY:
+                monthly_cost += subscription.amount
+            elif subscription.frequency == SubscriptionFrequency.YEARLY:
+                monthly_cost += subscription.amount / 12
+            elif subscription.frequency == SubscriptionFrequency.QUARTERLY:
+                monthly_cost += subscription.amount / 3
+            elif subscription.frequency == SubscriptionFrequency.WEEKLY:
+                monthly_cost += subscription.amount * Decimal(
+                    "4.33"
+                )  # Average weeks per month
+
+        return monthly_cost
+
     async def _load_subscriptions(self) -> dict[str, Subscription]:
         """Load subscriptions from JSON file."""
         if not self.data_file.exists():

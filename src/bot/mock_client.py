@@ -216,19 +216,11 @@ class MockDiscordBot(LoggerMixin):
         self.guilds = [self.guild]
         self._event_handlers: dict[str, Callable[..., Any]] = {}
 
-        # Mock channels based on configuration
+        # Mock channels - simplified to 3 channels only
         self.channels = {
-            123456789: MockChannel(123456789, "inbox", 123456789),
-            123456790: MockChannel(123456790, "voice", 123456789),
-            123456791: MockChannel(123456791, "files", 123456789),
-            123456792: MockChannel(123456792, "money", 123456789),
-            123456793: MockChannel(123456793, "finance-reports", 123456789),
-            123456794: MockChannel(123456794, "tasks", 123456789),
-            123456795: MockChannel(123456795, "productivity-reviews", 123456789),
+            123456789: MockChannel(123456789, "memo", 123456789),
             123456796: MockChannel(123456796, "notifications", 123456789),
             123456797: MockChannel(123456797, "commands", 123456789),
-            123456798: MockChannel(123456798, "activity-log", 123456789),
-            123456799: MockChannel(123456799, "daily-tasks", 123456789),
         }
 
         self.message_handlers: list[Callable[..., Any]] = []

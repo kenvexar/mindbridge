@@ -1,6 +1,6 @@
 # 🚀 デプロイメントガイド
 
-Discord-Obsidian Memo Botの本番環境への安全で効率的なデプロイメント手順を説明します。
+Discord-Obsidian Memo Bot の本番環境への安全で効率的なデプロイメント手順を説明します。
 
 ## 📋 目次
 
@@ -59,7 +59,7 @@ gcloud projects create $PROJECT_ID --name="Discord Obsidian Memo Bot"
 # プロジェクト選択
 gcloud config set project $PROJECT_ID
 
-# 必要なAPIを有効化
+# 必要な API を有効化
 gcloud services enable \
   run.googleapis.com \
   cloudbuild.googleapis.com \
@@ -384,9 +384,9 @@ curl http://localhost:8080/health
 
 | 項目 | 最小 | 推奨 |
 |------|------|------|
-| **CPU** | 1コア | 2コア以上 |
-| **メモリ** | 1GB | 2GB以上 |
-| **ストレージ** | 10GB | 20GB以上 |
+| **CPU** | 1 コア | 2 コア以上 |
+| **メモリ** | 1GB | 2GB 以上 |
+| **ストレージ** | 10GB | 20GB 以上 |
 | **OS** | Ubuntu 20.04+ | Ubuntu 22.04 LTS |
 
 ### サーバーセットアップ
@@ -408,7 +408,7 @@ sudo apt install -y \
     htop \
     ufw
 
-# 3. uvのインストール
+# 3. uv のインストール
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
 
@@ -424,8 +424,8 @@ sudo usermod -aG sudo discord-bot
 sudo su - discord-bot
 
 # 2. アプリケーションのクローン
-git clone https://github.com/kenvexar/discord-obsidian-memo-bot.git
-cd discord-obsidian-memo-bot
+git clone https://github.com/kenvexar/mindbridge.git
+cd mindbridge
 
 # 3. 依存関係のインストール
 uv sync
@@ -444,9 +444,9 @@ After=network.target
 Type=simple
 User=discord-bot
 Group=discord-bot
-WorkingDirectory=/home/discord-bot/discord-obsidian-memo-bot
+WorkingDirectory=/home/discord-bot/mindbridge
 Environment=PATH=/home/discord-bot/.local/bin
-EnvironmentFile=/home/discord-bot/discord-obsidian-memo-bot/.env.production
+EnvironmentFile=/home/discord-bot/mindbridge/.env.production
 ExecStart=/home/discord-bot/.local/bin/uv run python -m src.main
 Restart=always
 RestartSec=10
@@ -805,7 +805,7 @@ curl -f $SERVICE_URL/health
 # サービスの完全停止
 gcloud run services delete $SERVICE_NAME --region $REGION
 
-# または最小インスタンス数を0に設定
+# または最小インスタンス数を 0 に設定
 gcloud run services update $SERVICE_NAME \
   --min-instances 0 \
   --max-instances 0 \

@@ -44,7 +44,28 @@ class TestChannelConfig:
         assert hasattr(config, "get_channel_info")
 
     def test_channel_name_mapping(self) -> None:
-        """Test channel name mapping functionality"""
+        """Test channel name mapping functionality
+
+        重要: 2025 年アーキテクチャ変更により、チャンネル設計が大幅に簡素化されました。
+
+        変更内容:
+        - 旧システム: 17+ 専用チャンネル (inbox, money, tasks, health, voice, files, etc.)
+        - 新システム: 3 チャンネルのみ + AI 自動分類
+
+        新チャンネル構成:
+        1. memo: 統合入力チャンネル（全コンテンツタイプ統合）
+        2. notifications: システム通知
+        3. commands: ボットコマンド
+
+        AI 分類により、 memo チャンネルのコンテンツは適切な Obsidian フォルダへ自動振り分け:
+        - 💰 Finance: "1500 ランチ" → Finance フォルダ
+        - ✅ Tasks: "TODO: 資料作成" → Tasks フォルダ
+        - 🏃 Health: "体重 70kg" → Health フォルダ
+        - 🎙️ Voice: 音声ファイル → 文字起こし後分類
+        - 📁 Files: ファイル → 内容に応じて分類
+
+        このテストでは新しい 3 チャンネル設計を検証しています。
+        """
         from src.config.settings import get_settings
 
         settings = get_settings()
@@ -55,10 +76,20 @@ class TestChannelConfig:
         for channel in required_channels:
             assert channel in channel_mapping.values()
 
-        # 基本的なチャンネルマッピングの確認
-        assert "inbox" in channel_mapping.values()
-        assert "notifications" in channel_mapping.values()
-        assert "commands" in channel_mapping.values()
+        # 新しい 3 チャンネル設計の検証
+        # 注意: "inbox" などの旧チャンネル名は存在しません
+        assert "memo" in channel_mapping.values(), "memo チャンネル（統合入力）が必要"
+        assert "notifications" in channel_mapping.values(), (
+            "notifications チャンネルが必要"
+        )
+        assert "commands" in channel_mapping.values(), "commands チャンネルが必要"
+
+        # 旧チャンネルが存在しないことを確認（回帰防止）
+        deprecated_channels = ["inbox", "money", "tasks", "health", "voice", "files"]
+        for old_channel in deprecated_channels:
+            assert old_channel not in channel_mapping.values(), (
+                f"廃止された {old_channel} チャンネルが検出されました"
+            )
 
 
 class TestMessageHandler:
@@ -126,11 +157,12 @@ class TestMessageHandler:
         # Mock a valid channel
         from src.bot.channel_config import ChannelCategory, ChannelInfo
 
+        # 注意: 2025 年アーキテクチャ変更により "inbox" は "memo" に統一
         mock_channel_info = ChannelInfo(
             id=123456789,
-            name="inbox",
+            name="memo",  # 旧 "inbox" から変更
             category=ChannelCategory.CAPTURE,
-            description="Test inbox channel",
+            description="Test memo channel (unified input)",
         )
 
         # Configure mock to return monitored channel

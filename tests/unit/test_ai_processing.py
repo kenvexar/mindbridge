@@ -278,9 +278,9 @@ async def test_ai_processing_integration() -> None:
 
     mock_channel_info = ChannelInfo(
         id=123456789,
-        name="inbox",
+        name="memo",  # 2025 年アーキテクチャ更新: inbox → memo
         category=ChannelCategory.CAPTURE,
-        description="Test inbox channel",
+        description="Test memo channel (unified input)",
     )
     mock_channel_config.get_channel_info.return_value = mock_channel_info
 
@@ -326,7 +326,7 @@ async def test_ai_processing_integration() -> None:
 
     # Set channel properties
     mock_message.channel.id = 123456789
-    mock_message.channel.name = "inbox"
+    mock_message.channel.name = "memo"  # 2025 年アーキテクチャ更新: inbox → memo
     mock_message.channel.type = discord.ChannelType.text
     mock_message.channel.category = None
     mock_message.created_at = datetime(2024, 1, 1, 12, 0, 0)
