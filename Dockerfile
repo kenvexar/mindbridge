@@ -29,6 +29,7 @@ FROM python:3.13.7-slim
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
