@@ -1,0 +1,30 @@
+
+services:
+  mindbridge-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mindbridge-bot
+    env_file:
+      - .env.docker
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./vault:/app/vault
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+      - ./.cache:/app/.cache
+      - ./.config:/app/.config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mindbridge-network
+
+networks:
+  mindbridge-network:
+    driver: bridge

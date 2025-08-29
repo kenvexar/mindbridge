@@ -84,7 +84,6 @@ Pipfile.lock
 # uv (package manager)
 # Note: uv.lock is typically committed, but .venv is excluded
 .venv/
-uv.lock
 
 # PEP 582
 __pypackages__/
@@ -133,6 +132,7 @@ config.json
 secrets/
 .env.local
 .env.production
+.env.docker
 
 # Google Cloud & AI Services
 service-account-key.json

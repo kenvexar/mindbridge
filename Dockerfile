@@ -18,7 +18,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies
 RUN uv sync --frozen --no-dev
@@ -44,8 +44,8 @@ COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --chown=app:app src/ ./src/
 COPY --chown=app:app README.md ./
 
-# Create logs directory
-RUN mkdir -p logs && chown app:app logs
+# Create logs, vault, cache, config, and backups directories
+RUN mkdir -p logs vault .cache .config backups && chown -R app:app logs vault .cache .config backups
 
 # Switch to non-root user
 USER app
@@ -61,4 +61,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 8080
 
 # Run the application
-CMD ["python", "src/main.py"]
+CMD ["python", "-m", "src.main"]

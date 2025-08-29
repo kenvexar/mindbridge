@@ -22,10 +22,30 @@ class FileOperations:
 
     async def save_note(self, note: ObsidianNote, subfolder: str | None = None) -> Path:
         """Save a note to the vault."""
+        logger.info(
+            "🔧 DEBUG: Starting save_note operation",
+            title=note.title,
+            vault_path=str(self.vault_path),
+            subfolder=subfolder,
+            has_file_path=bool(note.file_path and note.file_path != Path())
+        )
+        
         try:
+            # 🔧 FIX: Cloud Run environment vault path validation
+            if not self.vault_path.exists():
+                logger.warning(
+                    "Vault path does not exist, creating it",
+                    vault_path=str(self.vault_path)
+                )
+                self.vault_path.mkdir(parents=True, exist_ok=True)
+                
             # If the note already has a specific file_path set, use it
             if note.file_path and note.file_path != Path():
                 file_path = note.file_path
+                logger.info(
+                    "🔧 DEBUG: Using predefined file path",
+                    file_path=str(file_path)
+                )
                 # Ensure the parent directory exists
                 file_path.parent.mkdir(parents=True, exist_ok=True)
             else:
@@ -33,21 +53,65 @@ class FileOperations:
                 folder_path = self.vault_path
                 if subfolder:
                     folder_path = folder_path / subfolder
+                    logger.info(
+                        "🔧 DEBUG: Creating subfolder",
+                        subfolder=subfolder,
+                        folder_path=str(folder_path)
+                    )
                     folder_path.mkdir(parents=True, exist_ok=True)
 
                 # Create filename from title
                 safe_filename = self._sanitize_filename(note.title)
                 file_path = folder_path / f"{safe_filename}.md"
+                
+                logger.info(
+                    "🔧 DEBUG: Generated file path",
+                    safe_filename=safe_filename,
+                    file_path=str(file_path)
+                )
 
                 # Ensure unique filename
                 file_path = await self._ensure_unique_filename(file_path)
+                logger.info(
+                    "🔧 DEBUG: Final unique file path",
+                    file_path=str(file_path)
+                )
 
             # Prepare content
             content = self._format_note_content(note)
+            logger.info(
+                "🔧 DEBUG: Content prepared",
+                content_length=len(content),
+                content_preview=content[:100] + "..." if len(content) > 100 else content
+            )
 
-            # Write file
-            async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
-                await f.write(content)
+            # 🔧 FIX: Add additional error handling for file operations
+            try:
+                # Write file
+                async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+                    await f.write(content)
+                    
+                # Verify file was written
+                if file_path.exists():
+                    file_size = file_path.stat().st_size
+                    logger.info(
+                        "🔧 DEBUG: File verification successful",
+                        file_path=str(file_path),
+                        file_size=file_size,
+                        expected_size=len(content.encode('utf-8'))
+                    )
+                else:
+                    raise FileNotFoundError(f"File was not created: {file_path}")
+                    
+            except Exception as write_error:
+                logger.error(
+                    "🔧 ERROR: File write operation failed",
+                    error=str(write_error),
+                    file_path=str(file_path),
+                    vault_exists=self.vault_path.exists(),
+                    parent_exists=file_path.parent.exists(),
+                )
+                raise
 
             self._log_operation("save_note", str(file_path), note.title)
 
@@ -66,6 +130,8 @@ class FileOperations:
                 error=str(e),
                 title=note.title,
                 subfolder=subfolder,
+                vault_path=str(self.vault_path),
+                vault_exists=self.vault_path.exists() if self.vault_path else False,
             )
             raise
 

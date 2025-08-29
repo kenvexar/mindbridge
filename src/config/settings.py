@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Discord Configuration
     discord_bot_token: SecretStr
-    discord_guild_id: int
+    discord_guild_id: int | None = None  # Optional for Cloud Run deployment
 
     # Google API Configuration
     gemini_api_key: SecretStr

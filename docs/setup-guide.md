@@ -36,47 +36,30 @@ gcloud init
 
 #### 必要なチャンネルの作成
 
-以下のチャンネルを作成し、各チャンネルIDを記録してください：
+以下の 3 つのチャンネルを作成してください：
 
-**📝 CAPTURE カテゴリ（必須）:**
-- `#inbox` - 汎用メモ入力
-- `#voice` - 音声メモ
-- `#files` - ファイル添付メモ
-- `#quick-notes` - 簡単なメモ（オプション）
+**📝 MEMO SYSTEM:**
+- `#memo` - 統合入力チャンネル（テキスト・音声・ファイルすべて対応）
 
-**💰 FINANCE カテゴリ（必須）:**
-- `#money` - 支出記録
-- `#finance-reports` - 家計レポート（自動生成）
-- `#income` - 収入記録（オプション）
-- `#subscriptions` - 定期購読管理（オプション）
-
-**📋 PRODUCTIVITY カテゴリ（必須）:**
-- `#tasks` - タスク管理
-- `#productivity-reviews` - 生産性レビュー
-- `#projects` - プロジェクト管理（オプション）
-- `#weekly-reviews` - 週次レビュー（オプション）
-- `#goal-tracking` - 目標トラッキング（オプション）
-
-**🏥 HEALTH カテゴリ（オプション - Garmin統合用）:**
-- `#health-activities` - 運動記録
-- `#health-sleep` - 睡眠データ
-- `#health-wellness` - ウェルネス記録
-- `#health-analytics` - 健康データ分析
-
-**⚙️ SYSTEM カテゴリ（必須）:**
+**⚙️ SYSTEM:**
 - `#notifications` - ボット通知
 - `#commands` - ボットコマンド
-- `#logs` - システムログ（オプション）
 
-**📊 LEGACY カテゴリ（オプション - 下位互換）:**
-- `#activity-log` - 活動ログ
-- `#daily-tasks` - 日次タスク
+**AI 自動分類システム:**
+`#memo` チャンネルに投稿されたコンテンツは AI により自動分類され、適切な Obsidian フォルダに保存されます：
+- 💰 Finance → 支出・収入情報
+- ✅ Tasks → TODO ・プロジェクト管理
+- 🏃 Health → 運動・健康データ
+- 📚 Learning → 学習・読書記録
+- 🎙️ Voice → 音声ファイルの自動文字起こし
+- 📁 Files → ファイル共有
+- 📝 Memos → その他のメモ
 
-#### チャンネルIDの取得方法
+#### チャンネル ID の取得方法
 
 1. Discord の開発者モードを有効化
-2. チャンネルを右クリック → "IDをコピー"
-3. 各チャンネルIDを記録
+2. チャンネルを右クリック → "ID をコピー"
+3. 各チャンネル ID を記録
 
 ### 4. Google Cloud の設定
 
@@ -96,11 +79,11 @@ gcloud billing projects link your-project-id --billing-account=YOUR-BILLING-ACCO
 #### API キーの取得
 
 1. **Gemini API Key**
-   - [Google AI Studio](https://makersuite.google.com/app/apikey) でAPIキーを作成
+   - [Google AI Studio](https://makersuite.google.com/app/apikey) で API キーを作成
 
 2. **Google Cloud Speech API Key**（オプション）
    - Google Cloud Console で Speech-to-Text API を有効化
-   - APIキーまたはサービスアカウントキーを作成
+   - API キーまたはサービスアカウントキーを作成
 
 ### 5. プロジェクトのセットアップ
 
@@ -136,42 +119,8 @@ GOOGLE_CLOUD_SPEECH_API_KEY=your_speech_api_key_here
 # Obsidian 設定
 OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 
-# 必須チャンネルID設定
-CHANNEL_INBOX=your_inbox_channel_id
-CHANNEL_VOICE=your_voice_channel_id
-CHANNEL_FILES=your_files_channel_id
-CHANNEL_MONEY=your_money_channel_id
-CHANNEL_FINANCE_REPORTS=your_finance_reports_channel_id
-CHANNEL_TASKS=your_tasks_channel_id
-CHANNEL_PRODUCTIVITY_REVIEWS=your_productivity_reviews_channel_id
-CHANNEL_NOTIFICATIONS=your_notifications_channel_id
-CHANNEL_COMMANDS=your_commands_channel_id
-
-# レガシーチャンネル（オプション）
-CHANNEL_ACTIVITY_LOG=your_activity_log_channel_id
-CHANNEL_DAILY_TASKS=your_daily_tasks_channel_id
-
-# 拡張チャンネル（オプション）
-# Capture channels
-CHANNEL_QUICK_NOTES=your_quick_notes_channel_id
-
-# Finance channels
-CHANNEL_INCOME=your_income_channel_id
-CHANNEL_SUBSCRIPTIONS=your_subscriptions_channel_id
-
-# Productivity channels
-CHANNEL_PROJECTS=your_projects_channel_id
-CHANNEL_WEEKLY_REVIEWS=your_weekly_reviews_channel_id
-CHANNEL_GOAL_TRACKING=your_goal_tracking_channel_id
-
-# Health channels（Garmin統合時）
-CHANNEL_HEALTH_ACTIVITIES=your_health_activities_channel_id
-CHANNEL_HEALTH_SLEEP=your_health_sleep_channel_id
-CHANNEL_HEALTH_WELLNESS=your_health_wellness_channel_id
-CHANNEL_HEALTH_ANALYTICS=your_health_analytics_channel_id
-
-# System channels
-CHANNEL_LOGS=your_logs_channel_id
+# シンプルな設定（チャンネル ID は不要）
+# ボットが自動検出: memo, notifications, commands
 
 # Garmin Connect 統合（オプション）
 GARMIN_EMAIL=your_garmin_email@example.com
@@ -180,7 +129,7 @@ GARMIN_PASSWORD=your_garmin_password
 GARMIN_CACHE_DIR=/path/to/garmin/cache
 GARMIN_CACHE_HOURS=24.0
 
-# API制限設定
+# API 制限設定
 GEMINI_API_DAILY_LIMIT=1500
 GEMINI_API_MINUTE_LIMIT=15
 SPEECH_API_MONTHLY_LIMIT_MINUTES=60
@@ -276,9 +225,9 @@ uv run python -m src.main --debug
 
 #### Discord での動作確認
 
-1. ボットをDiscordサーバーに招待
-2. `#bot-commands` チャンネルで `/help` コマンドを実行
-3. `#inbox` チャンネルでメッセージを送信してみる
+1. ボットを Discord サーバーに招待
+2. `#commands` チャンネルで `/help` コマンドを実行
+3. `#memo` チャンネルでメッセージを送信してみる
 
 ### 9. コード品質チェック
 
@@ -292,7 +241,7 @@ uv run mypy src/
 # 全ての品質チェック
 uv run ruff check src/ --fix && uv run ruff format src/ && uv run mypy src/
 
-# pre-commitフックのセットアップ（オプション）
+# pre-commit フックのセットアップ（オプション）
 uv run pre-commit install
 uv run pre-commit run --all-files
 ```
@@ -303,7 +252,7 @@ uv run pre-commit run --all-files
 
 **1. ボットが起動しない**
 ```bash
-# ログレベルをDEBUGに変更して詳細を確認
+# ログレベルを DEBUG に変更して詳細を確認
 LOG_LEVEL=DEBUG uv run python -m src.main
 
 # 環境変数の確認
@@ -311,24 +260,24 @@ cat .env.development
 ```
 
 **2. チャンネルが見つからない**
-- チャンネルIDが正しいか確認（開発者モードでIDをコピー）
+- チャンネル ID が正しいか確認（開発者モードで ID をコピー）
 - ボットがサーバーに正しく追加されているか確認
 - ボットの権限を確認（メッセージ送信、添付ファイル）
 
-**3. APIエラー**
+**3. API エラー**
 ```bash
-# APIキーの確認
+# API キーの確認
 echo $GEMINI_API_KEY
 echo $DISCORD_BOT_TOKEN
 
-# API制限の確認
-# Gemini: 1500リクエスト/日, 15リクエスト/分
-# Speech-to-Text: 60分/月（無料版）
+# API 制限の確認
+# Gemini: 1500 リクエスト/日, 15 リクエスト/分
+# Speech-to-Text: 60 分/月（無料版）
 ```
 
-**4. Obsidianファイルが作成されない**
+**4. Obsidian ファイルが作成されない**
 ```bash
-# Obsidianパスの確認
+# Obsidian パスの確認
 ls -la obsidian_vault/
 chmod -R 755 obsidian_vault/
 
@@ -336,7 +285,7 @@ chmod -R 755 obsidian_vault/
 tree obsidian_vault/
 ```
 
-**5. Python依存関係の問題**
+**5. Python 依存関係の問題**
 ```bash
 # 依存関係の再インストール
 uv sync
@@ -358,7 +307,7 @@ ENABLE_MOCK_MODE=true uv run python -m src.main
 ```bash
 # 本番環境用の設定
 cp .env.development .env.production
-# .env.production を本番環境用に編集（SECRET_MANAGER使用推奨）
+# .env.production を本番環境用に編集（ SECRET_MANAGER 使用推奨）
 
 # Cloud Run へのデプロイ
 PROJECT_ID=your-project-id ./deploy.sh
@@ -378,8 +327,8 @@ PROJECT_ID=your-project-id ./deploy.sh
    - `src/bot/channel_config.py` でチャンネルカテゴリ
    - 新しいチャンネルを追加する場合は設定ファイルも更新
 
-4. **AI処理のカスタマイズ**
-   - `src/ai/processor.py` でAI分析ロジック
+4. **AI 処理のカスタマイズ**
+   - `src/ai/processor.py` で AI 分析ロジック
    - プロンプトとカテゴリ分類の調整
 
 #### 監視とヘルスチェック
@@ -395,12 +344,12 @@ tail -f logs/discord_bot.log
 
 #### 高度な機能の有効化
 
-1. **Garmin Connect統合**
-   - Garmin認証情報を設定
+1. **Garmin Connect 統合**
+   - Garmin 認証情報を設定
    - ヘルスチャンネルを作成
    - `test_garmin_integration.py` でテスト
 
-2. **高度なAI機能**
+2. **高度な AI 機能**
    - ベクトル検索の有効化
    - `test_advanced_ai.py` でテスト
 
@@ -409,8 +358,8 @@ tail -f logs/discord_bot.log
 
 ## サポート
 
-- 技術的な質問: GitHubのIssueを作成
+- 技術的な質問: GitHub の Issue を作成
 - ドキュメント: `docs/` ディレクトリを参照
 - デプロイメント: `docs/deployment-guide.md` を参照
 
-このガイドに従ってセットアップを完了すれば、Discord-Obsidian Memo Botが正常に動作するはずです。
+このガイドに従ってセットアップを完了すれば、 Discord-Obsidian Memo Bot が正常に動作するはずです。

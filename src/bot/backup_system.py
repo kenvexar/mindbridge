@@ -68,7 +68,14 @@ class DataBackupSystem(LoggerMixin):
         settings = get_settings()
 
         # GitHub 同期システム
-        self.github_sync = GitHubObsidianSync()
+        self.github_sync = GitHubObsidianSync(
+            vault_path=settings.obsidian_vault_path,
+            github_token=settings.github_token,
+            github_repo_url=settings.obsidian_backup_repo,
+            github_branch=settings.obsidian_backup_branch,
+            git_user_name=settings.git_user_name,
+            git_user_email=settings.git_user_email,
+        )
 
         # バックアップ対象ディレクトリ
         self.backup_sources = {

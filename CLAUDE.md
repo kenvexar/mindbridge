@@ -76,6 +76,41 @@ uv run python -m src.main
 uv run python -m src.main --debug
 ```
 
+### Local Docker Testing
+
+ローカル環境で Docker 上でのボット動作を確認するためのコマンド:
+
+```bash
+# 自動テストスクリプトを実行
+./scripts/docker-local-test.sh
+
+# 手動での Docker 操作
+# 1. イメージビルド
+docker compose build
+
+# 2. コンテナ起動
+docker compose up -d
+
+# 3. ログ監視
+docker compose logs -f
+
+# 4. ヘルスチェック
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
+curl http://localhost:8080/metrics
+
+# 5. コンテナ内シェルアクセス
+docker compose exec mindbridge-bot /bin/bash
+
+# 6. コンテナ停止
+docker compose down
+```
+
+**環境変数設定:**
+- `.env.docker` ファイルを編集して適切な環境変数を設定
+- テスト用の Discord bot token と Gemini API key が必要
+- 本番用の認証情報は使用しないこと
+
 ### Individual Feature Testing
 ```bash
 # Test advanced AI features
@@ -285,35 +320,23 @@ DISCORD_GUILD_ID=your_guild_id
 GEMINI_API_KEY=your_gemini_api_key
 OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 
-# ✅ SIMPLIFIED CHANNEL ARCHITECTURE (2025 年更新)
-# Discord チャンネル数を 3 チャンネルに削減し、 AI によるコンテンツ自動分類を実現
-#
+# Discord チャンネル設定
 # 必須チャンネル (3 つのみ):
-# - #memo            (統合入力チャンネル - テキスト・音声・ファイル全て統合)
+# - #memo            (統合入力チャンネル - テキスト・音声・ファイル全て対応)
 # - #notifications   (システム通知)
 # - #commands        (ボットコマンド)
 #
-# 🎯 MAJOR ARCHITECTURAL CHANGE:
-# • 旧システム: 17+ の専用チャンネル (inbox, money, tasks, health, voice, files, etc.)
-# • 新システム: 3 チャンネルのみ + AI 自動分類
-#
-# 🤖 AI CONTENT CLASSIFICATION:
-# #memo チャンネルに投稿された全てのコンテンツは AI により自動分類され、
+# AI CONTENT CLASSIFICATION:
+# #memo チャンネルに投稿されたコンテンツは AI により自動分類され、
 # Obsidian の適切なフォルダに保存されます:
-# • 💰 Finance → "1500 ランチ", "¥3000 本" → 💰 Finance フォルダ
-# • ✅ Tasks → "TODO: 資料作成", "期限: 明日まで" → ✅ Tasks フォルダ
-# • 🏃 Health → "体重 70kg", "ランニング 5km" → 🏃 Health フォルダ
-# • 📚 Learning → "Python 学習", "読書メモ" → 📚 Learning フォルダ
-# • 🎙️ Voice Memos → 音声ファイル → 📝 自動文字起こし
-# • 📁 Files → ファイル共有 → 📋 適切なフォルダに自動分類
-# • 📝 Quick Notes → 短いメモ → 📝 Quick Notes フォルダ
-# • 📋 Memos → その他全般 → 📋 Memos フォルダ
-#
-# 🔧 BACKWARD COMPATIBILITY REMOVED:
-# • 全ての旧チャンネル ID 設定を削除
-# • voice 、 files チャンネルも memo に統合
-# • レガシー API メソッドを削除
-# • シンプルな 2 カテゴリ構造 (CAPTURE/SYSTEM) に統一
+# • 💰 Finance → "1500 ランチ", "¥3000 本" → Finance フォルダ
+# • ✅ Tasks → "TODO: 資料作成", "期限: 明日まで" → Tasks フォルダ
+# • 🏃 Health → "体重 70kg", "ランニング 5km" → Health フォルダ
+# • 📚 Learning → "Python 学習", "読書メモ" → Learning フォルダ
+# • 🎙️ Voice Memos → 音声ファイル → 自動文字起こし
+# • 📁 Files → ファイル共有 → 適切なフォルダに自動分類
+# • 📝 Quick Notes → 短いメモ → Quick Notes フォルダ
+# • 📋 Memos → その他全般 → Memos フォルダ
 
 # Optional: Voice Recognition
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
@@ -342,9 +365,8 @@ All tests use `pytest-asyncio` with `asyncio_mode = "auto"` for seamless async t
 - **API Limits**: Respects Google Gemini free tier limits (1500/day, 15/minute)
 - **Security**: Uses `SecretStr` for sensitive data, gitleaks pre-commit hook for secret detection
 - **Voice Processing**: Optional feature with 60-minute monthly limit (Google Cloud Speech-to-Text free tier)
-- **Channel Management**: Simplified to 3 channels only (2025 年更新) - AI handles all categorization
+- **Channel Management**: 3 channels with AI-powered categorization
 - **Content Organization**: Obsidian-first approach with AI-powered folder assignment
-- **Backward Compatibility**: All legacy channel APIs removed for simplified architecture
 
 ## Git Workflow
 

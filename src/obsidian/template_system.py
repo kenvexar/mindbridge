@@ -1886,7 +1886,17 @@ class TemplateEngine(LoggerMixin):
             # テンプレートを読み込み
             template_content = await self.load_template(template_name)
             if not template_content:
-                return None
+                self.logger.warning(
+                    "Template not found, creating default template",
+                    template_name=template_name,
+                    template_path=str(self.template_path)
+                )
+                # デフォルトテンプレートを作成
+                await self._create_default_template(template_name)
+                template_content = await self.load_template(template_name)
+                if not template_content:
+                    self.logger.error("Failed to create default template")
+                    return None
 
             # AI 分類結果からターゲットフォルダを事前に決定
             target_folder = self._determine_folder_from_ai_category(ai_result)
@@ -1899,8 +1909,8 @@ class TemplateEngine(LoggerMixin):
             # AI 分類によるフォルダ情報をコンテキストに追加
             context["target_folder"] = target_folder
 
-            self.logger.error(
-                "=== TEMPLATE PROCESSING DEBUG START ===",
+            self.logger.info(
+                "🔧 DEBUG: Template processing start",
                 template_name=template_name,
                 target_folder=target_folder,
                 ai_category=ai_result.category.category.value
@@ -1915,8 +1925,8 @@ class TemplateEngine(LoggerMixin):
             # フロントマターと本文を分離
             frontmatter_dict, content = self._parse_template_content(rendered_content)
 
-            self.logger.error(
-                "=== AFTER TEMPLATE PARSING ===",
+            self.logger.info(
+                "🔧 DEBUG: After template parsing",
                 frontmatter_keys=list(frontmatter_dict.keys()),
                 obsidian_folder_in_frontmatter=frontmatter_dict.get("obsidian_folder"),
                 target_folder_in_context=context.get("target_folder"),
@@ -1926,8 +1936,8 @@ class TemplateEngine(LoggerMixin):
             # 必要なフィールドが不足している場合はデフォルト値を設定
             self._prepare_frontmatter_dict(frontmatter_dict, context)
 
-            self.logger.error(
-                "=== AFTER PREPARE_FRONTMATTER_DICT ===",
+            self.logger.info(
+                "🔧 DEBUG: After prepare frontmatter dict",
                 final_obsidian_folder=frontmatter_dict.get("obsidian_folder"),
             )
 
@@ -2908,3 +2918,54 @@ ai_processed: {{ai_processed}}
 
 -
 """
+
+    async def _create_default_template(self, template_name: str) -> None:
+        """Create a default template file if it doesn't exist."""
+        try:
+            # テンプレートディレクトリの作成
+            self.template_path.mkdir(parents=True, exist_ok=True)
+            
+            # デフォルトテンプレートコンテンツ
+            default_content = """---
+title: "{{title}}"
+tags: [{{#if tags}}{{#each tags}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}{{else}}"memo"{{/if}}]
+created: "{{date_format(current_date, '%Y-%m-%d %H:%M:%S')}}"
+author: "{{author_name}}"
+obsidian_folder: "{{target_folder}}"
+---
+
+# {{title}}
+
+{{content}}
+
+{{#if ai_summary}}
+## 📋 要約
+{{ai_summary}}
+{{/if}}
+
+{{#if ai_tags}}
+## 🏷️ タグ
+{{#each ai_tags}}- {{this}}
+{{/each}}
+{{/if}}
+
+---
+作成日: {{date_format(current_date, "%Y-%m-%d %H:%M")}}
+"""
+            
+            template_file = self.template_path / f"{template_name}.md"
+            async with aiofiles.open(template_file, "w", encoding="utf-8") as f:
+                await f.write(default_content)
+                
+            self.logger.info(
+                "Default template created",
+                template_name=template_name,
+                file_path=str(template_file)
+            )
+            
+        except Exception as e:
+            self.logger.error(
+                "Failed to create default template",
+                template_name=template_name,
+                error=str(e)
+            )
