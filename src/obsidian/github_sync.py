@@ -61,6 +61,23 @@ class GitHubObsidianSync(LoggerMixin):
     @property
     def is_configured(self) -> bool:
         """GitHub 同期が設定されているかチェック"""
+        # Cloud Run 環境では GitHub 同期を無効化
+        import os
+
+        # Cloud Run 環境の検出（複数の環境変数をチェック）
+        is_cloud_run = any(
+            [
+                os.getenv("GOOGLE_CLOUD_PROJECT"),
+                os.getenv("K_SERVICE"),
+                os.getenv("PORT") == "8080",
+                os.getenv("ENVIRONMENT") == "production",
+            ]
+        )
+
+        if is_cloud_run:
+            self.logger.debug("Cloud Run environment detected, disabling GitHub sync")
+            return False
+
         return bool(self.github_token and self.github_repo_url)
 
     async def setup_git_repository(self) -> bool:

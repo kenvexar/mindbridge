@@ -8,7 +8,8 @@ from typing import Any
 
 from ..garmin.client import GarminClient
 from ..obsidian.daily_integration import DailyNoteIntegration
-from ..utils.mixins import LoggerMixin
+
+# LoggerMixin は使用しない - 直接 structlog を使用
 from .analyzer import HealthDataAnalyzer
 from .integrator import HealthActivityIntegrator
 from .models import AnalysisReport, ChangeDetection, ChangeType
@@ -16,7 +17,7 @@ from .models import AnalysisReport, ChangeDetection, ChangeType
 # Settings loaded lazily to avoid circular imports
 
 
-class HealthAnalysisScheduler(LoggerMixin):
+class HealthAnalysisScheduler:
     """健康データ分析の自動スケジューラー"""
 
     def __init__(
@@ -35,6 +36,11 @@ class HealthAnalysisScheduler(LoggerMixin):
             integrator: 健康・活動統合器
             daily_integration: デイリーノート統合
         """
+        # 直接 structlog でロガーを初期化
+        import structlog
+
+        self.logger = structlog.get_logger("HealthAnalysisScheduler")
+
         self.garmin_client = garmin_client
         self.analyzer = analyzer
         self.integrator = integrator
@@ -49,16 +55,7 @@ class HealthAnalysisScheduler(LoggerMixin):
         self.last_weekly_analysis: date | None = None
         self.analysis_in_progress = False
 
-        # ロガーの初期化テスト（問題がある場合はここでキャッチ）
-        try:
-            self.logger.info("Health analysis scheduler initialized")
-        except AttributeError as e:
-            # フォールバック: 直接 structlog を使用
-            import structlog
-
-            logger = structlog.get_logger("HealthAnalysisScheduler")
-            logger.error(f"Logger initialization failed: {e}")
-            logger.info("Health analysis scheduler initialized (fallback logger)")
+        self.logger.info("Health analysis scheduler initialized")
 
     async def start_scheduler(self) -> None:
         """スケジューラーを開始"""
