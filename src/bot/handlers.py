@@ -616,62 +616,13 @@ class MessageHandler(LoggerMixin):
                 f"📝 DEBUG: Skipping Obsidian note creation - missing dependencies: obsidian_manager={self.obsidian_manager is not None}, template_engine={self.template_engine is not None}"
             )
 
-        # 🔧 FORCE GITHUB SYNC: 強制的な GitHub 同期実行 - 改善版
-        self.logger.error("FORCE: Starting enhanced GitHub sync with improved branch handling")
-        try:
-            from src.obsidian.github_sync import GitHubObsidianSync
-            direct_github_sync = GitHubObsidianSync()
-            self.logger.error(f"FORCE: Direct GitHub sync initialized - is_configured: {direct_github_sync.is_configured}")
-            
-            if direct_github_sync.is_configured:
-                self.logger.error("FORCE: GitHub sync is configured, attempting sync")
-                
-                # セットアップとファイル作成を強制実行
-                setup_success = await direct_github_sync.setup_git_repository()
-                self.logger.error(f"FORCE: Git repository setup success: {setup_success}")
-                
-                # 変更の有無に関係なく強制的に同期実行
-                message_content = message_data.get("metadata", {}).get("content", {}).get("raw_content", "Discord message")
-                commit_message = f"Auto-sync: {message_content[:50]}..."
-                
-                # 強制的にファイルを追加、コミット、プッシュ - 改善版
-                try:
-                    # Git add with detailed output
-                    add_result = await direct_github_sync._run_git_command(["add", "."], capture_output=True, check=False)
-                    self.logger.error(f"FORCE: Git add result - returncode: {add_result.returncode}, stdout: {add_result.stdout}, stderr: {add_result.stderr}")
-                    
-                    # Git status to see what's staged
-                    status_result = await direct_github_sync._run_git_command(["status", "--porcelain"], capture_output=True, check=False)
-                    self.logger.error(f"FORCE: Git status result - files to commit: {status_result.stdout}")
-                    
-                    if status_result.stdout.strip():
-                        # Git commit with detailed output
-                        commit_result = await direct_github_sync._run_git_command(["commit", "-m", commit_message], capture_output=True, check=False)
-                        self.logger.error(f"FORCE: Git commit result - returncode: {commit_result.returncode}, stdout: {commit_result.stdout}, stderr: {commit_result.stderr}")
-                        
-                        if commit_result.returncode == 0:
-                            # Test remote connection before push
-                            remote_result = await direct_github_sync._run_git_command(["remote", "-v"], capture_output=True, check=False)
-                            self.logger.error(f"FORCE: Git remote check - remotes: {remote_result.stdout}")
-                            
-                            # Use the new push with retry method
-                            try:
-                                await direct_github_sync._push_with_retry()
-                                self.logger.error("FORCE: ✅ Successfully pushed changes to GitHub using retry method")
-                            except Exception as push_error:
-                                self.logger.error(f"FORCE: ❌ Push failed with push_with_retry: {push_error}")
-                        else:
-                            self.logger.error(f"FORCE: ❌ Commit failed with return code {commit_result.returncode}")
-                    else:
-                        self.logger.error("FORCE: ⚠️ No changes to commit")
-                        
-                except Exception as git_error:
-                    self.logger.error(f"FORCE: Git operation failed with exception: {git_error}", exc_info=True)
-            else:
-                self.logger.error("FORCE: GitHub sync not configured")
-                
-        except Exception as force_error:
-            self.logger.error(f"FORCE: Failed to initialize direct GitHub sync: {force_error}", exc_info=True)
+        # GitHub 同期 - シンプル版
+        if hasattr(self, 'github_sync') and self.github_sync and self.github_sync.is_configured:
+            try:
+                await self.github_sync.sync_to_github("Auto-sync from Discord message")
+                self.logger.info("GitHub sync completed successfully")
+            except Exception as e:
+                self.logger.error(f"GitHub sync failed: {e}")
 
     def _generate_activity_log_title(
         self,
