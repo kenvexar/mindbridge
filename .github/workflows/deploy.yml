@@ -96,6 +96,12 @@ jobs:
         gcloud run services replace temp-deploy.yaml \
           --region=${{ env.REGION }}
 
+        # Allow unauthenticated access to the service (required for health checks)
+        gcloud run services add-iam-policy-binding ${{ env.SERVICE_NAME }} \
+          --region=${{ env.REGION }} \
+          --member="allUsers" \
+          --role="roles/run.invoker"
+
     - name: Get service URL
       id: url
       run: |
