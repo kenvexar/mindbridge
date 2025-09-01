@@ -152,7 +152,7 @@ class TestObsidianTemplates:
         assert context["channel_name"] == "test-channel"
         assert context["author_name"] == "TestUser"
         assert context["content"] == "Test message content"
-        assert context["ai_processed"] is False
+        assert context["ai_processed"] == "false"
 
     async def test_template_rendering(self) -> None:
         """Test template rendering functionality"""

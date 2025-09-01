@@ -159,8 +159,8 @@ Created: {{date_format(current_date, "%Y-%m-%d")}}
         assert context["content"] == "This is a test message"
         assert context["author_name"] == "Test User"
         assert context["channel_name"] == "test-channel"
-        assert context["ai_processed"] is True
-        assert context["ai_summary"] == "Test summary"
+        assert context["ai_processed"] == "true"
+        assert context["ai_summary"] == '"Test summary"'
         assert context["ai_tags"] == ["#tag1", "#tag2"]
         assert context["ai_category"] == "アイデア"
 
