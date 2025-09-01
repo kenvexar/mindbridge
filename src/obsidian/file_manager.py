@@ -336,7 +336,6 @@ class ObsidianFileManager(LoggerMixin):
             duplicate_patterns = [
                 r"## 📅 メタデータ.*?(?=##|\Z)",  # メタデータセクション
                 r"## 🔗 関連リンク.*?(?=##|\Z)",  # 関連リンクセクション
-                r"---\n\*このノートはDiscord-Obsidian Memo Botによって自動生成されました\*",  # フッター
                 r"# 📝\s*\n*",  # 重複するタイトル
             ]
 
@@ -380,7 +379,7 @@ class ObsidianFileManager(LoggerMixin):
 
         except Exception as e:
             self.logger.warning("Failed to clean duplicate sections", error=str(e))
-            return new_content  # 失敗した場合は元のコンテンツを返す
+            return new_content  # 失敗した場合は元のコンテンツを返す  # 失敗した場合は元のコンテンツを返す
 
     async def save_or_append_daily_note(self, note: ObsidianNote) -> bool:
         """
@@ -479,31 +478,23 @@ class ObsidianFileManager(LoggerMixin):
             改善されたコンテンツ
         """
         try:
-            # メタデータとフッターを抽出
+            # メタデータとリンクを抽出
             metadata_match = re.search(
                 r"(## 📅 メタデータ.*?)(?=##|---|\Z)", content, re.DOTALL
             )
             links_match = re.search(
                 r"(## 🔗 関連リンク.*?)(?=##|---|\Z)", content, re.DOTALL
             )
-            footer_match = re.search(
-                r"(---\n\*このノートはDiscord-Obsidian Memo Bot.*?(?=##|\Z))",
-                content,
-                re.DOTALL,
-            )
 
             metadata_section = metadata_match.group(1) if metadata_match else ""
             links_section = links_match.group(1) if links_match else ""
-            footer_section = footer_match.group(1) if footer_match else ""
 
-            # メイン内容部分を抽出（メタデータ・リンク・フッターを除去）
+            # メイン内容部分を抽出（メタデータ・リンクを除去）
             main_content = content
             if metadata_section:
                 main_content = main_content.replace(metadata_section, "")
             if links_section:
                 main_content = main_content.replace(links_section, "")
-            if footer_section:
-                main_content = main_content.replace(footer_section, "")
 
             # 最初のメッセージから時系列エントリを作成
             content_match = re.search(
@@ -529,8 +520,7 @@ class ObsidianFileManager(LoggerMixin):
 {metadata_section}
 
 {links_section}
-
-{footer_section}"""
+"""
             else:
                 # フォールバック
                 restructured = main_content
@@ -993,10 +983,7 @@ class ObsidianFileManager(LoggerMixin):
 ## 📊 メタデータ
 - **作成者**: {{author_name}}
 - **作成日時**: {{created_time}}
-- **AI処理時間**: {{processing_time}}ms
-
----
-*このノートはDiscord-Obsidian Memo Botによって自動生成されました*"""
+- **AI処理時間**: {{processing_time}}ms"""
 
         message_template_path = templates_dir / "message_note_template.md"
         if not message_template_path.exists():
