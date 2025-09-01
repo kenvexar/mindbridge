@@ -343,6 +343,11 @@ Thumbs.db
         self, args: list[str], capture_output: bool = False, check: bool = True
     ) -> subprocess.CompletedProcess[str]:
         """Git コマンドを実行"""
+        # Vault パスが存在しない場合は作成
+        if not self.vault_path.exists():
+            self.vault_path.mkdir(parents=True, exist_ok=True)
+            self.logger.debug(f"Created vault directory: {self.vault_path}")
+
         cmd = ["git", "-C", str(self.vault_path)] + args
 
         try:

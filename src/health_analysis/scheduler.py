@@ -35,6 +35,9 @@ class HealthAnalysisScheduler(LoggerMixin):
             integrator: 健康・活動統合器
             daily_integration: デイリーノート統合
         """
+        # LoggerMixin の初期化
+        super().__init__()
+        
         self.garmin_client = garmin_client
         self.analyzer = analyzer
         self.integrator = integrator
