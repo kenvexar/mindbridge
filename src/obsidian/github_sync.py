@@ -156,9 +156,17 @@ Thumbs.db
 
         if self.github_repo_url.startswith("https://github.com/"):
             # HTTPS URL の場合はトークンを挿入
-            return self.github_repo_url.replace(
+            authenticated_url = self.github_repo_url.replace(
                 "https://github.com/", f"https://{self.github_token}@github.com/"
             )
+            # トークンを隠してログに出力
+            safe_url = self.github_repo_url.replace(
+                "https://github.com/", f"https://***TOKEN***@github.com/"
+            )
+            self.logger.info(f"Generated authenticated URL: {safe_url}")
+            return authenticated_url
+        
+        self.logger.info(f"Using original repo URL (not HTTPS): {self.github_repo_url}")
         return self.github_repo_url
 
     async def sync_to_github(self, commit_message: str | None = None) -> bool:
@@ -180,8 +188,8 @@ Thumbs.db
             message = commit_message or f"Auto-sync: {datetime.now().isoformat()}"
             await self._run_git_command(["commit", "-m", message])
 
-            # プッシュ
-            await self._run_git_command(["push", "origin", self.github_branch])
+            # プッシュ（初回プッシュに対応）
+            await self._push_with_retry()
 
             self.logger.info("Successfully synced vault to GitHub")
             return True
@@ -189,6 +197,61 @@ Thumbs.db
         except Exception as e:
             self.logger.error(f"Failed to sync to GitHub: {e}")
             return False
+
+    async def _push_with_retry(self) -> None:
+        """初回プッシュに対応したプッシュ処理"""
+        try:
+            # 設定されたブランチを強制的に使用（現在のブランチに依存しない）
+            target_branch = self.github_branch  # 常に設定されたブランチ（main）を使用
+            
+            # 現在のブランチを確認（デバッグ用）
+            branch_result = await self._run_git_command(
+                ["branch", "--show-current"], capture_output=True, check=False
+            )
+            current_branch = branch_result.stdout.strip() if branch_result.returncode == 0 else "none"
+            
+            self.logger.info(f"Current branch: {current_branch}, Target branch: {target_branch}")
+            
+            # 目標ブランチが現在のブランチと異なる場合は切り替え
+            if current_branch != target_branch:
+                # ブランチが存在するかチェック
+                branch_exists = await self._run_git_command(
+                    ["branch", "--list", target_branch], capture_output=True, check=False
+                )
+                
+                if branch_exists.stdout.strip():
+                    # ブランチが存在する場合は切り替え
+                    await self._run_git_command(["checkout", target_branch])
+                    self.logger.info(f"Switched to existing branch: {target_branch}")
+                else:
+                    # ブランチが存在しない場合は作成して切り替え
+                    await self._run_git_command(["checkout", "-b", target_branch])
+                    self.logger.info(f"Created and switched to new branch: {target_branch}")
+            
+            # 最初に通常のプッシュを試行
+            push_result = await self._run_git_command(
+                ["push", "origin", target_branch], check=False, capture_output=True
+            )
+            
+            if push_result.returncode == 0:
+                self.logger.info(f"Push successful to {target_branch}")
+                return
+            
+            # 初回プッシュの場合はupstreamを設定してリトライ
+            if "does not match any" in push_result.stderr or "no upstream branch" in push_result.stderr:
+                self.logger.info(f"Attempting first push with upstream setup to {target_branch}")
+                await self._run_git_command(
+                    ["push", "-u", "origin", target_branch]
+                )
+                self.logger.info(f"First push successful to {target_branch}")
+                return
+            
+            # その他のエラーは再発生させる
+            raise GitHubSyncError(f"Push failed to {target_branch}: {push_result.stderr}")
+            
+        except Exception as e:
+            self.logger.error(f"Push failed: {e}")
+            raise
 
     async def sync_from_github(self) -> bool:
         """GitHub から Obsidian vault を同期"""

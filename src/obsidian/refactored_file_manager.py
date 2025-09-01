@@ -281,7 +281,6 @@ class ObsidianFileManager(LoggerMixin):
             duplicate_patterns = [
                 r"## 📅 メタデータ.*?(?=##|\Z)",  # メタデータセクション
                 r"## 🔗 関連リンク.*?(?=##|\Z)",  # 関連リンクセクション
-                r"---\n\*このノートは Discord-Obsidian Memo Bot によって自動生成されました\*",  # フッター
                 r"# 📝\s*\n*",  # 重複するタイトル
             ]
 
@@ -325,7 +324,7 @@ class ObsidianFileManager(LoggerMixin):
 
         except Exception as e:
             self.logger.warning("Failed to clean duplicate sections", error=str(e))
-            return new_content  # 失敗した場合は元のコンテンツを返す
+            return new_content  # 失敗した場合は元のコンテンツを返す  # 失敗した場合は元のコンテンツを返す
 
     def _parse_markdown_file(self, content: str) -> tuple[dict[str, Any], str]:
         """
@@ -415,10 +414,7 @@ class ObsidianFileManager(LoggerMixin):
 ## 📊 メタデータ
 - **作成者**: {{author_name}}
 - **作成日時**: {{created_time}}
-- **AI 処理時間**: {{processing_time}}ms
-
----
-*このノートは Discord-Obsidian Memo Bot によって自動生成されました*"""
+- **AI 処理時間**: {{processing_time}}ms"""
 
         message_template_path = templates_dir / "message_note_template.md"
         if not message_template_path.exists():
@@ -451,10 +447,7 @@ class ObsidianFileManager(LoggerMixin):
 {{daily_tags}}
 
 ## 📎 添付ファイル
-{{daily_attachments}}
-
----
-*このノートは毎日自動更新されます*"""
+{{daily_attachments}}"""
 
         daily_template_path = templates_dir / "daily_note_template.md"
         if not daily_template_path.exists():

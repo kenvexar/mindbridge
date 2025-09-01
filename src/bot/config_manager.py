@@ -1,5 +1,5 @@
 """
-Dynamic configuration management system for Discord-Obsidian Bot
+Dynamic configuration management system for MindBridge
 """
 
 import json

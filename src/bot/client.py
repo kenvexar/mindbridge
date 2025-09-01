@@ -203,7 +203,7 @@ class DiscordBot(LoggerMixin):
             if self.notification_system:
                 await self.notification_system.send_system_event_notification(
                     event_type="Bot Startup",
-                    description="Discord-Obsidian Bot が正常に起動しました。",
+                    description="MindBridge が正常に起動しました。",
                     system_info={
                         "mode": "Production Mode",
                         "guild": self.guild.name,
@@ -404,7 +404,7 @@ class DiscordBot(LoggerMixin):
         if self.notification_system:
             await self.notification_system.send_system_event_notification(
                 event_type="Bot Startup",
-                description="Discord-Obsidian Bot が正常に起動しました（モックモード）。",
+                description="MindBridge が正常に起動しました（モックモード）。",
                 system_info={
                     "mode": "Mock Mode",
                     "guild": self.guild.name if self.guild else "N/A",

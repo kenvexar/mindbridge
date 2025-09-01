@@ -1696,26 +1696,34 @@ class TemplateEngine(LoggerMixin):
                 }
             )
 
-        # AI 処理結果から抽出
+        # AI 処理結果から抽出 (YAML safe values)
         if ai_result:
             # AI 要約の適切な処理
             ai_summary = ""
             if ai_result.summary and ai_result.summary.summary:
                 ai_summary = self._clean_content_text(ai_result.summary.summary)
+                # YAML エラーを防ぐため改行や特殊文字を処理
+                ai_summary = ai_summary.replace('\n', ' ').replace('\r', ' ').strip()
+
+            # タグをYAML配列形式で準備
+            ai_tags = ai_result.tags.tags if ai_result.tags else []
+            
+            # キーポイントもYAML safe に
+            ai_key_points = (
+                [
+                    self._clean_content_text(point).replace('\n', ' ').replace('\r', ' ').strip()
+                    for point in ai_result.summary.key_points
+                ]
+                if ai_result.summary and ai_result.summary.key_points
+                else []
+            )
 
             context.update(
                 {
-                    "ai_processed": True,
-                    "ai_summary": ai_summary,
-                    "ai_key_points": (
-                        [
-                            self._clean_content_text(point)
-                            for point in ai_result.summary.key_points
-                        ]
-                        if ai_result.summary and ai_result.summary.key_points
-                        else []
-                    ),
-                    "ai_tags": ai_result.tags.tags if ai_result.tags else [],
+                    "ai_processed": "true",  # YAML boolean として文字列で出力
+                    "ai_summary": f'"{ai_summary}"',  # クォートで囲んで安全に
+                    "ai_key_points": ai_key_points,
+                    "ai_tags": ai_tags,
                     "ai_category": (
                         ai_result.category.category.value if ai_result.category else ""
                     ),
@@ -1725,9 +1733,9 @@ class TemplateEngine(LoggerMixin):
                         else 0.0
                     ),
                     "ai_reasoning": (
-                        self._clean_content_text(ai_result.category.reasoning)
+                        f'"{self._clean_content_text(ai_result.category.reasoning).replace("\n", " ").replace("\r", " ").strip()}"'
                         if ai_result.category and ai_result.category.reasoning
-                        else ""
+                        else '""'
                     ),
                     "processing_time": (
                         ai_result.processing_time_ms
@@ -1739,13 +1747,13 @@ class TemplateEngine(LoggerMixin):
         else:
             context.update(
                 {
-                    "ai_processed": False,
-                    "ai_summary": "",
+                    "ai_processed": "false",  # YAML boolean として文字列で出力
+                    "ai_summary": '""',
                     "ai_key_points": [],
                     "ai_tags": [],
                     "ai_category": "",
                     "ai_confidence": 0.0,
-                    "ai_reasoning": "",
+                    "ai_reasoning": '""',
                     "processing_time": 0,
                 }
             )
@@ -2231,15 +2239,90 @@ class TemplateEngine(LoggerMixin):
 
                 frontmatter_yaml = match.group(1)
                 main_content = match.group(2)
+                
+                # YAML safe loading with error handling
                 frontmatter_dict = yaml.safe_load(frontmatter_yaml) or {}
+                
+                # Post-process YAML values for safety
+                frontmatter_dict = self._sanitize_yaml_values(frontmatter_dict)
+                
             except ImportError:
                 self.logger.warning(
                     "PyYAML not available, skipping frontmatter parsing"
                 )
+            except yaml.YAMLError as e:
+                self.logger.warning("YAML parsing error", error=str(e), yaml_content=frontmatter_yaml[:200])
+                # Try to fix common YAML issues
+                try:
+                    fixed_yaml = self._fix_common_yaml_issues(frontmatter_yaml)
+                    frontmatter_dict = yaml.safe_load(fixed_yaml) or {}
+                    frontmatter_dict = self._sanitize_yaml_values(frontmatter_dict)
+                except Exception:
+                    self.logger.error("Failed to fix YAML issues, using empty frontmatter")
             except Exception as e:
                 self.logger.warning("Failed to parse YAML frontmatter", error=str(e))
 
         return frontmatter_dict, main_content
+
+    def _sanitize_yaml_values(self, data: dict[str, Any]) -> dict[str, Any]:
+        """YAML値を安全な形式に変換"""
+        sanitized = {}
+        for key, value in data.items():
+            if isinstance(value, bool):
+                # Python boolean を YAML boolean 文字列に変換
+                sanitized[key] = "true" if value else "false"
+            elif isinstance(value, str):
+                # 文字列の安全性チェック
+                if value.startswith('"') and value.endswith('"'):
+                    sanitized[key] = value  # 既にクォートされている
+                elif any(char in value for char in ['\n', '\r', ':', '[', ']', '{', '}', '&', '*']):
+                    sanitized[key] = f'"{value.replace(chr(34), chr(92) + chr(34))}"'  # エスケープしてクォート
+                else:
+                    sanitized[key] = value
+            elif isinstance(value, list):
+                # リストを YAML 配列形式に確実に変換
+                sanitized[key] = [str(item) if not isinstance(item, (int, float)) else item for item in value]
+            else:
+                sanitized[key] = value
+        return sanitized
+
+    def _fix_common_yaml_issues(self, yaml_content: str) -> str:
+        """よくある YAML 構文エラーを修正"""
+        lines = yaml_content.split('\n')
+        fixed_lines = []
+        
+        for line in lines:
+            # Python boolean を YAML boolean に変換
+            line = re.sub(r':\s*True\s*$', ': true', line)
+            line = re.sub(r':\s*False\s*$', ': false', line)
+            
+            # Python リスト形式を YAML 配列形式に変換
+            if re.match(r'^\s*\w+:\s*\[.*\]$', line):
+                key_match = re.match(r'^(\s*)(\w+):\s*\[(.*)\]$', line)
+                if key_match:
+                    indent, key, content = key_match.groups()
+                    if content.strip():
+                        # リスト項目を抽出してYAML配列形式に変換
+                        items = [item.strip().strip("'\"") for item in content.split(',') if item.strip()]
+                        fixed_lines.append(f'{indent}{key}:')
+                        for item in items:
+                            fixed_lines.append(f'{indent}  - {item}')
+                    else:
+                        fixed_lines.append(f'{indent}{key}: []')
+                else:
+                    fixed_lines.append(line)
+            else:
+                # マルチライン文字列の処理
+                if ': *' in line and not line.strip().endswith('*'):
+                    # 不正なエイリアス参照を修正
+                    line = re.sub(r':\s*\*\s*$', ': ""', line)
+                elif ': &' in line and not re.search(r'&\w+', line):
+                    # 不正なエイリアス定義を修正
+                    line = re.sub(r':\s*&\s*$', ': ""', line)
+                
+                fixed_lines.append(line)
+        
+        return '\n'.join(fixed_lines)
 
     def _prepare_frontmatter_dict(
         self, frontmatter_dict: dict[str, Any], context: dict[str, Any]
@@ -2630,7 +2713,7 @@ tags:
   - {{date_format(current_date, "%Y-%m")}}
 ai_processed: {{ai_processed}}
 {{#if ai_processed}}
-ai_summary: "{{ai_summary}}"
+ai_summary: {{ai_summary}}
 ai_category: {{ai_category}}
 ai_confidence: {{ai_confidence}}
 {{/if}}
@@ -2714,10 +2797,7 @@ modified: {{date_iso}}
 ## 🏷️ タグ
 
 {{tag_list(ai_tags)}}
-{{/if}}
-
----
-*このノートは Discord-Obsidian Memo Bot によって自動生成されました*"""
+{{/if}}"""
 
     def _get_idea_note_template(self) -> str:
         """アイデアノートテンプレート"""
@@ -2736,7 +2816,7 @@ tags:
 {{/if}}
 ai_processed: {{ai_processed}}
 {{#if ai_processed}}
-ai_summary: "{{ai_summary}}"
+ai_summary: {{ai_summary}}
 ai_confidence: {{ai_confidence}}
 {{/if}}
 ---
@@ -2787,10 +2867,7 @@ ai_confidence: {{ai_confidence}}
 {{/if}}
 ## 📅 作成日時
 
-{{date_format(current_date, "%Y 年%m 月%d 日 %H:%M")}}
-
----
-*このノートは Discord-Obsidian Memo Bot によって自動生成されました*"""
+{{date_format(current_date, "%Y 年%m 月%d 日 %H:%M")}}"""
 
     def _get_meeting_note_template(self) -> str:
         """会議ノートテンプレート"""

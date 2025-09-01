@@ -1,5 +1,5 @@
 """
-Enhanced notification and feedback system for Discord-Obsidian Bot
+Enhanced notification and feedback system for MindBridge
 """
 
 from datetime import datetime
@@ -125,7 +125,7 @@ class NotificationSystem(LoggerMixin):
                     embed.add_field(name="詳細情報", value=details_text, inline=False)
 
             # フッター設定
-            embed.set_footer(text="Discord-Obsidian Bot 通知システム")
+            embed.set_footer(text="MindBridge 通知システム")
 
             # メッセージ送信
             content = user_mention if user_mention else None
