@@ -34,16 +34,16 @@ main() {
     echo
     echo "Project ID: $PROJECT_ID"
     echo
-    
+
     # Check if gcloud is authenticated
     if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | head -1 &> /dev/null; then
         error "Not authenticated with gcloud. Run: gcloud auth login"
     fi
-    
+
     # Enable Secret Manager API
     log "Enabling Secret Manager API..."
     gcloud services enable secretmanager.googleapis.com --project="$PROJECT_ID"
-    
+
     echo -e "${YELLOW}GitHub 関連の設定を行います${NC}"
     echo
     echo "必要な情報:"
@@ -63,26 +63,26 @@ main() {
     echo "3. プライベート設定を選択"
     echo
     read -p "準備ができたら Enter を押してください..."
-    
+
     echo
     echo "GitHub Personal Access Token を入力してください:"
     echo "(入力は非表示になります)"
     read -s github_token
     echo
-    
+
     if [[ -z "$github_token" ]]; then
         error "GitHub token が入力されていません"
     fi
-    
+
     echo "Obsidian バックアップリポジトリの URL を入力してください:"
     echo "例: https://github.com/yourusername/obsidian-vault.git"
     read backup_repo
     echo
-    
+
     if [[ -z "$backup_repo" ]]; then
         error "リポジトリ URL が入力されていません"
     fi
-    
+
     # Create or update secrets
     log "GitHub token を設定中..."
     if gcloud secrets describe "github-token" --project="$PROJECT_ID" &>/dev/null; then
@@ -94,7 +94,7 @@ main() {
             --data-file=- --project="$PROJECT_ID"
         log "GitHub token を作成しました"
     fi
-    
+
     log "バックアップリポジトリ URL を設定中..."
     if gcloud secrets describe "obsidian-backup-repo" --project="$PROJECT_ID" &>/dev/null; then
         echo -n "$backup_repo" | gcloud secrets versions add "obsidian-backup-repo" \
@@ -105,18 +105,18 @@ main() {
             --data-file=- --project="$PROJECT_ID"
         log "バックアップリポジトリ URL を作成しました"
     fi
-    
+
     # Set up IAM permissions
     log "IAM 権限を設定中..."
     SERVICE_ACCOUNT="mindbridge-service@${PROJECT_ID}.iam.gserviceaccount.com"
-    
+
     for secret in "github-token" "obsidian-backup-repo"; do
         gcloud secrets add-iam-policy-binding "$secret" \
             --member="serviceAccount:$SERVICE_ACCOUNT" \
             --role="roles/secretmanager.secretAccessor" \
             --project="$PROJECT_ID" 2>/dev/null || true
     done
-    
+
     echo
     echo -e "${GREEN}✅ GitHub シークレットの設定が完了しました！${NC}"
     echo

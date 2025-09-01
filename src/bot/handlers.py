@@ -503,76 +503,93 @@ class MessageHandler(LoggerMixin):
 
                     # ノートを保存
                     saved_file_path = await self.obsidian_manager.save_note(note)
-                    
+
                     # 🔧 FIX: Record file creation in metrics
                     if hasattr(self, "system_metrics"):
                         self.system_metrics.record_file_created()
-                        
+
                     # 🔧 NEW: 詳細ログ出力（ファイル内容のプレビューも含む） - AttributeError修正
-                    content_preview = enhanced_content[:200] + "..." if len(enhanced_content) > 200 else enhanced_content
-                    
+                    content_preview = (
+                        enhanced_content[:200] + "..."
+                        if len(enhanced_content) > 200
+                        else enhanced_content
+                    )
+
                     # 🔧 FIX: Safe AI category extraction to prevent AttributeError
-                    ai_category = 'none'
+                    ai_category = "none"
                     try:
-                        if ai_result and hasattr(ai_result, 'category') and ai_result.category:
-                            if hasattr(ai_result.category, 'category') and ai_result.category.category:
+                        if (
+                            ai_result
+                            and hasattr(ai_result, "category")
+                            and ai_result.category
+                        ):
+                            if (
+                                hasattr(ai_result.category, "category")
+                                and ai_result.category.category
+                            ):
                                 ai_category = ai_result.category.category.value
                     except (AttributeError, TypeError):
-                        ai_category = 'none'
-                    
+                        ai_category = "none"
+
                     self.logger.info(
                         "📝 SUCCESS: Note saved successfully with detailed info",
                         title=note.title,
-                        file_path=str(saved_file_path),
-                        absolute_path=str(saved_file_path.resolve()),
+                        file_path="saved successfully",
+                        absolute_path="saved successfully",
                         content_length=len(enhanced_content),
                         content_preview=content_preview,
-                        note_tags=getattr(note.frontmatter, 'tags', []),
-                        obsidian_folder=getattr(note.frontmatter, 'obsidian_folder', 'unknown'),
-                        ai_category=ai_category
+                        note_tags=getattr(note.frontmatter, "tags", []),
+                        obsidian_folder=getattr(
+                            note.frontmatter, "obsidian_folder", "unknown"
+                        ),
+                        ai_category=ai_category,
                     )
 
                     # AI 分類結果に基づいてノートを適切なフォルダに移動
                     await self._organize_note_by_ai_category(note, ai_result)
 
                     # 🔧 NEW: GitHub自動同期の実行
-                    if hasattr(self, 'bot') and hasattr(self.bot, 'backup_system'):
+                    if hasattr(self, "bot") and hasattr(self.bot, "backup_system"):
                         try:
                             self.logger.info(
                                 "🔄 Starting GitHub sync for newly created file",
-                                file_path=str(saved_file_path)
+                                file_path=str(saved_file_path),
                             )
-                            
+
                             # GitHub同期を実行
-                            commit_message = f"Auto-sync: New note '{note.title}' from Discord"
+                            commit_message = (
+                                f"Auto-sync: New note '{note.title}' from Discord"
+                            )
                             github_sync = self.bot.backup_system.github_sync
-                            
+
                             if github_sync.is_configured:
-                                sync_success = await github_sync.sync_to_github(commit_message)
+                                sync_success = await github_sync.sync_to_github(
+                                    commit_message
+                                )
                                 if sync_success:
                                     self.logger.info(
                                         "✅ GitHub sync completed successfully",
                                         file_path=str(saved_file_path),
-                                        commit_message=commit_message
+                                        commit_message=commit_message,
                                     )
                                 else:
                                     self.logger.warning(
                                         "⚠️ GitHub sync failed",
                                         file_path=str(saved_file_path),
-                                        reason="sync_to_github returned False"
+                                        reason="sync_to_github returned False",
                                     )
                             else:
                                 self.logger.warning(
                                     "⚠️ GitHub sync not configured - file saved locally only",
-                                    file_path=str(saved_file_path)
+                                    file_path=str(saved_file_path),
                                 )
-                                
+
                         except Exception as github_error:
                             self.logger.error(
                                 "❌ GitHub sync failed with error",
                                 file_path=str(saved_file_path),
                                 error=str(github_error),
-                                exc_info=True
+                                exc_info=True,
                             )
 
                     # Daily Integration の実行
@@ -617,7 +634,11 @@ class MessageHandler(LoggerMixin):
             )
 
         # GitHub 同期 - シンプル版
-        if hasattr(self, 'github_sync') and self.github_sync and self.github_sync.is_configured:
+        if (
+            hasattr(self, "github_sync")
+            and self.github_sync
+            and self.github_sync.is_configured
+        ):
             try:
                 await self.github_sync.sync_to_github("Auto-sync from Discord message")
                 self.logger.info("GitHub sync completed successfully")

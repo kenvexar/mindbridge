@@ -35,50 +35,50 @@ error() {
 # Validate prerequisites
 check_prerequisites() {
     log "Checking prerequisites..."
-    
+
     if ! command -v gcloud &> /dev/null; then
         error "gcloud CLI is not installed. Please install Google Cloud SDK."
     fi
-    
+
     if ! command -v docker &> /dev/null; then
         error "Docker is not installed. Please install Docker."
     fi
-    
+
     if [[ -z "$PROJECT_ID" ]]; then
         error "PROJECT_ID is not set. Please provide it as an argument or configure gcloud."
     fi
-    
+
     # Check if user is authenticated
     if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | head -1 &> /dev/null; then
         error "Not authenticated with gcloud. Run: gcloud auth login"
     fi
-    
+
     log "Prerequisites check passed ✓"
 }
 
 # Enable required APIs
 enable_apis() {
     log "Enabling required Google Cloud APIs..."
-    
+
     gcloud services enable \
         run.googleapis.com \
         cloudbuild.googleapis.com \
         containerregistry.googleapis.com \
         secretmanager.googleapis.com \
         --project="$PROJECT_ID"
-    
+
     log "APIs enabled ✓"
 }
 
 # Create secrets if they don't exist
 create_secrets() {
     log "Checking secrets..."
-    
+
     if ! gcloud secrets describe discord-bot-token --project="$PROJECT_ID" &>/dev/null; then
         warn "discord-bot-token secret not found. Please create it manually:"
         echo "  echo -n 'YOUR_DISCORD_TOKEN' | gcloud secrets create discord-bot-token --data-file=-"
     fi
-    
+
     if ! gcloud secrets describe gemini-api-key --project="$PROJECT_ID" &>/dev/null; then
         warn "gemini-api-key secret not found. Please create it manually:"
         echo "  echo -n 'YOUR_GEMINI_API_KEY' | gcloud secrets create gemini-api-key --data-file=-"
@@ -89,40 +89,40 @@ create_secrets() {
 create_service_account() {
     local SA_NAME="mindbridge-service"
     local SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
-    
+
     log "Creating service account..."
-    
+
     if ! gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT_ID" &>/dev/null; then
         gcloud iam service-accounts create "$SA_NAME" \
             --display-name="Mindbridge Service Account" \
             --project="$PROJECT_ID"
     fi
-    
+
     # Grant necessary permissions
     gcloud projects add-iam-policy-binding "$PROJECT_ID" \
         --member="serviceAccount:$SA_EMAIL" \
         --role="roles/secretmanager.secretAccessor"
-    
+
     log "Service account configured ✓"
 }
 
 # Build and push Docker image
 build_and_push() {
     log "Building Docker image..."
-    
+
     # Get current git commit hash for tagging
     local GIT_SHA=$(git rev-parse --short HEAD || echo "unknown")
-    
+
     docker build \
         --tag "${IMAGE_NAME}:${GIT_SHA}" \
         --tag "${IMAGE_NAME}:latest" \
         .
-    
+
     log "Pushing Docker image..."
-    
+
     docker push "${IMAGE_NAME}:${GIT_SHA}"
     docker push "${IMAGE_NAME}:latest"
-    
+
     log "Docker image pushed ✓"
     echo "Image: ${IMAGE_NAME}:${GIT_SHA}"
 }
@@ -130,26 +130,26 @@ build_and_push() {
 # Deploy to Cloud Run
 deploy_service() {
     local GIT_SHA=$(git rev-parse --short HEAD || echo "unknown")
-    
+
     log "Deploying to Cloud Run..."
-    
+
     # Replace placeholder in cloud-run.yaml
     sed "s/PROJECT_ID/$PROJECT_ID/g" cloud-run.yaml > /tmp/cloud-run-deploy.yaml
-    
+
     # Deploy the service
     gcloud run services replace /tmp/cloud-run-deploy.yaml \
         --region="$REGION" \
         --project="$PROJECT_ID"
-    
+
     # Update with the specific image
     gcloud run services update "$SERVICE_NAME" \
         --image="${IMAGE_NAME}:${GIT_SHA}" \
         --region="$REGION" \
         --project="$PROJECT_ID"
-    
+
     # Clean up temp file
     rm -f /tmp/cloud-run-deploy.yaml
-    
+
     log "Service deployed ✓"
 }
 
@@ -159,7 +159,7 @@ get_service_url() {
         --region="$REGION" \
         --project="$PROJECT_ID" \
         --format='value(status.url)')
-    
+
     log "Service URL: $URL"
     echo -e "${BLUE}Health Check: ${URL}/health${NC}"
 }
@@ -167,15 +167,15 @@ get_service_url() {
 # Test deployment
 test_deployment() {
     log "Testing deployment..."
-    
+
     local URL=$(gcloud run services describe "$SERVICE_NAME" \
         --region="$REGION" \
         --project="$PROJECT_ID" \
         --format='value(status.url)')
-    
+
     # Wait for service to be ready
     sleep 30
-    
+
     if curl -f "${URL}/health" &>/dev/null; then
         log "Health check passed ✓"
     else
@@ -203,7 +203,7 @@ main() {
     deploy_service
     get_service_url
     test_deployment
-    
+
     echo
     echo -e "${GREEN}🚀 Deployment completed successfully!${NC}"
     echo

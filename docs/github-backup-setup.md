@@ -63,7 +63,7 @@ echo -n "https://github.com/YOUR_USERNAME/obsidian-vault.git" | gcloud secrets c
 
 - **トリガー**: Discord でメモ、タスク、ファイルが作成された時
 - **頻度**: リアルタイム（メッセージ処理後即座に）
-- **対象ファイル**: 
+- **対象ファイル**:
   - Markdown ノート（`.md`）
   - 画像ファイル
   - 音声ファイル（音声メモの文字起こし含む）
@@ -103,7 +103,7 @@ obsidian-vault/
    - プライベートリポジトリへのアクセス権限を確認
 
 3. **同期失敗**
-   - Cloud Run のログを確認: 
+   - Cloud Run のログを確認:
      ```bash
      gcloud run services logs read mindbridge --region=asia-northeast1 --project=mindbridge-469901 --limit=50
      ```

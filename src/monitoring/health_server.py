@@ -122,6 +122,7 @@ class HealthServer:
         self.bot_instance = bot_instance
         # Cloud Run uses PORT environment variable
         import os
+
         cloud_run_port = int(os.environ.get("PORT", port))
         self.port = self._find_available_port(cloud_run_port)
         self.server: HTTPServer | None = None

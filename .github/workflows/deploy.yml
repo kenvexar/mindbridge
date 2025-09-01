@@ -21,29 +21,29 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.13'
-        
+
     - name: Install uv
       uses: astral-sh/setup-uv@v3
-      
+
     - name: Install dependencies
       run: uv sync
-      
+
     - name: Run lints
       run: |
         uv run ruff check src/ --output-format=github
         uv run ruff format --check src/
-        
+
     - name: Run type checking
       run: uv run mypy src/
-      
+
     - name: Run tests
       run: uv run pytest --cov=src/ --cov-report=xml
-      
+
     - name: Upload coverage
       uses: codecov/codecov-action@v4
       with:
@@ -54,53 +54,53 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    
+
     permissions:
       contents: read
       id-token: write
-      
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
         workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-        
+
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
-      
+
     - name: Configure Docker auth
       run: gcloud auth configure-docker --quiet
-      
+
     - name: Build Docker image
       run: |
         docker build \
           --tag ${{ env.IMAGE_NAME }}:${{ github.sha }} \
           --tag ${{ env.IMAGE_NAME }}:latest \
           .
-          
+
     - name: Push Docker image
       run: |
         docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
         docker push ${{ env.IMAGE_NAME }}:latest
-        
+
     - name: Deploy to Cloud Run
       run: |
         # Replace PROJECT_ID placeholder in cloud-run.yaml
         sed -i 's/PROJECT_ID/${{ env.PROJECT_ID }}/g' cloud-run.yaml
-        
+
         # Deploy using the service definition
         gcloud run services replace cloud-run.yaml \
           --region=${{ env.REGION }}
-          
+
         # Update the service with the new image
         gcloud run services update ${{ env.SERVICE_NAME }} \
           --image=${{ env.IMAGE_NAME }}:${{ github.sha }} \
           --region=${{ env.REGION }}
-          
+
     - name: Get service URL
       id: url
       run: |
@@ -108,12 +108,12 @@ jobs:
           --region=${{ env.REGION }} \
           --format='value(status.url)')
         echo "url=$URL" >> $GITHUB_OUTPUT
-        
+
     - name: Test deployment
       run: |
         sleep 60  # Wait for service to be ready
         curl -f ${{ steps.url.outputs.url }}/health || exit 1
-        
+
     - name: Comment PR with deployment URL
       if: github.event_name == 'pull_request'
       uses: actions/github-script@v7
@@ -130,17 +130,17 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     if: always()
-    
+
     steps:
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
         workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
         service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-        
+
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
-      
+
     - name: Clean up old images
       run: |
         # Keep only the 10 most recent images

@@ -27,24 +27,23 @@ class FileOperations:
             title=note.title,
             vault_path=str(self.vault_path),
             subfolder=subfolder,
-            has_file_path=bool(note.file_path and note.file_path != Path())
+            has_file_path=bool(note.file_path and note.file_path != Path()),
         )
-        
+
         try:
             # 🔧 FIX: Cloud Run environment vault path validation
             if not self.vault_path.exists():
                 logger.warning(
                     "Vault path does not exist, creating it",
-                    vault_path=str(self.vault_path)
+                    vault_path=str(self.vault_path),
                 )
                 self.vault_path.mkdir(parents=True, exist_ok=True)
-                
+
             # If the note already has a specific file_path set, use it
             if note.file_path and note.file_path != Path():
                 file_path = note.file_path
                 logger.info(
-                    "🔧 DEBUG: Using predefined file path",
-                    file_path=str(file_path)
+                    "🔧 DEBUG: Using predefined file path", file_path=str(file_path)
                 )
                 # Ensure the parent directory exists
                 file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -56,25 +55,24 @@ class FileOperations:
                     logger.info(
                         "🔧 DEBUG: Creating subfolder",
                         subfolder=subfolder,
-                        folder_path=str(folder_path)
+                        folder_path=str(folder_path),
                     )
                     folder_path.mkdir(parents=True, exist_ok=True)
 
                 # Create filename from title
                 safe_filename = self._sanitize_filename(note.title)
                 file_path = folder_path / f"{safe_filename}.md"
-                
+
                 logger.info(
                     "🔧 DEBUG: Generated file path",
                     safe_filename=safe_filename,
-                    file_path=str(file_path)
+                    file_path=str(file_path),
                 )
 
                 # Ensure unique filename
                 file_path = await self._ensure_unique_filename(file_path)
                 logger.info(
-                    "🔧 DEBUG: Final unique file path",
-                    file_path=str(file_path)
+                    "🔧 DEBUG: Final unique file path", file_path=str(file_path)
                 )
 
             # Prepare content
@@ -82,7 +80,9 @@ class FileOperations:
             logger.info(
                 "🔧 DEBUG: Content prepared",
                 content_length=len(content),
-                content_preview=content[:100] + "..." if len(content) > 100 else content
+                content_preview=content[:100] + "..."
+                if len(content) > 100
+                else content,
             )
 
             # 🔧 FIX: Add additional error handling for file operations
@@ -90,7 +90,7 @@ class FileOperations:
                 # Write file
                 async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
                     await f.write(content)
-                    
+
                 # Verify file was written
                 if file_path.exists():
                     file_size = file_path.stat().st_size
@@ -98,11 +98,11 @@ class FileOperations:
                         "🔧 DEBUG: File verification successful",
                         file_path=str(file_path),
                         file_size=file_size,
-                        expected_size=len(content.encode('utf-8'))
+                        expected_size=len(content.encode("utf-8")),
                     )
                 else:
                     raise FileNotFoundError(f"File was not created: {file_path}")
-                    
+
             except Exception as write_error:
                 logger.error(
                     "🔧 ERROR: File write operation failed",

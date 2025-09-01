@@ -138,7 +138,11 @@ class DiscordBot(LoggerMixin):
             )
 
             # Get the configured guild
-            self.guild = self.client.get_guild(settings.discord_guild_id)
+            if settings.discord_guild_id:
+                self.guild = self.client.get_guild(settings.discord_guild_id)
+            else:
+                self.guild = None
+
             if not self.guild:
                 self.logger.error(
                     "Configured guild not found", guild_id=settings.discord_guild_id

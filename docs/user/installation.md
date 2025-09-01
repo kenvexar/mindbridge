@@ -441,7 +441,7 @@ uv run python -m src.main
 
 **AI 分類テスト:**
 - 「 1500 円 ランチ代」→ Finance フォルダ
-- 「 TODO: 明日資料作成」→ Tasks フォルダ  
+- 「 TODO: 明日資料作成」→ Tasks フォルダ
 - 「今日のジョギング 3km 」→ Health フォルダ
 - 「 Python の勉強メモ」→ Learning フォルダ
 

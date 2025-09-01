@@ -12,15 +12,15 @@ spec:
         run.googleapis.com/memory: 1Gi
         run.googleapis.com/cpu: "1"
         run.googleapis.com/execution-environment: gen2
-        
+
         # Autoscaling
         autoscaling.knative.dev/minScale: "1"
         autoscaling.knative.dev/maxScale: "3"
-        
+
         # Health checks
         run.googleapis.com/startup-probe-initial-delay-seconds: "60"
         run.googleapis.com/startup-probe-timeout-seconds: "10"
-        
+
         # Service account
         run.googleapis.com/service-account: mindbridge-service@PROJECT_ID.iam.gserviceaccount.com
     spec:

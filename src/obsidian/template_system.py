@@ -1703,15 +1703,18 @@ class TemplateEngine(LoggerMixin):
             if ai_result.summary and ai_result.summary.summary:
                 ai_summary = self._clean_content_text(ai_result.summary.summary)
                 # YAML エラーを防ぐため改行や特殊文字を処理
-                ai_summary = ai_summary.replace('\n', ' ').replace('\r', ' ').strip()
+                ai_summary = ai_summary.replace("\n", " ").replace("\r", " ").strip()
 
             # タグをYAML配列形式で準備
             ai_tags = ai_result.tags.tags if ai_result.tags else []
-            
+
             # キーポイントもYAML safe に
             ai_key_points = (
                 [
-                    self._clean_content_text(point).replace('\n', ' ').replace('\r', ' ').strip()
+                    self._clean_content_text(point)
+                    .replace("\n", " ")
+                    .replace("\r", " ")
+                    .strip()
                     for point in ai_result.summary.key_points
                 ]
                 if ai_result.summary and ai_result.summary.key_points
@@ -1897,7 +1900,7 @@ class TemplateEngine(LoggerMixin):
                 self.logger.warning(
                     "Template not found, creating default template",
                     template_name=template_name,
-                    template_path=str(self.template_path)
+                    template_path=str(self.template_path),
                 )
                 # デフォルトテンプレートを作成
                 await self._create_default_template(template_name)
@@ -2239,26 +2242,32 @@ class TemplateEngine(LoggerMixin):
 
                 frontmatter_yaml = match.group(1)
                 main_content = match.group(2)
-                
+
                 # YAML safe loading with error handling
                 frontmatter_dict = yaml.safe_load(frontmatter_yaml) or {}
-                
+
                 # Post-process YAML values for safety
                 frontmatter_dict = self._sanitize_yaml_values(frontmatter_dict)
-                
+
             except ImportError:
                 self.logger.warning(
                     "PyYAML not available, skipping frontmatter parsing"
                 )
             except yaml.YAMLError as e:
-                self.logger.warning("YAML parsing error", error=str(e), yaml_content=frontmatter_yaml[:200])
+                self.logger.warning(
+                    "YAML parsing error",
+                    error=str(e),
+                    yaml_content=frontmatter_yaml[:200],
+                )
                 # Try to fix common YAML issues
                 try:
                     fixed_yaml = self._fix_common_yaml_issues(frontmatter_yaml)
                     frontmatter_dict = yaml.safe_load(fixed_yaml) or {}
                     frontmatter_dict = self._sanitize_yaml_values(frontmatter_dict)
                 except Exception:
-                    self.logger.error("Failed to fix YAML issues, using empty frontmatter")
+                    self.logger.error(
+                        "Failed to fix YAML issues, using empty frontmatter"
+                    )
             except Exception as e:
                 self.logger.warning("Failed to parse YAML frontmatter", error=str(e))
 
@@ -2266,7 +2275,7 @@ class TemplateEngine(LoggerMixin):
 
     def _sanitize_yaml_values(self, data: dict[str, Any]) -> dict[str, Any]:
         """YAML値を安全な形式に変換"""
-        sanitized = {}
+        sanitized: dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, bool):
                 # Python boolean を YAML boolean 文字列に変換
@@ -2275,54 +2284,66 @@ class TemplateEngine(LoggerMixin):
                 # 文字列の安全性チェック
                 if value.startswith('"') and value.endswith('"'):
                     sanitized[key] = value  # 既にクォートされている
-                elif any(char in value for char in ['\n', '\r', ':', '[', ']', '{', '}', '&', '*']):
-                    sanitized[key] = f'"{value.replace(chr(34), chr(92) + chr(34))}"'  # エスケープしてクォート
+                elif any(
+                    char in value
+                    for char in ["\n", "\r", ":", "[", "]", "{", "}", "&", "*"]
+                ):
+                    sanitized[key] = (
+                        f'"{value.replace(chr(34), chr(92) + chr(34))}"'  # エスケープしてクォート
+                    )
                 else:
                     sanitized[key] = value
             elif isinstance(value, list):
                 # リストを YAML 配列形式に確実に変換
-                sanitized[key] = [str(item) if not isinstance(item, (int, float)) else item for item in value]
+                sanitized[key] = [
+                    str(item) if not isinstance(item, int | float) else item
+                    for item in value
+                ]
             else:
                 sanitized[key] = value
         return sanitized
 
     def _fix_common_yaml_issues(self, yaml_content: str) -> str:
         """よくある YAML 構文エラーを修正"""
-        lines = yaml_content.split('\n')
+        lines = yaml_content.split("\n")
         fixed_lines = []
-        
+
         for line in lines:
             # Python boolean を YAML boolean に変換
-            line = re.sub(r':\s*True\s*$', ': true', line)
-            line = re.sub(r':\s*False\s*$', ': false', line)
-            
+            line = re.sub(r":\s*True\s*$", ": true", line)
+            line = re.sub(r":\s*False\s*$", ": false", line)
+
             # Python リスト形式を YAML 配列形式に変換
-            if re.match(r'^\s*\w+:\s*\[.*\]$', line):
-                key_match = re.match(r'^(\s*)(\w+):\s*\[(.*)\]$', line)
+            if re.match(r"^\s*\w+:\s*\[.*\]$", line):
+                key_match = re.match(r"^(\s*)(\w+):\s*\[(.*)\]$", line)
                 if key_match:
                     indent, key, content = key_match.groups()
                     if content.strip():
                         # リスト項目を抽出してYAML配列形式に変換
-                        items = [item.strip().strip("'\"") for item in content.split(',') if item.strip()]
-                        fixed_lines.append(f'{indent}{key}:')
+                        items = [
+                            item.strip().strip("'\"")
+                            for item in content.split(",")
+                            if item.strip()
+                        ]
+                        fixed_lines.append(f"{indent}{key}:")
                         for item in items:
-                            fixed_lines.append(f'{indent}  - {item}')
+                            fixed_lines.append(f"{indent}  - {item}")
                     else:
-                        fixed_lines.append(f'{indent}{key}: []')
+                        fixed_lines.append(f"{indent}{key}: []")
                 else:
                     fixed_lines.append(line)
             else:
                 # マルチライン文字列の処理
-                if ': *' in line and not line.strip().endswith('*'):
+                if ": *" in line and not line.strip().endswith("*"):
                     # 不正なエイリアス参照を修正
-                    line = re.sub(r':\s*\*\s*$', ': ""', line)
-                elif ': &' in line and not re.search(r'&\w+', line):
+                    line = re.sub(r":\s*\*\s*$", ': ""', line)
+                elif ": &" in line and not re.search(r"&\w+", line):
                     # 不正なエイリアス定義を修正
-                    line = re.sub(r':\s*&\s*$', ': ""', line)
-                
+                    line = re.sub(r":\s*&\s*$", ': ""', line)
+
                 fixed_lines.append(line)
-        
-        return '\n'.join(fixed_lines)
+
+        return "\n".join(fixed_lines)
 
     def _prepare_frontmatter_dict(
         self, frontmatter_dict: dict[str, Any], context: dict[str, Any]
@@ -3001,7 +3022,7 @@ ai_processed: {{ai_processed}}
         try:
             # テンプレートディレクトリの作成
             self.template_path.mkdir(parents=True, exist_ok=True)
-            
+
             # デフォルトテンプレートコンテンツ
             default_content = """---
 title: "{{title}}"
@@ -3029,20 +3050,20 @@ obsidian_folder: "{{target_folder}}"
 ---
 作成日: {{date_format(current_date, "%Y-%m-%d %H:%M")}}
 """
-            
+
             template_file = self.template_path / f"{template_name}.md"
             async with aiofiles.open(template_file, "w", encoding="utf-8") as f:
                 await f.write(default_content)
-                
+
             self.logger.info(
                 "Default template created",
                 template_name=template_name,
-                file_path=str(template_file)
+                file_path=str(template_file),
             )
-            
+
         except Exception as e:
             self.logger.error(
                 "Failed to create default template",
                 template_name=template_name,
-                error=str(e)
+                error=str(e),
             )
