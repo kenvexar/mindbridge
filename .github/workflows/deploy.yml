@@ -91,7 +91,7 @@ jobs:
       run: |
         # Create a temporary deployment file with the correct image
         sed "s|gcr.io/mindbridge-469901/mindbridge-bot:latest|${{ env.IMAGE_NAME }}:${{ github.sha }}|g" cloud-run-deploy.yaml > temp-deploy.yaml
-        
+
         # Deploy using the updated service definition
         gcloud run services replace temp-deploy.yaml \
           --region=${{ env.REGION }}
