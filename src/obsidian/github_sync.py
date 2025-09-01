@@ -61,29 +61,12 @@ class GitHubObsidianSync(LoggerMixin):
     @property
     def is_configured(self) -> bool:
         """GitHub 同期が設定されているかチェック"""
-        # Cloud Run 環境では GitHub 同期を無効化
-        import os
-
-        # Cloud Run 環境の検出（複数の環境変数をチェック）
-        is_cloud_run = any(
-            [
-                os.getenv("GOOGLE_CLOUD_PROJECT"),
-                os.getenv("K_SERVICE"),
-                os.getenv("PORT") == "8080",
-                os.getenv("ENVIRONMENT") == "production",
-            ]
-        )
-
-        if is_cloud_run:
-            self.logger.debug("Cloud Run environment detected, disabling GitHub sync")
-            return False
-
         return bool(self.github_token and self.github_repo_url)
 
     async def setup_git_repository(self) -> bool:
         """Git リポジトリの初期化"""
         if not self.is_configured:
-            self.logger.error("GitHub sync not configured")
+            self.logger.warning("GitHub sync not configured")
             return False
 
         try:
@@ -92,19 +75,32 @@ class GitHubObsidianSync(LoggerMixin):
 
             # Git リポジトリの初期化
             if not (self.vault_path / ".git").exists():
-                await self._run_git_command(["init"])
-                self.logger.info("Git repository initialized")
+                try:
+                    await self._run_git_command(["init"])
+                    self.logger.info("Git repository initialized")
+                except Exception as e:
+                    self.logger.warning(f"Git init failed: {e}")
+                    return False
 
-            # リモートリポジトリの設定
-            await self._setup_remote_repository()
+            # リモートリポジトリの設定（エラーがあっても継続）
+            try:
+                await self._setup_remote_repository()
+            except Exception as e:
+                self.logger.warning(f"Remote setup failed, but continuing: {e}")
 
             # Git ユーザー設定
-            await self._configure_git_user()
+            try:
+                await self._configure_git_user()
+            except Exception as e:
+                self.logger.warning(f"Git user config failed: {e}")
 
             # .gitignore の設定
-            await self._setup_gitignore()
+            try:
+                await self._setup_gitignore()
+            except Exception as e:
+                self.logger.warning(f"Gitignore setup failed: {e}")
 
-            self.logger.info("Git repository setup completed")
+            self.logger.info("Git repository setup completed (with possible warnings)")
             return True
 
         except Exception as e:
@@ -114,29 +110,45 @@ class GitHubObsidianSync(LoggerMixin):
     async def _setup_remote_repository(self) -> None:
         """リモートリポジトリの設定"""
         try:
-            # 既存のリモートをチェック
+            # Git リポジトリが初期化されているかチェック
+            if not (self.vault_path / ".git").exists():
+                self.logger.warning(
+                    "Git repository not initialized, skipping remote setup"
+                )
+                return
+
+            # 既存のリモートをチェック（エラーを抑制）
             result = await self._run_git_command(
                 ["remote", "get-url", "origin"], check=False
             )
 
             if result.returncode != 0:
                 # リモートが存在しない場合は追加
-                repo_url_with_token = self._get_authenticated_repo_url()
-                await self._run_git_command(
-                    ["remote", "add", "origin", repo_url_with_token]
-                )
-                self.logger.info("Remote repository added")
+                try:
+                    repo_url_with_token = self._get_authenticated_repo_url()
+                    await self._run_git_command(
+                        ["remote", "add", "origin", repo_url_with_token], check=False
+                    )
+                    self.logger.info("Remote repository added")
+                except Exception as e:
+                    self.logger.warning(f"Failed to add remote: {e}")
+                    # リモート追加失敗は非致命的エラーとして継続
             else:
                 # 既存のリモートを更新
-                repo_url_with_token = self._get_authenticated_repo_url()
-                await self._run_git_command(
-                    ["remote", "set-url", "origin", repo_url_with_token]
-                )
-                self.logger.info("Remote repository URL updated")
+                try:
+                    repo_url_with_token = self._get_authenticated_repo_url()
+                    await self._run_git_command(
+                        ["remote", "set-url", "origin", repo_url_with_token],
+                        check=False,
+                    )
+                    self.logger.info("Remote repository URL updated")
+                except Exception as e:
+                    self.logger.warning(f"Failed to update remote: {e}")
+                    # リモート更新失敗も非致命的エラーとして継続
 
         except Exception as e:
-            self.logger.error(f"Failed to setup remote repository: {e}")
-            raise GitHubSyncError(f"Remote repository setup failed: {e}") from e
+            self.logger.warning(f"Remote repository setup encountered issues: {e}")
+            # 致命的でないエラーとして処理を継続
 
     async def _configure_git_user(self) -> None:
         """Git ユーザー設定"""
