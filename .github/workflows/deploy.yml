@@ -10,10 +10,10 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: mindbridge-469901
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: mindbridge-bot
   REGION: us-central1
-  IMAGE_NAME: gcr.io/mindbridge-469901/mindbridge-bot
+  IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT_ID }}/mindbridge-bot
 
 jobs:
   test:
@@ -54,11 +54,69 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && false  # Disable deploy for now
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-    - name: Deployment disabled
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker auth
+      run: gcloud auth configure-docker --quiet
+
+    - name: Build Docker image
       run: |
-        echo "🚧 Deployment is currently disabled"
-        echo "✅ CI tests passed successfully"
-        echo "📦 Ready for manual deployment if needed"
+        docker build \
+          --tag ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          --tag ${{ env.IMAGE_NAME }}:latest \
+          .
+
+    - name: Push Docker image
+      run: |
+        docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+        docker push ${{ env.IMAGE_NAME }}:latest
+
+    - name: Deploy to Cloud Run
+      run: |
+        # Create a temporary deployment file with the correct image
+        sed "s|gcr.io/mindbridge-469901/mindbridge-bot:latest|${{ env.IMAGE_NAME }}:${{ github.sha }}|g" cloud-run-deploy.yaml > temp-deploy.yaml
+        
+        # Deploy using the updated service definition
+        gcloud run services replace temp-deploy.yaml \
+          --region=${{ env.REGION }}
+
+    - name: Get service URL
+      id: url
+      run: |
+        URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --region=${{ env.REGION }} \
+          --format='value(status.url)')
+        echo "url=$URL" >> $GITHUB_OUTPUT
+
+    - name: Test deployment
+      run: |
+        sleep 30  # Wait for service to be ready
+        curl -f ${{ steps.url.outputs.url }}/health || exit 1
+
+    - name: Comment PR with deployment URL
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `🚀 Deployed to Cloud Run: ${{ steps.url.outputs.url }}`
+          });
