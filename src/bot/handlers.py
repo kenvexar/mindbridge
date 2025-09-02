@@ -679,10 +679,11 @@ class MessageHandler(LoggerMixin):
                 )
 
             self.logger.info(
-                "Processing GitHub direct sync",
+                "✅ Processing GitHub direct sync",
                 category=category,
                 has_ai_result=ai_result is not None,
                 ai_errors=ai_result.errors if ai_result else [],
+                note_title=note.title,
             )
 
             # Discord メッセージデータから note_data を構築
