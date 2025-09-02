@@ -33,7 +33,9 @@ class GitHubDirectClient:
     def _parse_repo_url(self) -> None:
         """GitHub リポジトリ URL からオーナーとリポジトリ名を抽出"""
         try:
-            if self.github_repo_url and self.github_repo_url.startswith("https://github.com/"):
+            if self.github_repo_url and self.github_repo_url.startswith(
+                "https://github.com/"
+            ):
                 repo_path = self.github_repo_url.replace("https://github.com/", "")
                 if repo_path.endswith(".git"):
                     repo_path = repo_path[:-4]
