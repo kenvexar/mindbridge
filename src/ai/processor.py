@@ -64,7 +64,9 @@ class AIProcessor(LoggerMixin):
             text_length=text_length,
             min_length=self.settings.min_text_length,
             max_length=self.settings.max_text_length,
-            text_preview=text.strip()[:100] + "..." if len(text.strip()) > 100 else text.strip()
+            text_preview=text.strip()[:100] + "..."
+            if len(text.strip()) > 100
+            else text.strip(),
         )
 
         if text_length < self.settings.min_text_length:
