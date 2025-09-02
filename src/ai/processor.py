@@ -59,9 +59,17 @@ class AIProcessor(LoggerMixin):
         """テキストが処理可能かチェック"""
         text_length = len(text.strip())
 
+        self.logger.info(
+            "🔧 DEBUG: Checking text processability",
+            text_length=text_length,
+            min_length=self.settings.min_text_length,
+            max_length=self.settings.max_text_length,
+            text_preview=text.strip()[:100] + "..." if len(text.strip()) > 100 else text.strip()
+        )
+
         if text_length < self.settings.min_text_length:
-            self.logger.debug(
-                "Text too short for processing",
+            self.logger.warning(
+                "❌ Text too short for processing",
                 length=text_length,
                 min_length=self.settings.min_text_length,
             )
