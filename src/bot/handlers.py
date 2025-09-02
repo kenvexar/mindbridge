@@ -182,11 +182,19 @@ class MessageHandler(LoggerMixin):
         except Exception as e:
             self.logger.info(f"🔍 DEBUG: Could not list channels: {e}")
 
+        # 🔧 TEMPORARY FIX: Force processing memo channel even if not properly discovered
+        channel_name = getattr(message.channel, "name", "unknown").lower()
         if not is_monitored:
-            self.logger.warning(
-                f"Channel {message.channel.id} (#{getattr(message.channel, 'name', 'unknown')}) is not monitored. Skipping processing."
-            )
-            return None
+            if channel_name == "memo":
+                self.logger.warning(
+                    f"🔧 OVERRIDE: Channel #{channel_name} not in discovered channels, but forcing processing for memo channel"
+                )
+                # Continue processing anyway
+            else:
+                self.logger.warning(
+                    f"Channel {message.channel.id} (#{channel_name}) is not monitored. Skipping processing."
+                )
+                return None
 
         channel_info = self.channel_config.get_channel_info(message.channel.id)
 
@@ -394,18 +402,39 @@ class MessageHandler(LoggerMixin):
                     "Generated category", category=category, confidence=confidence
                 )
 
-        # Obsidian ノートの生成と保存（新しい TemplateEngine を使用）
+        # AI 処理結果を AIProcessingResult オブジェクトに変換
+        ai_result: AIProcessingResult | None = None
+        if ai_processing:
+            try:
+                ai_result = AIProcessingResult.model_validate(ai_processing)
+            except Exception as e:
+                self.logger.warning(
+                    "Failed to validate AI processing result - continuing with fallback",
+                    error=str(e),
+                    ai_processing_keys=list(ai_processing.keys())
+                    if isinstance(ai_processing, dict)
+                    else "not_dict",
+                )
+                # AI処理失敗時でも処理を継続するため、ai_result は None のままにする
+
+        # Obsidian ノートの生成と保存（GitHub 直接同期統合版）
+        await self._handle_obsidian_note_creation(ai_result, message_data)
+
+        # Daily Note Integration の処理
+        await self._handle_daily_note_integration(message_data, channel_info)
+
+    async def _handle_obsidian_note_creation(
+        self,
+        ai_result: AIProcessingResult | None,
+        message_data: dict[str, Any],
+    ) -> None:
+        """Obsidian ノート作成とファイルシステム統合（GitHub 直接同期対応）"""
         self.logger.info(
             f"📝 DEBUG: Starting Obsidian note creation - obsidian_manager={self.obsidian_manager is not None}, template_engine={self.template_engine is not None}"
         )
 
         if self.obsidian_manager and self.template_engine:
             try:
-                # AI 処理結果を AIProcessingResult オブジェクトに変換
-                ai_result: AIProcessingResult | None = None
-                if ai_processing:
-                    ai_result = AIProcessingResult.model_validate(ai_processing)
-
                 # 新しい TemplateEngine で Obsidian ノートを生成
                 note = await self.template_engine.generate_note_from_template(
                     template_name="daily_note",
@@ -428,7 +457,7 @@ class MessageHandler(LoggerMixin):
 
                             # Discord メタデータを構築
                             discord_metadata = None
-                            if original_message:
+                            if message_data.get("metadata"):
                                 try:
                                     discord_metadata = {
                                         "channel_name": message_data["channel_info"][
@@ -501,8 +530,13 @@ class MessageHandler(LoggerMixin):
                     if enhanced_content != note.content:
                         note.content = enhanced_content
 
-                    # ノートを保存
+                    # ローカルにノートを保存
                     saved_file_path = await self.obsidian_manager.save_note(note)
+
+                    if saved_file_path is None:
+                        self.logger.error("Failed to save note to Obsidian vault")
+                        # Set a fallback path for error logging
+                        saved_file_path = f"failed_to_save_{note.title}"
 
                     # 🔧 FIX: Record file creation in metrics
                     if hasattr(self, "system_metrics"):
@@ -548,49 +582,10 @@ class MessageHandler(LoggerMixin):
                     # AI 分類結果に基づいてノートを適切なフォルダに移動
                     await self._organize_note_by_ai_category(note, ai_result)
 
-                    # 🔧 NEW: GitHub自動同期の実行
-                    if hasattr(self, "bot") and hasattr(self.bot, "backup_system"):
-                        try:
-                            self.logger.info(
-                                "🔄 Starting GitHub sync for newly created file",
-                                file_path=str(saved_file_path),
-                            )
-
-                            # GitHub同期を実行
-                            commit_message = (
-                                f"Auto-sync: New note '{note.title}' from Discord"
-                            )
-                            github_sync = self.bot.backup_system.github_sync
-
-                            if github_sync.is_configured:
-                                sync_success = await github_sync.sync_to_github(
-                                    commit_message
-                                )
-                                if sync_success:
-                                    self.logger.info(
-                                        "✅ GitHub sync completed successfully",
-                                        file_path=str(saved_file_path),
-                                        commit_message=commit_message,
-                                    )
-                                else:
-                                    self.logger.warning(
-                                        "⚠️ GitHub sync failed",
-                                        file_path=str(saved_file_path),
-                                        reason="sync_to_github returned False",
-                                    )
-                            else:
-                                self.logger.warning(
-                                    "⚠️ GitHub sync not configured - file saved locally only",
-                                    file_path=str(saved_file_path),
-                                )
-
-                        except Exception as github_error:
-                            self.logger.error(
-                                "❌ GitHub sync failed with error",
-                                file_path=str(saved_file_path),
-                                error=str(github_error),
-                                exc_info=True,
-                            )
+                    # GitHub 直接同期の実行
+                    await self._handle_github_direct_sync(
+                        ai_result, note, saved_file_path
+                    )
 
                     # Daily Integration の実行
                     if self.daily_integration:
@@ -633,7 +628,7 @@ class MessageHandler(LoggerMixin):
                 f"📝 DEBUG: Skipping Obsidian note creation - missing dependencies: obsidian_manager={self.obsidian_manager is not None}, template_engine={self.template_engine is not None}"
             )
 
-        # GitHub 同期 - シンプル版
+        # GitHub 同期 - シンプル版（従来の GitHubSync のフォールバック）
         if (
             hasattr(self, "github_sync")
             and self.github_sync
@@ -644,6 +639,104 @@ class MessageHandler(LoggerMixin):
                 self.logger.info("GitHub sync completed successfully")
             except Exception as e:
                 self.logger.error(f"GitHub sync failed: {e}")
+
+    async def _handle_github_direct_sync(
+        self, ai_result: AIProcessingResult | None, note, saved_file_path
+    ) -> None:
+        """Cloud Run 環境での GitHub 直接同期を実行"""
+        self.logger.info(
+            "🔧 DEBUG: _handle_github_direct_sync called",
+            note_title=getattr(note, "title", "unknown"),
+            saved_file_path=str(saved_file_path),
+            has_ai_result=ai_result is not None,
+        )
+        try:
+            from ..obsidian.github_direct import GitHubDirectClient
+
+            # GitHub Direct Client を初期化
+            github_client = GitHubDirectClient()
+
+            self.logger.info(
+                "🔧 DEBUG: GitHubDirectClient initialized",
+                is_configured=github_client.is_configured,
+                has_token=bool(github_client.github_token),
+                has_repo_url=bool(github_client.github_repo_url),
+                owner=github_client.owner,
+                repo=github_client.repo,
+            )
+
+            if not github_client.is_configured:
+                self.logger.warning(
+                    "❌ GitHub direct sync not configured - file saved locally only"
+                )
+                return
+
+            # AI 結果からカテゴリフォルダーを決定
+            category = "Memos"  # デフォルト
+            if ai_result and ai_result.category:
+                category = github_client.get_category_folder(
+                    ai_result.category.category
+                )
+
+            self.logger.info(
+                "Processing GitHub direct sync",
+                category=category,
+                has_ai_result=ai_result is not None,
+                ai_errors=ai_result.errors if ai_result else [],
+            )
+
+            # Discord メッセージデータから note_data を構築
+            note_data = {
+                "title": note.title,
+                "content": note.content,
+                "tags": getattr(note.frontmatter, "tags", [])
+                if hasattr(note, "frontmatter")
+                else [],
+            }
+
+            # AI 分析結果も追加
+            if ai_result:
+                note_data["ai_analysis"] = {
+                    "category": ai_result.category.category.value
+                    if ai_result.category
+                    else None,
+                    "confidence": ai_result.category.confidence_score
+                    if ai_result.category
+                    else None,
+                    "tags": ai_result.tags.tags if ai_result.tags else [],
+                    "summary": ai_result.summary.summary if ai_result.summary else None,
+                }
+
+            # GitHub に直接ノートを作成
+            result = await github_client.create_note_from_discord(
+                note_data=note_data, category=category
+            )
+
+            if result:
+                self.logger.info(
+                    "✅ GitHub direct sync completed successfully",
+                    file_path=result["file_path"],
+                    commit_sha=result["github_result"].get("commit", {}).get("sha"),
+                    category=category,
+                )
+            else:
+                self.logger.warning(
+                    "⚠️ GitHub direct sync failed",
+                    file_path=str(saved_file_path),
+                    reason="create_note_from_discord returned None",
+                )
+
+        except ImportError:
+            self.logger.warning(
+                "GitHubDirectClient not available - falling back to traditional sync"
+            )
+        except Exception as github_error:
+            self.logger.error(
+                "❌ GitHub direct sync failed with error",
+                file_path=str(saved_file_path),
+                error=str(github_error),
+                exc_info=True,
+            )
 
     def _generate_activity_log_title(
         self,
