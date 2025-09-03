@@ -1,6 +1,6 @@
 # 🔧 トラブルシューティングガイド
 
-Discord-Obsidian Memo Botの運用中に発生する可能性のある問題と解決方法を体系的に説明します。
+MindBridgeの運用中に発生する可能性のある問題と解決方法を体系的に説明します。
 
 ## 📋 目次
 
@@ -378,7 +378,7 @@ python -m memory_profiler src/main.py
 #!/bin/bash
 pkill -f "python -m src.main"
 sleep 5
-cd /path/to/discord-obsidian-memo-bot
+cd /path/to/mindbridge
 uv run python -m src.main &
 ```
 
@@ -501,7 +501,7 @@ export DEBUG_MODULES="ai,obsidian"
 #!/bin/bash
 # diagnosis.sh - 総合診断スクリプト
 
-echo "=== Discord-Obsidian Memo Bot 診断 ==="
+echo "=== MindBridge 診断 ==="
 
 # 1. 環境確認
 echo "1. 環境確認"

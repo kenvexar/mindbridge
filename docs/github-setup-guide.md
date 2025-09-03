@@ -1,6 +1,6 @@
 # 🚀 GitHub 無料永続化設定ガイド
 
-Discord-Obsidian Memo Bot で **完全無料** での Obsidian データ永続化を設定する方法です。
+MindBridge で **完全無料** での Obsidian データ永続化を設定する方法です。
 
 ## 📋 概要
 
@@ -129,7 +129,7 @@ Cloud Run 環境での環境変数設定:
 gcloud secrets create github-token --data-file=<(echo -n "$GITHUB_TOKEN")
 
 # または環境変数として直接設定
-gcloud run deploy discord-obsidian-memo-bot \
+gcloud run deploy mindbridge \
   --set-env-vars="GITHUB_TOKEN=$GITHUB_TOKEN,OBSIDIAN_BACKUP_REPO=$REPO_URL"
 ```
 

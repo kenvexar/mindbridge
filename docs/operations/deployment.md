@@ -1,6 +1,6 @@
 # 🚀 デプロイメントガイド
 
-Discord-Obsidian Memo Bot の本番環境への安全で効率的なデプロイメント手順を説明します。
+MindBridge の本番環境への安全で効率的なデプロイメント手順を説明します。
 
 ## 📋 目次
 
@@ -51,10 +51,10 @@ gcloud config set project YOUR_PROJECT_ID
 # プロジェクト変数設定
 export PROJECT_ID="discord-obsidian-bot"
 export REGION="asia-northeast1"
-export SERVICE_NAME="discord-obsidian-memo-bot"
+export SERVICE_NAME="mindbridge-bot"
 
 # プロジェクト作成（新規の場合）
-gcloud projects create $PROJECT_ID --name="Discord Obsidian Memo Bot"
+gcloud projects create $PROJECT_ID --name="MindBridge"
 
 # プロジェクト選択
 gcloud config set project $PROJECT_ID
@@ -158,7 +158,7 @@ steps:
       - '--set-env-vars=ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,USE_SECRET_MANAGER=true'
 
 substitutions:
-  _SERVICE_NAME: 'discord-obsidian-memo-bot'
+  _SERVICE_NAME: 'mindbridge'
   _REGION: 'asia-northeast1'
 
 options:
@@ -196,7 +196,7 @@ gcloud run deploy $SERVICE_NAME \
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: discord-obsidian-memo-bot
+  name: mindbridge
   annotations:
     run.googleapis.com/ingress: all
     run.googleapis.com/cpu-throttling: "false"
@@ -211,7 +211,7 @@ spec:
       timeoutSeconds: 300
       serviceAccountName: SERVICE_ACCOUNT_EMAIL
       containers:
-      - image: gcr.io/PROJECT_ID/discord-obsidian-memo-bot:latest
+      - image: gcr.io/PROJECT_ID/mindbridge:latest
         ports:
         - containerPort: 8080
         env:
@@ -245,7 +245,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: discord-obsidian-memo-bot
+    container_name: mindbridge
     restart: unless-stopped
     environment:
       - ENVIRONMENT=production
@@ -530,7 +530,7 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
-  SERVICE_NAME: discord-obsidian-memo-bot
+  SERVICE_NAME: mindbridge
   REGION: asia-northeast1
 
 jobs:
@@ -613,7 +613,7 @@ set -euo pipefail
 
 # 設定
 PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-"discord-obsidian-bot"}
-SERVICE_NAME="discord-obsidian-memo-bot"
+SERVICE_NAME="mindbridge"
 REGION="asia-northeast1"
 
 echo "🚀 Starting deployment to $PROJECT_ID"
@@ -735,7 +735,7 @@ gcloud alpha monitoring policies create --policy-from-file=alert-policy.yaml
 
 `alert-policy.yaml`:
 ```yaml
-displayName: "Discord Bot Error Alert"
+displayName: "MindBridge Bot Error Alert"
 conditions:
   - displayName: "Error rate too high"
     conditionThreshold:

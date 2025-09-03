@@ -1,5 +1,5 @@
 """
-Security module for Discord-Obsidian Memo Bot
+Security module for MindBridge
 
 Provides secure credential management and access logging functionality.
 """

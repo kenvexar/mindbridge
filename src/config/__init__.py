@@ -1,4 +1,4 @@
-"""Configuration module for Discord-Obsidian Memo Bot"""
+"""Configuration module for MindBridge"""
 
 from src.config.secure_settings import (
     SecureSettingsManager,

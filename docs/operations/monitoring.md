@@ -1,6 +1,6 @@
 # 📊 監視・ログ管理ガイド
 
-Discord-Obsidian Memo Botの包括的な監視、ログ管理、アラート設定について説明します。
+MindBridgeの包括的な監視、ログ管理、アラート設定について説明します。
 
 ## 📋 目次
 
@@ -182,7 +182,7 @@ data:
 <filter discord.bot>
   @type record_transformer
   <record>
-    service_name discord-obsidian-memo-bot
+    service_name mindbridge
     environment ${ENV}
   </record>
 </filter>
@@ -365,7 +365,7 @@ conditions:
     conditionThreshold:
       filter: |
         resource.type="cloud_run_revision"
-        resource.labels.service_name="discord-obsidian-memo-bot"
+        resource.labels.service_name="mindbridge"
         severity>=ERROR
       comparison: COMPARISON_GREATER_THAN
       thresholdValue: 10
@@ -380,7 +380,7 @@ conditions:
     conditionThreshold:
       filter: |
         metric.type="run.googleapis.com/request_latencies"
-        resource.labels.service_name="discord-obsidian-memo-bot"
+        resource.labels.service_name="mindbridge"
       comparison: COMPARISON_GREATER_THAN
       thresholdValue: 5000  # 5秒
       duration: 180s
@@ -393,7 +393,7 @@ conditions:
     conditionThreshold:
       filter: |
         metric.type="run.googleapis.com/container/memory/utilizations"
-        resource.labels.service_name="discord-obsidian-memo-bot"
+        resource.labels.service_name="mindbridge"
       comparison: COMPARISON_GREATER_THAN
       thresholdValue: 0.8  # 80%
       duration: 300s
@@ -490,7 +490,7 @@ await alerts.send_alert(
     fields={
         "Error Count": 15,
         "Total Requests": 120,
-        "Service": "discord-obsidian-memo-bot",
+        "Service": "mindbridge",
         "Region": "asia-northeast1"
     }
 )
@@ -623,7 +623,7 @@ mosaicLayout:
         logsPanel:
           filter: |
             resource.type="cloud_run_revision"
-            resource.labels.service_name="discord-obsidian-memo-bot"
+            resource.labels.service_name="mindbridge"
             severity>=ERROR
 ```
 
@@ -990,4 +990,4 @@ echo -e "\n✅ 診断完了"
 
 ---
 
-この監視・ログ管理ガイドを活用して、Discord-Obsidian Memo Botの安定稼働を確保してください。問題の早期発見と迅速な対応により、サービス品質を維持できます。
+この監視・ログ管理ガイドを活用して、MindBridgeの安定稼働を確保してください。問題の早期発見と迅速な対応により、サービス品質を維持できます。

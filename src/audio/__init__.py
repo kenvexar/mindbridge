@@ -1,5 +1,5 @@
 """
-Audio processing module for Discord-Obsidian Memo Bot
+Audio processing module for MindBridge
 """
 
 from src.audio.speech_processor import SpeechProcessor

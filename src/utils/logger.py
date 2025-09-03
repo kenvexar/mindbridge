@@ -1,5 +1,5 @@
 """
-Logging configuration for Discord-Obsidian Memo Bot
+Logging configuration for MindBridge
 """
 
 import logging

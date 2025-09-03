@@ -1,5 +1,5 @@
 """
-Configuration settings for Discord-Obsidian Memo Bot
+Configuration settings for MindBridge
 """
 
 from pathlib import Path

@@ -201,7 +201,7 @@ class BasicCommands(commands.Cog, CommandMixin):
     async def _show_general_help(self, interaction: discord.Interaction) -> None:
         """Show general help information."""
         help_text = """
-## 🤖 Discord-Obsidian Memo Bot
+## 🤖 MindBridge
 
 このボットは Discord と Obsidian を連携し、 AI を活用したメモ管理を提供します。
 

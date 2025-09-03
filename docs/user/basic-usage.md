@@ -1,6 +1,6 @@
 # 📖 基本的な使い方
 
-Discord-Obsidian Memo Botの日常的な使用方法とベストプラクティスを説明します。
+MindBridgeの日常的な使用方法とベストプラクティスを説明します。
 
 ## 📋 目次
 
@@ -402,7 +402,7 @@ A: より具体的な内容とコンテキストを含めてください
 ### サポート
 
 - [トラブルシューティング](../operations/troubleshooting.md)を確認
-- [GitHub Issues](https://github.com/kenvexar/discord-obsidian-memo-bot/issues)で問題を報告
+- [GitHub Issues](https://github.com/kenvexar/mindbridge/issues)で問題を報告
 
 ## 📚 次のステップ
 
@@ -414,4 +414,4 @@ A: より具体的な内容とコンテキストを含めてください
 
 ---
 
-このガイドに従って、Discord-Obsidian Memo Botを効果的に活用してください。質問があれば遠慮なくサポートチャンネルで相談してください。
+このガイドに従って、MindBridgeを効果的に活用してください。質問があれば遠慮なくサポートチャンネルで相談してください。

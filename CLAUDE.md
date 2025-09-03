@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Discord-Obsidian Memo Bot is a personal knowledge management system that uses Discord as an interface for AI-powered memo processing and automatic Obsidian note saving. The bot captures messages, processes them with Google Gemini AI, and organizes them into structured Obsidian notes.
+MindBridge is an AI-powered personal knowledge bridge that uses Discord as an interface for intelligent memo processing and automatic Obsidian note saving. The system captures messages, processes them with Google Gemini AI, and organizes them into structured Obsidian notes.
 
 ### Core Features
 - **Message Processing**: Automatic Discord message capture with AI analysis and metadata extraction

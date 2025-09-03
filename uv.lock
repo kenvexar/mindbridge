@@ -296,91 +296,6 @@ wheels = [
 ]
 
 [[package]]
-name = "discord-obsidian-memo-bot"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "aiofiles" },
-    { name = "aiohttp" },
-    { name = "asyncio-throttle" },
-    { name = "beautifulsoup4" },
-    { name = "discord-py" },
-    { name = "garminconnect" },
-    { name = "google-cloud-secret-manager" },
-    { name = "google-cloud-speech" },
-    { name = "google-genai" },
-    { name = "numpy" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "pydub" },
-    { name = "python-dateutil" },
-    { name = "python-dotenv" },
-    { name = "pyyaml" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "scikit-learn" },
-    { name = "structlog" },
-    { name = "tenacity" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-    { name = "ruff" },
-    { name = "types-aiofiles" },
-    { name = "types-beautifulsoup4" },
-    { name = "types-python-dateutil" },
-    { name = "types-pyyaml" },
-    { name = "types-requests" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiofiles", specifier = ">=24.1.0" },
-    { name = "aiohttp", specifier = ">=3.11.0" },
-    { name = "asyncio-throttle", specifier = ">=1.0.2" },
-    { name = "beautifulsoup4", specifier = ">=4.12.3" },
-    { name = "discord-py", specifier = ">=2.5.2" },
-    { name = "garminconnect", specifier = ">=0.2.28" },
-    { name = "google-cloud-secret-manager", specifier = ">=2.20.0" },
-    { name = "google-cloud-speech", specifier = ">=2.21.0" },
-    { name = "google-genai", specifier = ">=0.2.0" },
-    { name = "numpy", specifier = ">=2.1.0" },
-    { name = "pydantic", specifier = ">=2.10.0" },
-    { name = "pydantic-settings", specifier = ">=2.6.0" },
-    { name = "pydub", specifier = ">=0.25.1" },
-    { name = "python-dateutil", specifier = ">=2.9.0.post0" },
-    { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "pyyaml", specifier = ">=6.0.2" },
-    { name = "requests", specifier = ">=2.32.0" },
-    { name = "rich", specifier = ">=13.9.0" },
-    { name = "scikit-learn", specifier = ">=1.5.0" },
-    { name = "structlog", specifier = ">=24.4.0" },
-    { name = "tenacity", specifier = ">=9.1.2" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.17.1" },
-    { name = "pre-commit", specifier = ">=4.3.0" },
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "pytest-asyncio", specifier = ">=1.1.0" },
-    { name = "pytest-cov", specifier = ">=6.0.0" },
-    { name = "pytest-mock", specifier = ">=3.14.1" },
-    { name = "ruff", specifier = ">=0.12.8" },
-    { name = "types-aiofiles" },
-    { name = "types-beautifulsoup4" },
-    { name = "types-python-dateutil" },
-    { name = "types-pyyaml" },
-    { name = "types-requests" },
-]
-
-[[package]]
 name = "discord-py"
 version = "2.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -721,6 +636,91 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
+name = "mindbridge"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "aiohttp" },
+    { name = "asyncio-throttle" },
+    { name = "beautifulsoup4" },
+    { name = "discord-py" },
+    { name = "garminconnect" },
+    { name = "google-cloud-secret-manager" },
+    { name = "google-cloud-speech" },
+    { name = "google-genai" },
+    { name = "numpy" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pydub" },
+    { name = "python-dateutil" },
+    { name = "python-dotenv" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "scikit-learn" },
+    { name = "structlog" },
+    { name = "tenacity" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
+    { name = "types-aiofiles" },
+    { name = "types-beautifulsoup4" },
+    { name = "types-python-dateutil" },
+    { name = "types-pyyaml" },
+    { name = "types-requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiofiles", specifier = ">=24.1.0" },
+    { name = "aiohttp", specifier = ">=3.11.0" },
+    { name = "asyncio-throttle", specifier = ">=1.0.2" },
+    { name = "beautifulsoup4", specifier = ">=4.12.3" },
+    { name = "discord-py", specifier = ">=2.5.2" },
+    { name = "garminconnect", specifier = ">=0.2.28" },
+    { name = "google-cloud-secret-manager", specifier = ">=2.20.0" },
+    { name = "google-cloud-speech", specifier = ">=2.21.0" },
+    { name = "google-genai", specifier = ">=0.2.0" },
+    { name = "numpy", specifier = ">=2.1.0" },
+    { name = "pydantic", specifier = ">=2.10.0" },
+    { name = "pydantic-settings", specifier = ">=2.6.0" },
+    { name = "pydub", specifier = ">=0.25.1" },
+    { name = "python-dateutil", specifier = ">=2.9.0.post0" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "requests", specifier = ">=2.32.0" },
+    { name = "rich", specifier = ">=13.9.0" },
+    { name = "scikit-learn", specifier = ">=1.5.0" },
+    { name = "structlog", specifier = ">=24.4.0" },
+    { name = "tenacity", specifier = ">=9.1.2" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.17.1" },
+    { name = "pre-commit", specifier = ">=4.3.0" },
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", specifier = ">=1.1.0" },
+    { name = "pytest-cov", specifier = ">=6.0.0" },
+    { name = "pytest-mock", specifier = ">=3.14.1" },
+    { name = "ruff", specifier = ">=0.12.8" },
+    { name = "types-aiofiles" },
+    { name = "types-beautifulsoup4" },
+    { name = "types-python-dateutil" },
+    { name = "types-pyyaml" },
+    { name = "types-requests" },
 ]
 
 [[package]]

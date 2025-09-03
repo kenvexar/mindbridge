@@ -1,5 +1,5 @@
 """
-Access logging and security monitoring for Discord-Obsidian Memo Bot
+Access logging and security monitoring for MindBridge
 """
 
 import json

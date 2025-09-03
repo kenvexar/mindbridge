@@ -1,6 +1,6 @@
 # 簡単セットアップガイド
 
-Discord-Obsidian Memo Bot を 5 分で動かす最短手順です。
+MindBridge を 5 分で動かす最短手順です。
 
 ## 🚀 クイックスタート
 

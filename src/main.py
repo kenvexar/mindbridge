@@ -1,5 +1,5 @@
 """
-Main entry point for Discord-Obsidian Memo Bot
+Main entry point for MindBridge
 """
 
 import asyncio
@@ -35,7 +35,7 @@ async def main() -> None:
     setup_logging()
     logger = get_logger("main")
 
-    logger.info("Starting Discord-Obsidian Memo Bot", version="0.1.0")
+    logger.info("Starting MindBridge", version="0.1.0")
 
     try:
         # Initialize security systems

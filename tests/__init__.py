@@ -1,1 +1,1 @@
-"""Test suite for Discord-Obsidian Memo Bot"""
+"""Test suite for MindBridge"""

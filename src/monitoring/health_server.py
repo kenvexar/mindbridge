@@ -35,7 +35,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         health_data = {
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
-            "service": "discord-obsidian-memo-bot",
+            "service": "mindbridge",
             "version": "0.1.0",
         }
         self._send_response(200, health_data)

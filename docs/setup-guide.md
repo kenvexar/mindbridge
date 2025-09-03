@@ -1,4 +1,4 @@
-# Discord-Obsidian Memo Bot セットアップガイド
+# MindBridge セットアップガイド
 
 ## 初回セットアップ手順
 
@@ -90,7 +90,7 @@ gcloud billing projects link your-project-id --billing-account=YOUR-BILLING-ACCO
 ```bash
 # プロジェクトのクローン
 git clone <repository-url>
-cd discord-obsidian-memo-bot
+cd mindbridge
 
 # 依存関係のインストール
 uv sync
@@ -362,4 +362,4 @@ tail -f logs/discord_bot.log
 - ドキュメント: `docs/` ディレクトリを参照
 - デプロイメント: `docs/deployment-guide.md` を参照
 
-このガイドに従ってセットアップを完了すれば、 Discord-Obsidian Memo Bot が正常に動作するはずです。
+このガイドに従ってセットアップを完了すれば、 MindBridge が正常に動作するはずです。

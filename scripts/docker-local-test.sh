@@ -3,7 +3,7 @@ set -e
 
 # ローカル Docker テスト用スクリプト
 
-echo "🚀 Discord-Obsidian Memo Bot - ローカル Docker テスト"
+echo "🚀 MindBridge - ローカル Docker テスト"
 echo "================================================"
 
 # 環境変数ファイルの確認

@@ -1,14 +1,14 @@
-# Discord-Obsidian Memo Bot
+# MindBridge
 
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-AI 駆動の個人ナレッジマネジメントシステム - Discord を介してメモを収集し、自動的に Obsidian で整理
+AI 駆動の個人ナレッジブリッジ - Discord と Obsidian を繋ぎ、思考を知識に変換
 
 ## 概要
 
-Discord-Obsidian Memo Bot は、 Discord を統合インターフェースとして使用し、 AI 分析による自動メモ処理と Obsidian ナレッジベースへの保存を提供する包括的な個人ナレッジマネジメントシステムです。
+MindBridge は、Discord を統合インターフェースとして使用し、AI 分析による自動メモ処理と Obsidian ナレッジベースへの保存を提供する AI 駆動の個人ナレッジブリッジシステムです。
 
 ### 主要機能
 

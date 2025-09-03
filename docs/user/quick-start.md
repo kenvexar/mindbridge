@@ -1,6 +1,6 @@
 # 🚀 クイックスタートガイド
 
-**10分でDiscord-Obsidian Memo Botを動かす最短手順**
+**10分でMindBridgeを動かす最短手順**
 
 このガイドに従えば、10分以内にBotを起動してメモの自動保存を開始できます。
 
@@ -26,8 +26,8 @@
 
 ```bash
 # リポジトリのクローン
-git clone https://github.com/kenvexar/discord-obsidian-memo-bot.git
-cd discord-obsidian-memo-bot
+git clone https://github.com/kenvexar/mindbridge.git
+cd mindbridge
 
 # uvのインストール（まだの場合）
 curl -LsSf https://astral-sh/uv/install.sh | sh
@@ -101,7 +101,7 @@ uv run python -m src.main
 
 ## 🎉 完了！
 
-おめでとうございます！Discord-Obsidian Memo Botが正常に動作しています。
+おめでとうございます！MindBridgeが正常に動作しています。
 
 これで以下のことが自動化されます：
 - Discordメッセージの自動AI分析
@@ -193,7 +193,7 @@ ENVIRONMENT=development ENABLE_MOCK_MODE=true uv run python -m src.main
 
 問題が解決しない場合：
 - [トラブルシューティング](../operations/troubleshooting.md)を確認
-- [GitHub Issues](https://github.com/kenvexar/discord-obsidian-memo-bot/issues)で報告
+- [GitHub Issues](https://github.com/kenvexar/mindbridge/issues)で報告
 
 ---
 
