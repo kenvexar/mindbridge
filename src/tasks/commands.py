@@ -6,11 +6,11 @@ import discord
 from discord import app_commands
 from structlog import get_logger
 
-from ..bot.channel_config import ChannelConfig
-from ..obsidian import ObsidianFileManager
-from .models import ScheduleType, Task, TaskPriority, TaskStatus
-from .schedule_manager import ScheduleManager
-from .task_manager import TaskManager
+from src.bot.channel_config import ChannelConfig
+from src.obsidian import ObsidianFileManager
+from src.tasks.models import ScheduleType, Task, TaskPriority, TaskStatus
+from src.tasks.schedule_manager import ScheduleManager
+from src.tasks.task_manager import TaskManager
 
 logger = get_logger(__name__)
 
@@ -424,7 +424,7 @@ class TaskCommands:
                 TaskPriority.URGENT: "🔴",
             }
 
-            for status, task_list in status_groups.items():
+            for task_status, task_list in status_groups.items():
                 if len(task_list) == 0:
                     continue
 
@@ -438,7 +438,11 @@ class TaskCommands:
                         elif days_until <= 3:
                             due_text = f" (📅 {days_until}日後)"
 
-                    progress_text = f" ({task.progress}%)" if task.progress > 0 else ""
+                    progress_text = (
+                        f" ({task.progress}%)"
+                        if task.progress and task.progress > 0
+                        else ""
+                    )
 
                     status_text += f"{priority_emoji.get(task.priority, '⚪')} {task.title}{progress_text}{due_text}\n"
 
@@ -446,7 +450,7 @@ class TaskCommands:
                     status_text += f"... および他{len(task_list) - 10}件\n"
 
                 embed.add_field(
-                    name=f"{status_emoji.get(status, '📋')} {status.value} ({len(task_list)}件)",
+                    name=f"{status_emoji.get(task_status, '📋')} {task_status.value if hasattr(task_status, 'value') else task_status} ({len(task_list)}件)",
                     value=status_text or "なし",
                     inline=False,
                 )

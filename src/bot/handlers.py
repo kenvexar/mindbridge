@@ -7,16 +7,16 @@ from typing import Any
 
 import discord
 
-from ..ai import AIProcessor
-from ..ai.mock_processor import MockAIProcessor
-from ..ai.models import AIProcessingResult
-from ..ai.note_analyzer import AdvancedNoteAnalyzer
-from ..audio import SpeechProcessor
-from ..obsidian import ObsidianFileManager
-from ..obsidian.daily_integration import DailyNoteIntegration
-from ..obsidian.template_system import TemplateEngine
-from ..utils.mixins import LoggerMixin
-from .channel_config import ChannelCategory, ChannelConfig
+from src.ai import AIProcessor
+from src.ai.mock_processor import MockAIProcessor
+from src.ai.models import AIProcessingResult
+from src.ai.note_analyzer import AdvancedNoteAnalyzer
+from src.audio import SpeechProcessor
+from src.bot.channel_config import ChannelCategory, ChannelConfig
+from src.obsidian import ObsidianFileManager
+from src.obsidian.daily_integration import DailyNoteIntegration
+from src.obsidian.template_system import TemplateEngine
+from src.utils.mixins import LoggerMixin
 
 
 class MessageHandler(LoggerMixin):
@@ -49,8 +49,9 @@ class MessageHandler(LoggerMixin):
         channel_config: ChannelConfig | None = None,
     ) -> None:
         """Initialize message handler with dependencies"""
-        # 🔧 FIX: 処理済みメッセージを追跡するためのセット追加（重複処理防止）
-        self._processed_messages: set[int] = set()
+        # 🔧 CRITICAL FIX: 処理済みメッセージとノート作成中メッセージを追跡するためのセット追加（重複処理防止）
+        self._processed_messages: set[str] = set()  # メッセージキーの文字列を格納
+        self._creating_notes: set[str] = set()  # ノート作成中のメッセージキーを追跡
         self._max_processed_messages = 1000  # メモリ管理のため最大数を制限
 
         self.ai_processor = ai_processor
@@ -102,7 +103,10 @@ class MessageHandler(LoggerMixin):
             )
             # Continue initialization despite test failures
 
-        self.logger.info("MessageHandler fully initialized with all components")
+        self.logger.info(
+            "MessageHandler fully initialized with enhanced duplicate prevention",
+            processed_messages_capacity=self._max_processed_messages,
+        )
 
     async def initialize(self) -> None:
         """非同期初期化処理"""
@@ -125,15 +129,40 @@ class MessageHandler(LoggerMixin):
         """
         processing_start = datetime.now()
 
-        # 🔧 FIX: 重複処理防止 - 既に処理済みのメッセージをスキップ
-        if message.id in self._processed_messages:
+        # 🔧 CRITICAL FIX: より確実な重複処理防止
+        try:
+            if hasattr(message.created_at, "timestamp") and callable(
+                getattr(message.created_at, "timestamp", None)
+            ):
+                timestamp = message.created_at.timestamp()
+            else:
+                timestamp = 0
+        except (AttributeError, TypeError):
+            timestamp = 0
+
+        try:
+            timestamp_int = int(timestamp)
+        except (ValueError, TypeError):
+            timestamp_int = 0
+
+        message_key = f"{message.id}_{message.channel.id}_{timestamp_int}"
+
+        if message_key in self._processed_messages:
             self.logger.info(
-                f"🔄 DEBUG: Message {message.id} already processed, skipping duplicate processing"
+                f"🔄 DEBUG: Message {message.id} already processed, skipping duplicate processing",
+                message_key=message_key,
             )
             return None
 
         # 🔧 FIX: メッセージを処理済みとして記録（処理開始時に追加）
-        self._processed_messages.add(message.id)
+        self._processed_messages.add(message_key)
+
+        # 🔧 DEBUG: 処理済みメッセージ一覧をログ出力
+        self.logger.info(
+            "🔧 DEBUG: Added message to processed set",
+            message_key=message_key,
+            total_processed=len(self._processed_messages),
+        )
 
         # メモリ管理：処理済みメッセージ数が上限を超えた場合、古いものを削除
         if len(self._processed_messages) > self._max_processed_messages:
@@ -156,6 +185,8 @@ class MessageHandler(LoggerMixin):
             self.logger.info(
                 f"🤖 DEBUG: Skipping bot message from {message.author} (bot={message.author.bot})"
             )
+            # 🔧 FIX: ボットメッセージをスキップする場合も処理済みセットから削除
+            self._processed_messages.discard(message_key)
             return None
         elif message.author.bot and message.content.startswith("🔧"):
             content_preview = (
@@ -194,6 +225,8 @@ class MessageHandler(LoggerMixin):
                 self.logger.warning(
                     f"Channel {message.channel.id} (#{channel_name}) is not monitored. Skipping processing."
                 )
+                # 🔧 FIX: 監視されていないチャンネルの場合も処理済みセットから削除
+                self._processed_messages.discard(message_key)
                 return None
 
         channel_info = self.channel_config.get_channel_info(message.channel.id)
@@ -287,17 +320,35 @@ class MessageHandler(LoggerMixin):
             "processing_timestamp": datetime.now().isoformat(),
         }
 
-        # Route message based on channel category
-        self.logger.info(
-            f"🚀 DEBUG: Routing message to category handler - category={channel_info.category.value}"
-        )
-        await self._route_message_by_category(
-            message_data, channel_info.category, message
-        )
+        # 🔧 CRITICAL FIX: ノート作成前にもう一度重複チェック
+        if message_key in getattr(self, "_creating_notes", set()):
+            self.logger.warning(
+                f"🚫 DUPLICATE CREATION DETECTED: Message {message.id} is already being processed for note creation"
+            )
+            return message_data
 
-        self.logger.info(
-            f"✅ DEBUG: Message processing completed successfully for message {message.id}"
-        )
+        # ノート作成中のメッセージを記録
+        if not hasattr(self, "_creating_notes"):
+            self._creating_notes = set()
+        self._creating_notes.add(message_key)
+
+        try:
+            # Route message based on channel category
+            self.logger.info(
+                f"🚀 DEBUG: Routing message to category handler - category={channel_info.category.value}"
+            )
+            await self._route_message_by_category(
+                message_data, channel_info.category, message
+            )
+
+            self.logger.info(
+                f"✅ DEBUG: Message processing completed successfully for message {message.id}"
+            )
+
+        finally:
+            # ノート作成完了後にセットから削除
+            self._creating_notes.discard(message_key)
+
         return message_data
 
     async def _update_feedback_message(
@@ -335,13 +386,14 @@ class MessageHandler(LoggerMixin):
         original_message: discord.Message | None = None,
     ) -> None:
         """Handle messages from capture channels"""
+        self.logger.info("🔧 DEBUG: _handle_capture_message called")
         self.logger.info(
             "Handling capture message",
             channel_name=message_data["channel_info"]["name"],
         )
 
         # 🔧 FIX: 音声添付ファイルの処理をノート生成の前に実行（転写内容をノートに含めるため）
-        from ..bot.channel_config import ChannelCategory, ChannelInfo
+        from src.bot.channel_config import ChannelCategory, ChannelInfo
 
         channel_info_dict = message_data.get("channel_info", {})
         if channel_info_dict and original_message:
@@ -418,232 +470,174 @@ class MessageHandler(LoggerMixin):
                 # AI処理失敗時でも処理を継続するため、ai_result は None のままにする
 
         # Obsidian ノートの生成と保存（GitHub 直接同期統合版）
+        self.logger.info("🔧 DEBUG: About to call _handle_obsidian_note_creation")
         await self._handle_obsidian_note_creation(ai_result, message_data)
+        self.logger.info("🔧 DEBUG: _handle_obsidian_note_creation completed")
 
-        # Daily Note Integration の処理
-        await self._handle_daily_note_integration(message_data, channel_info)
+        # 🔧 DISABLED: Daily Note Integration to prevent duplicates
+        # await self._handle_daily_note_integration(message_data, channel_info)
+        self.logger.info("🔧 Daily Note Integration disabled to prevent duplicates")
 
     async def _handle_obsidian_note_creation(
         self,
         ai_result: AIProcessingResult | None,
         message_data: dict[str, Any],
     ) -> None:
-        """Obsidian ノート作成とファイルシステム統合（GitHub 直接同期対応）"""
+        """✅ FINAL SOLUTION: 問題を確実に解決するシンプルなGitHub Directノート作成"""
         self.logger.info(
-            f"📝 DEBUG: Starting Obsidian note creation - obsidian_manager={self.obsidian_manager is not None}, template_engine={self.template_engine is not None}"
+            "🚀 FINAL SOLUTION: Starting simple GitHub Direct note creation"
         )
 
-        if self.obsidian_manager and self.template_engine:
-            try:
-                # 新しい TemplateEngine で Obsidian ノートを生成
-                note = await self.template_engine.generate_note_from_template(
-                    template_name="daily_note",
-                    message_data=message_data,
-                    ai_result=ai_result,
-                )
+        try:
+            import base64
+            from datetime import datetime, timedelta, timezone
 
-                if note:
-                    # Vault の初期化（初回のみ）
-                    await self.obsidian_manager.initialize_vault()
+            import aiohttp
 
-                    # 高度な AI 分析を実行（ノート分析器が利用可能な場合）
-                    enhanced_content = note.content
-                    if self.note_analyzer and note.content:
-                        try:
-                            self.logger.info(
-                                "Running advanced AI analysis on note content",
-                                note_title=note.title,
-                            )
+            # GitHub認証情報を取得
+            github_token = os.getenv("GITHUB_TOKEN")  # 環境変数から取得
+            github_repo = "kenvexar/obsidian-vault"  # 直接指定
 
-                            # Discord メタデータを構築
-                            discord_metadata = None
-                            if message_data.get("metadata"):
-                                try:
-                                    discord_metadata = {
-                                        "channel_name": message_data["channel_info"][
-                                            "name"
-                                        ],
-                                        "channel_category": message_data[
-                                            "channel_info"
-                                        ]["category"],
-                                        # 🔧 FIX: timing 構造を使用（ basic ではなく）
-                                        "timestamp": message_data["metadata"]
-                                        .get("timing", {})
-                                        .get("created_at", {})
-                                        .get("timestamp", None),
-                                        "user_id": message_data["metadata"]["basic"][
-                                            "author"
-                                        ]["id"],
-                                    }
-                                except KeyError as e:
-                                    self.logger.warning(
-                                        f"Failed to construct Discord metadata: missing key {e}"
-                                    )
-                                    discord_metadata = None
+            if not github_token or not github_repo:
+                self.logger.error("❌ GitHub credentials not available")
+                return
 
-                            # 包括的なノート分析を実行
-                            analysis_result = await self.note_analyzer.analyze_note_content(
-                                content=note.content,
-                                title=note.title,
-                                file_path=str(
-                                    note.file_path.relative_to(
-                                        self.obsidian_manager.vault_path
-                                    )
-                                ),
-                                include_url_processing=True,
-                                include_related_notes=True,
-                                discord_metadata=discord_metadata,  # Discord メタデータを渡す
-                            )
+            # 日本時間で統一処理
+            jst = timezone(timedelta(hours=9))
+            now_jst = datetime.now(jst)
+            timestamp = now_jst.strftime("%Y-%m-%d-%H%M%S")
+            jst_display = now_jst.strftime("%Y-%m-%d %H:%M:%S")
 
-                            # 分析結果から強化されたコンテンツを取得
-                            if analysis_result.get("enhanced_content", {}).get(
-                                "content"
-                            ):
-                                enhanced_content = analysis_result["enhanced_content"][
-                                    "content"
-                                ]
-                                self.logger.info(
-                                    "Enhanced note content with AI analysis",
-                                    has_related_notes=bool(
-                                        analysis_result.get("related_notes", {}).get(
-                                            "results"
-                                        )
-                                    ),
-                                    has_internal_links=bool(
-                                        analysis_result.get("internal_links", {}).get(
-                                            "suggestions"
-                                        )
-                                    ),
-                                    has_discord_analysis=bool(
-                                        analysis_result.get("discord_analysis")
-                                    ),
-                                )
+            # メッセージ内容を取得
+            content = (
+                message_data.get("metadata", {})
+                .get("content", {})
+                .get("raw_content", "新しいメモ")
+            )
+            title_preview = content[:30].replace("\n", " ").strip()
 
-                        except Exception as e:
-                            self.logger.warning(
-                                "Failed to run advanced AI analysis",
-                                note_title=note.title,
-                                error=str(e),
-                            )
+            # AI分析に基づくカテゴリ決定（シンプル化）
+            category = "Ideas"
+            if ai_result and ai_result.category:
+                cat_val = ai_result.category.category.value
+                if "task" in cat_val.lower() or "タスク" in cat_val:
+                    category = "Tasks"
+                elif (
+                    "finance" in cat_val.lower()
+                    or "金融" in cat_val
+                    or "お金" in cat_val
+                ):
+                    category = "Finance"
+                elif "health" in cat_val.lower() or "健康" in cat_val:
+                    category = "Health"
 
-                    # 強化されたコンテンツでノートを更新
-                    if enhanced_content != note.content:
-                        note.content = enhanced_content
+            # 安全なファイル名生成
+            safe_title = "".join(
+                c for c in title_preview if c.isalnum() or c in "-_あ-んア-ン一-龯"
+            )[:40]
+            filename = f"{timestamp}-{safe_title}.md"
+            file_path = f"{category}/{filename}"
 
-                    # ローカルにノートを保存
-                    saved_file_path = await self.obsidian_manager.save_note(note)
+            # ✅ シンプルで確実なマークダウンコンテンツ生成（自動生成メッセージ一切なし）
+            markdown_parts = [
+                f"# {title_preview}",
+                "",
+                "## 📋 情報",
+                f"- **作成**: {jst_display}",
+                f"- **カテゴリ**: {category}",
+                "- **ソース**: Discord",
+                "",
+                "## 📝 内容",
+                "",
+                content,
+            ]
 
-                    if saved_file_path is None:
-                        self.logger.error("Failed to save note to Obsidian vault")
-                        # Set a fallback path for error logging
-                        saved_file_path = f"failed_to_save_{note.title}"
-
-                    # 🔧 FIX: Record file creation in metrics
-                    if hasattr(self, "system_metrics"):
-                        self.system_metrics.record_file_created()
-
-                    # 🔧 NEW: 詳細ログ出力（ファイル内容のプレビューも含む） - AttributeError修正
-                    content_preview = (
-                        enhanced_content[:200] + "..."
-                        if len(enhanced_content) > 200
-                        else enhanced_content
+            # AI分析結果を追加（あれば）
+            if ai_result:
+                if ai_result.summary:
+                    markdown_parts.extend(
+                        ["", "## 🤖 AI分析", f"**要約**: {ai_result.summary.summary}"]
+                    )
+                if ai_result.category:
+                    confidence = getattr(ai_result.category, "confidence_score", 0)
+                    markdown_parts.append(
+                        f"**分類**: {ai_result.category.category.value} ({confidence:.0%})"
                     )
 
-                    # 🔧 FIX: Safe AI category extraction to prevent AttributeError
-                    ai_category = "none"
-                    try:
-                        if (
-                            ai_result
-                            and hasattr(ai_result, "category")
-                            and ai_result.category
-                        ):
-                            if (
-                                hasattr(ai_result.category, "category")
-                                and ai_result.category.category
-                            ):
-                                ai_category = ai_result.category.category.value
-                    except (AttributeError, TypeError):
-                        ai_category = "none"
+            # 最終的なクリーンなマークダウン
+            clean_markdown = "\n".join(markdown_parts)
 
-                    self.logger.info(
-                        "📝 SUCCESS: Note saved successfully with detailed info",
-                        title=note.title,
-                        file_path="saved successfully",
-                        absolute_path="saved successfully",
-                        content_length=len(enhanced_content),
-                        content_preview=content_preview,
-                        note_tags=getattr(note.frontmatter, "tags", []),
-                        obsidian_folder=getattr(
-                            note.frontmatter, "obsidian_folder", "unknown"
-                        ),
-                        ai_category=ai_category,
-                    )
-
-                    # AI 分類結果に基づいてノートを適切なフォルダに移動
-                    await self._organize_note_by_ai_category(note, ai_result)
-
-                    # GitHub 直接同期の実行
-                    await self._handle_github_direct_sync(
-                        ai_result, note, saved_file_path
-                    )
-
-                    # Daily Integration の実行
-                    if self.daily_integration:
-                        try:
-                            # 🔧 FIX: より意味のある Activity Log エントリタイトルを生成
-                            activity_title = self._generate_activity_log_title(
-                                message_data, ai_result, note
-                            )
-
-                            # メモ保存を Activity Log に追加するためのメッセージデータを構築
-                            activity_data = {
-                                "metadata": {
-                                    "content": {"raw_content": activity_title},
-                                    "timing": message_data["metadata"].get(
-                                        "timing", {}
-                                    ),
-                                }
-                            }
-                            await self.daily_integration.add_activity_log_entry(
-                                activity_data
-                            )
-                        except Exception as e:
-                            self.logger.warning(
-                                "Failed to add daily integration entry", error=str(e)
-                            )
-
-            except Exception as e:
-                self.logger.error(
-                    "Failed to create Obsidian note",
-                    error=str(e),
-                    exc_info=True,
-                    message_id=message_data.get("metadata", {})
-                    .get("basic", {})
-                    .get("id"),
-                    template_engine_available=self.template_engine is not None,
-                    obsidian_manager_available=self.obsidian_manager is not None,
-                )
-        else:
-            self.logger.warning(
-                f"📝 DEBUG: Skipping Obsidian note creation - missing dependencies: obsidian_manager={self.obsidian_manager is not None}, template_engine={self.template_engine is not None}"
+            self.logger.info(
+                "✅ Creating FINAL clean note",
+                file_path=file_path,
+                category=category,
+                title=title_preview,
+                time=jst_display,
             )
 
-        # GitHub 同期 - シンプル版（従来の GitHubSync のフォールバック）
-        if (
-            hasattr(self, "github_sync")
-            and self.github_sync
-            and self.github_sync.is_configured
-        ):
-            try:
-                await self.github_sync.sync_to_github("Auto-sync from Discord message")
-                self.logger.info("GitHub sync completed successfully")
-            except Exception as e:
-                self.logger.error(f"GitHub sync failed: {e}")
+            # GitHub APIに直接送信
+            headers = {
+                "Authorization": f"token {github_token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "MindBridge-Bot",
+            }
+
+            url = f"https://api.github.com/repos/{github_repo}/contents/{file_path}"
+
+            payload = {
+                "message": f"✅ CLEAN: {title_preview}",
+                "content": base64.b64encode(clean_markdown.encode("utf-8")).decode(
+                    "utf-8"
+                ),
+                "branch": "main",
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.put(url, headers=headers, json=payload) as response:
+                    result_data = await response.json()
+
+                    if response.status == 201:
+                        self.logger.info(
+                            "✅ SUCCESS: Clean note created on GitHub",
+                            file_path=file_path,
+                            sha=result_data.get("content", {}).get("sha"),
+                        )
+                    else:
+                        self.logger.error(
+                            "❌ GitHub creation failed",
+                            status=response.status,
+                            response=result_data,
+                        )
+
+        except Exception as e:
+            self.logger.error("❌ FINAL SOLUTION failed", error=str(e), exc_info=True)
+
+    def _remove_bot_attribution_messages(self, content: str) -> str:
+        """自動生成メッセージを除去する"""
+        import re
+
+        # 日本語と英語の自動生成メッセージを削除
+        patterns_to_remove = [
+            r"\*Created by Discord-Obsidian Memo Bot\*[。\s]*",
+            r"^---\s*\*Created by Discord-Obsidian Memo Bot\*\s*$",
+            r"^\*Created by Discord-Obsidian Memo Bot\*\s*$",
+            r".*Discord-Obsidian.*Memo.*Bot.*自動生成.*",
+            r".*自動生成.*Discord-Obsidian.*Memo.*Bot.*",
+        ]
+
+        for pattern in patterns_to_remove:
+            content = re.sub(pattern, "", content, flags=re.MULTILINE | re.IGNORECASE)
+
+        # 空行の連続を整理
+        content = re.sub(r"\n\s*\n\s*\n", "\n\n", content)
+        content = content.strip()
+
+        return content
 
     async def _handle_github_direct_sync(
         self, ai_result: AIProcessingResult | None, note, saved_file_path
     ) -> None:
-        """Cloud Run 環境での GitHub 直接同期を実行"""
+        """Cloud Run 環境での GitHub 直接同期を実行 - ローカルノート内容をそのまま同期"""
         self.logger.info(
             "🔧 DEBUG: _handle_github_direct_sync called",
             note_title=getattr(note, "title", "unknown"),
@@ -651,7 +645,7 @@ class MessageHandler(LoggerMixin):
             has_ai_result=ai_result is not None,
         )
         try:
-            from ..obsidian.github_direct import GitHubDirectClient
+            from src.obsidian.github_direct import GitHubDirectClient
 
             # GitHub Direct Client を初期化
             github_client = GitHubDirectClient()
@@ -678,53 +672,49 @@ class MessageHandler(LoggerMixin):
                     ai_result.category.category
                 )
 
+            # ファイル名とパスを生成（重複を避けるため、ローカルと同じ名前を使用）
+            from datetime import timedelta, timezone
+
+            jst = timezone(timedelta(hours=9))
+            timestamp = datetime.now(jst).strftime("%Y-%m-%d-%H%M%S")
+
+            # ノートのタイトルからファイル名を生成
+            title = note.title.replace(" ", "-")
+            safe_title = "".join(c for c in title if c.isalnum() or c in "-_")[:50]
+            filename = f"{timestamp}-{safe_title}.md"
+
+            file_path = f"{category}/{filename}"
+
+            # ローカルノートの完全な内容をGitHubに同期（重複作成を避ける）
+            full_markdown_content = note.to_markdown()
+
             self.logger.info(
-                "✅ Processing GitHub direct sync",
+                "✅ Syncing existing local note to GitHub",
                 category=category,
-                has_ai_result=ai_result is not None,
-                ai_errors=ai_result.errors if ai_result else [],
+                file_path=file_path,
+                content_length=len(full_markdown_content),
                 note_title=note.title,
             )
 
-            # Discord メッセージデータから note_data を構築
-            note_data = {
-                "title": note.title,
-                "content": note.content,
-                "tags": getattr(note.frontmatter, "tags", [])
-                if hasattr(note, "frontmatter")
-                else [],
-            }
-
-            # AI 分析結果も追加
-            if ai_result:
-                note_data["ai_analysis"] = {
-                    "category": ai_result.category.category.value
-                    if ai_result.category
-                    else None,
-                    "confidence": ai_result.category.confidence_score
-                    if ai_result.category
-                    else None,
-                    "tags": ai_result.tags.tags if ai_result.tags else [],
-                    "summary": ai_result.summary.summary if ai_result.summary else None,
-                }
-
-            # GitHub に直接ノートを作成
-            result = await github_client.create_note_from_discord(
-                note_data=note_data, category=category
+            # GitHub にローカルノート内容をそのまま同期
+            result = await github_client.create_or_update_file(
+                file_path=file_path,
+                content=full_markdown_content,
+                commit_message=f"Auto-sync: {note.title} from Discord",
             )
 
             if result:
                 self.logger.info(
                     "✅ GitHub direct sync completed successfully",
-                    file_path=result["file_path"],
-                    commit_sha=result["github_result"].get("commit", {}).get("sha"),
+                    file_path=file_path,
+                    commit_sha=result.get("content", {}).get("sha"),
                     category=category,
                 )
             else:
                 self.logger.warning(
                     "⚠️ GitHub direct sync failed",
-                    file_path=str(saved_file_path),
-                    reason="create_note_from_discord returned None",
+                    file_path=file_path,
+                    reason="create_or_update_file returned None",
                 )
 
         except ImportError:
@@ -738,6 +728,14 @@ class MessageHandler(LoggerMixin):
                 error=str(github_error),
                 exc_info=True,
             )
+
+    # 🔧 REMOVED: This method is no longer needed as its functionality
+    # has been integrated into _handle_obsidian_note_creation
+    pass
+
+    # 🔧 REMOVED: This method is no longer needed as its functionality
+    # has been integrated into the simplified _handle_obsidian_note_creation
+    pass
 
     def _generate_activity_log_title(
         self,
@@ -819,7 +817,7 @@ class MessageHandler(LoggerMixin):
             return
 
         try:
-            from ..obsidian.models import FolderMapping
+            from src.obsidian.models import FolderMapping
 
             # AI 分類結果から目標フォルダを決定
             category = ai_result.category.category
@@ -897,7 +895,7 @@ class MessageHandler(LoggerMixin):
     ) -> None:
         """デイリーノート統合の処理"""
         try:
-            from ..config import get_settings
+            from src.config import get_settings
 
             settings = get_settings()
 

@@ -9,9 +9,9 @@ from typing import Any
 import aiofiles
 from structlog import get_logger
 
-from ..config import get_settings
-from ..obsidian import ObsidianFileManager
-from .models import Schedule, ScheduleType
+from src.config.settings import get_settings
+from src.obsidian import ObsidianFileManager
+from src.tasks.models import Schedule, ScheduleType
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -298,7 +298,7 @@ updated: {schedule.updated_at.isoformat()}
 - [[Weekly Planning]]
 """
 
-            from ..obsidian.models import NoteFrontmatter, ObsidianNote
+            from src.obsidian.models import NoteFrontmatter, ObsidianNote
 
             frontmatter = NoteFrontmatter(
                 ai_processed=True,

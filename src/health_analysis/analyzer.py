@@ -6,10 +6,9 @@ import uuid
 from datetime import date, timedelta
 from typing import Any
 
-from ..ai.processor import AIProcessor
-from ..garmin.models import HealthData
-from ..utils.mixins import LoggerMixin
-from .models import (
+from src.ai.processor import AIProcessor
+from src.garmin.models import HealthData
+from src.health_analysis.models import (
     AnalysisReport,
     AnalysisType,
     ChangeDetection,
@@ -18,6 +17,7 @@ from .models import (
     TrendAnalysis,
     WeeklyHealthSummary,
 )
+from src.utils.mixins import LoggerMixin
 
 # Settings loaded lazily to avoid circular imports
 

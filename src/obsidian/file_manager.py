@@ -12,9 +12,8 @@ from typing import Any
 import aiofiles
 import yaml
 
-from ..config.settings import get_settings
-from ..utils.mixins import LoggerMixin
-from .models import (
+from src.config.settings import get_settings
+from src.obsidian.models import (
     FileOperation,
     NoteStatus,
     ObsidianNote,
@@ -22,6 +21,7 @@ from .models import (
     VaultFolder,
     VaultStats,
 )
+from src.utils.mixins import LoggerMixin
 
 
 class ObsidianFileManager(LoggerMixin):
@@ -181,7 +181,7 @@ class ObsidianFileManager(LoggerMixin):
             modified_at = datetime.fromtimestamp(stat.st_mtime)
 
             # NoteFrontmatterオブジェクトの作成
-            from .models import NoteFrontmatter
+            from src.obsidian.models import NoteFrontmatter
 
             frontmatter = NoteFrontmatter(**frontmatter_data)
 

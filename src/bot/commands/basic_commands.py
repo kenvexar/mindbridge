@@ -8,7 +8,7 @@ import structlog
 from discord import app_commands
 from discord.ext import commands
 
-from ..mixins.command_base import CommandMixin
+from src.bot.mixins.command_base import CommandMixin
 
 logger = structlog.get_logger(__name__)
 

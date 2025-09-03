@@ -8,9 +8,9 @@ from typing import Any
 
 from discord.ext import commands, tasks
 
-from ..config import get_settings
-from ..utils.mixins import LoggerMixin
-from .notification_system import NotificationCategory, NotificationLevel
+from src.bot.notification_system import NotificationCategory, NotificationLevel
+from src.config import get_settings
+from src.utils.mixins import LoggerMixin
 
 
 class ReviewType(str, Enum):
@@ -48,14 +48,14 @@ class AutoReviewSystem(LoggerMixin):
     async def initialize_dependencies(self) -> None:
         """依存関係の初期化"""
         try:
-            from ..ai import AIProcessor
-            from ..obsidian import ObsidianFileManager
+            from src.ai import AIProcessor
+            from src.obsidian import ObsidianFileManager
 
             self.obsidian_manager = ObsidianFileManager()
 
             # AIプロセッサーの初期化（モックモードかどうかで分岐）
             if get_settings().is_mock_mode:
-                from ..ai.mock_processor import MockAIProcessor
+                from src.ai.mock_processor import MockAIProcessor
 
                 self.ai_processor = MockAIProcessor()
             else:

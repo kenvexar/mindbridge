@@ -5,8 +5,8 @@ import structlog
 from discord import app_commands
 from discord.ext import commands
 
-from ..channel_config import ChannelConfig
-from ..mixins.command_base import CommandMixin
+from src.bot.channel_config import ChannelConfig
+from src.bot.mixins.command_base import CommandMixin
 
 logger = structlog.get_logger(__name__)
 

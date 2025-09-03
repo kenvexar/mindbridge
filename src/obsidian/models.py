@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -233,10 +233,33 @@ class ObsidianNote(BaseModel):
         """完全な Markdown ファイル内容を生成"""
         frontmatter_yaml = self._frontmatter_to_yaml()
 
+        # 🔧 FIX: 自動生成メッセージを除去してからMarkdownを生成
+        clean_content = self._remove_bot_attribution_messages(self.content)
+
         return f"""---
 {frontmatter_yaml}---
 
-{self.content}"""
+{clean_content}"""
+
+    def _remove_bot_attribution_messages(self, content: str) -> str:
+        """自動生成メッセージを除去する"""
+        import re
+
+        # 日本語と英語の自動生成メッセージを削除
+        patterns_to_remove = [
+            r"\*Created by Discord-Obsidian Memo Bot\*[。\s]*",
+            r"^---\s*\*Created by Discord-Obsidian Memo Bot\*\s*$",
+            r"^\*Created by Discord-Obsidian Memo Bot\*\s*$",
+        ]
+
+        for pattern in patterns_to_remove:
+            content = re.sub(pattern, "", content, flags=re.MULTILINE | re.IGNORECASE)
+
+        # 余分な改行を整理
+        content = re.sub(r"\n\n\n+", "\n\n", content)
+        content = content.strip()
+
+        return content
 
     def _frontmatter_to_yaml(self) -> str:
         """フロントマターを YAML 形式に変換"""
@@ -736,3 +759,584 @@ class LocalDataIndex:
             "popular_tags": dict(popular_tags),
             "last_updated": datetime.now().isoformat(),
         }
+
+
+# AI Processing Models
+class ProcessingCategory(Enum):
+    """処理カテゴリ"""
+
+    FINANCE = "finance"
+    TASKS = "tasks"
+    HEALTH = "health"
+    LEARNING = "learning"
+    MEMO = "memo"
+    OTHER = "other"
+
+
+class AIModelConfig(BaseModel):
+    """AI モデル設定"""
+
+    model_name: str
+    temperature: float = 0.7
+    max_tokens: int = 1000
+    timeout: int = 30
+
+
+class ProcessingRequest(BaseModel):
+    """処理リクエスト"""
+
+    content: str
+    source_type: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    settings: Optional["ProcessingSettings"] = None
+
+
+class ProcessingSettings(BaseModel):
+    """処理設定"""
+
+    analyze_sentiment: bool = True
+    extract_entities: bool = True
+    generate_summary: bool = True
+    categorize_content: bool = True
+    max_summary_length: int = 200
+
+
+class CategoryResult(BaseModel):
+    """カテゴリ分類結果"""
+
+    category: str
+    subcategory: str | None = None
+    confidence: float
+    reasoning: str | None = None
+
+
+class SummaryResult(BaseModel):
+    """要約結果"""
+
+    summary: str
+    key_points: list[str] = Field(default_factory=list)
+    length: int
+    compression_ratio: float
+
+
+class CacheInfo(BaseModel):
+    """キャッシュ情報"""
+
+    hit: bool
+    key: str
+    timestamp: datetime
+    ttl: int | None = None
+
+
+class ProcessingCache(BaseModel):
+    """処理キャッシュ"""
+
+    key: str
+    result: dict[str, Any]
+    created_at: datetime
+    expires_at: datetime | None = None
+
+
+class ProcessingStats(BaseModel):
+    """処理統計"""
+
+    total_requests: int = 0
+    successful_requests: int = 0
+    failed_requests: int = 0
+    average_processing_time: float = 0.0
+    cache_hit_rate: float = 0.0
+
+
+class AIProcessingResult(BaseModel):
+    """AI 処理結果"""
+
+    success: bool
+    category_result: CategoryResult | None = None
+    summary_result: SummaryResult | None = None
+    tags: list[str] = Field(default_factory=list)
+    entities: dict[str, Any] = Field(default_factory=dict)
+    sentiment: str | None = None
+    processing_time: float
+    cache_info: CacheInfo | None = None
+    error_message: str | None = None
+    # Additional attributes expected by tests
+    message_id: str | None = None
+    errors: list[str] = Field(default_factory=list)
+    summary: str | None = None
+
+
+# Task Management Models
+class TaskStatus(Enum):
+    """タスクステータス"""
+
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    ON_HOLD = "on_hold"
+    # Additional values expected by task commands
+    TODO = "todo"
+    WAITING = "waiting"
+    DONE = "done"
+
+
+class TaskPriority(Enum):
+    """タスク優先度"""
+
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+    # Additional value expected by task commands
+    MEDIUM = "medium"
+
+
+class ScheduleType(Enum):
+    """スケジュールタイプ"""
+
+    ONCE = "once"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
+
+class Task(BaseModel):
+    """タスク"""
+
+    id: str
+    title: str
+    description: str | None = None
+    status: TaskStatus = TaskStatus.PENDING
+    priority: TaskPriority = TaskPriority.NORMAL
+    created_at: datetime
+    updated_at: datetime
+    due_date: datetime | None = None
+    completed_at: datetime | None = None
+    tags: list[str] = Field(default_factory=list)
+    assignee: str | None = None
+    project: str | None = None
+    # Additional attributes expected by task commands
+    progress: int | None = None  # percentage 0-100
+
+
+class Schedule(BaseModel):
+    """スケジュール"""
+
+    id: str
+    task_id: str
+    schedule_type: ScheduleType
+    start_date: datetime
+    end_date: datetime | None = None
+    interval: int = 1
+    days_of_week: list[int] = Field(default_factory=list)
+    time_of_day: str | None = None
+    timezone: str = "UTC"
+
+
+class TaskSummary(BaseModel):
+    """タスク集計"""
+
+    total_tasks: int = 0
+    pending_tasks: int = 0
+    in_progress_tasks: int = 0
+    completed_tasks: int = 0
+    overdue_tasks: int = 0
+    high_priority_tasks: int = 0
+
+
+# Finance Models
+class BudgetCategory(Enum):
+    """予算カテゴリ"""
+
+    FOOD = "food"
+    TRANSPORTATION = "transportation"
+    ENTERTAINMENT = "entertainment"
+    UTILITIES = "utilities"
+    SHOPPING = "shopping"
+    HEALTH = "health"
+    EDUCATION = "education"
+    OTHER = "other"
+
+
+class SubscriptionFrequency(Enum):
+    """サブスクリプション頻度"""
+
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
+
+class SubscriptionStatus(Enum):
+    """サブスクリプションステータス"""
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class ExpenseRecord(BaseModel):
+    """支出記録"""
+
+    id: str
+    amount: float
+    currency: str = "JPY"
+    category: BudgetCategory
+    description: str | None = None
+    date: datetime
+    payment_method: str | None = None
+    location: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    receipt_url: str | None = None
+
+
+class IncomeRecord(BaseModel):
+    """収入記録"""
+
+    id: str
+    amount: float
+    currency: str = "JPY"
+    source: str
+    description: str | None = None
+    date: datetime
+    tags: list[str] = Field(default_factory=list)
+
+
+class Budget(BaseModel):
+    """予算"""
+
+    id: str
+    name: str
+    category: BudgetCategory
+    amount: float
+    currency: str = "JPY"
+    period: str  # "monthly", "yearly", etc.
+    start_date: datetime
+    end_date: datetime | None = None
+    spent: float = 0.0
+    remaining: float = 0.0
+
+    # Budget manager expected attributes
+    period_start: datetime | None = None
+    period_end: datetime | None = None
+    spent_amount: float = 0.0
+    updated_at: datetime = Field(default_factory=datetime.now)
+    is_near_limit: bool = False
+    is_over_budget: bool = False
+    remaining_amount: float = 0.0
+    percentage_used: float = 0.0
+
+
+class Subscription(BaseModel):
+    """サブスクリプション"""
+
+    id: str
+    name: str
+    amount: float
+    currency: str = "JPY"
+    frequency: SubscriptionFrequency
+    status: SubscriptionStatus
+    start_date: datetime
+    next_billing_date: datetime
+    end_date: datetime | None = None
+    category: BudgetCategory
+    url: str | None = None
+    notes: str | None = None
+
+
+class PaymentRecord(BaseModel):
+    """支払い記録"""
+
+    id: str
+    subscription_id: str
+    amount: float
+    currency: str = "JPY"
+    payment_date: datetime
+    status: str  # "success", "failed", "pending"
+    payment_method: str | None = None
+    transaction_id: str | None = None
+
+
+class FinanceSummary(BaseModel):
+    """金融サマリー"""
+
+    total_income: float = 0.0
+    total_expenses: float = 0.0
+    net_amount: float = 0.0
+    expense_by_category: dict[str, float] = Field(default_factory=dict)
+    active_subscriptions: int = 0
+    monthly_subscription_cost: float = 0.0
+
+
+# Health Models
+class HealthData(BaseModel):
+    """健康データ"""
+
+    date: datetime
+    data_type: str
+    value: float
+    unit: str
+    source: str = "manual"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    # Garmin formatter expected attributes
+    has_any_data: bool = True
+    data_quality: str = "good"
+    sleep: Optional["SleepData"] = None
+    steps: Optional["StepsData"] = None
+    heart_rate: Optional["HeartRateData"] = None
+    activities: list["ActivityData"] = Field(default_factory=list)
+    errors: list["DataError"] = Field(default_factory=list)
+    retrieved_at: datetime = Field(default_factory=datetime.now)
+    is_cached_data: bool = False
+    cache_age_hours: float = 0.0
+
+
+class ActivityData(BaseModel):
+    """活動データ"""
+
+    date: datetime
+    activity_type: str
+    duration: int | None = None  # minutes
+    distance: float | None = None  # km
+    calories: int | None = None
+    steps: int | None = None
+    source: str = "manual"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SleepData(BaseModel):
+    """睡眠データ"""
+
+    date: datetime
+    sleep_start: datetime
+    sleep_end: datetime
+    duration: int  # minutes
+    deep_sleep: int | None = None
+    light_sleep: int | None = None
+    rem_sleep: int | None = None
+    awake_time: int | None = None
+    sleep_quality: int | None = None  # 1-10
+    source: str = "manual"
+
+    # Garmin formatter expected attributes
+    is_valid: bool = True
+    total_sleep_hours: float | None = None
+    deep_sleep_hours: float | None = None
+    light_sleep_hours: float | None = None
+    rem_sleep_hours: float | None = None
+    sleep_score: int | None = None
+    bedtime: datetime | None = None
+    wake_time: datetime | None = None
+
+
+class HeartRateData(BaseModel):
+    """心拍数データ"""
+
+    timestamp: datetime
+    heart_rate: int
+    zone: str | None = None
+    source: str = "manual"
+
+    # Garmin formatter expected attributes
+    is_valid: bool = True
+    resting_heart_rate: int | None = None
+    max_heart_rate: int | None = None
+    avg_heart_rate: int | None = None
+    heart_rate_zones: dict[str, Any] | None = None
+
+
+class StepsData(BaseModel):
+    """歩数データ"""
+
+    date: datetime
+    steps: int
+    distance: float | None = None
+    calories: int | None = None
+    active_minutes: int | None = None
+    source: str = "manual"
+
+    # Garmin formatter expected attributes
+    is_valid: bool = True
+    total_steps: int | None = None
+    distance_km: float | None = None
+    calories_burned: int | None = None
+    floors_climbed: int | None = None
+
+
+# Health Analysis Models
+class TrendAnalysis(BaseModel):
+    """トレンド分析"""
+
+    metric: str
+    period: str
+    trend_direction: str  # "increasing", "decreasing", "stable"
+    change_percentage: float
+    confidence: float
+    data_points: int
+
+
+class ChangeType(Enum):
+    """変化タイプ"""
+
+    INCREASE = "increase"
+    DECREASE = "decrease"
+    STABLE = "stable"
+    SPIKE = "spike"
+    DROP = "drop"
+
+
+class ChangeDetection(BaseModel):
+    """変化検出"""
+
+    metric: str
+    change_type: ChangeType
+    magnitude: float
+    confidence: float
+    detected_at: datetime
+    context: str | None = None
+
+
+class ActivityCorrelation(BaseModel):
+    """活動相関"""
+
+    metric1: str
+    metric2: str
+    correlation: float
+    significance: float
+    sample_size: int
+
+
+class HealthInsight(BaseModel):
+    """健康インサイト"""
+
+    title: str
+    description: str
+    category: str
+    importance: str  # "low", "medium", "high"
+    action_items: list[str] = Field(default_factory=list)
+    confidence: float
+    generated_at: datetime
+
+
+class AnalysisType(Enum):
+    """分析タイプ"""
+
+    TREND = "trend"
+    CORRELATION = "correlation"
+    ANOMALY = "anomaly"
+    PREDICTION = "prediction"
+    SUMMARY = "summary"
+
+
+class AnalysisReport(BaseModel):
+    """分析レポート"""
+
+    id: str
+    analysis_type: AnalysisType
+    title: str
+    summary: str
+    insights: list[HealthInsight] = Field(default_factory=list)
+    trends: list[TrendAnalysis] = Field(default_factory=list)
+    correlations: list[ActivityCorrelation] = Field(default_factory=list)
+    changes: list[ChangeDetection] = Field(default_factory=list)
+    generated_at: datetime
+    period_start: datetime
+    period_end: datetime
+
+
+class WeeklyHealthSummary(BaseModel):
+    """週間健康サマリー"""
+
+    week_start: datetime
+    week_end: datetime
+    total_steps: int = 0
+    total_active_minutes: int = 0
+    average_sleep_hours: float = 0.0
+    sleep_quality_score: float | None = None
+    workout_sessions: int = 0
+    top_activities: list[str] = Field(default_factory=list)
+    insights: list[str] = Field(default_factory=list)
+    achievements: list[str] = Field(default_factory=list)
+
+
+# Garmin Models
+class DataSource(Enum):
+    """データソース"""
+
+    GARMIN = "garmin"
+    MANUAL = "manual"
+    IMPORT = "import"
+
+
+class DataError(BaseModel):
+    """データエラー"""
+
+    error_type: str
+    message: str
+    timestamp: datetime
+    source: str
+    retry_count: int = 0
+
+
+class GarminAuthenticationError(Exception):
+    """Garmin認証エラー"""
+
+    pass
+
+
+class GarminConnectionError(Exception):
+    """Garmin接続エラー"""
+
+    pass
+
+
+class GarminDataRetrievalError(Exception):
+    """Garminデータ取得エラー"""
+
+    pass
+
+
+class GarminRateLimitError(Exception):
+    """Garminレート制限エラー"""
+
+    pass
+
+
+class GarminTimeoutError(Exception):
+    """Garminタイムアウトエラー"""
+
+    pass
+
+
+class GarminOfflineError(Exception):
+    """Garminオフラインエラー"""
+
+    pass
+
+
+# Audio Models
+class TranscriptionResult(BaseModel):
+    """音声認識結果"""
+
+    text: str
+    confidence: float
+    language: str
+    duration: float
+    timestamp: datetime
+    segments: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AudioProcessingResult(BaseModel):
+    """音声処理結果"""
+
+    transcription: TranscriptionResult | None = None
+    file_path: str
+    original_filename: str
+    file_size: int
+    duration: float
+    processing_time: float
+    success: bool
+    error_message: str | None = None

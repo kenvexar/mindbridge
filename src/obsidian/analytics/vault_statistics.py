@@ -9,7 +9,7 @@ from typing import Any
 import aiofiles
 import structlog
 
-from .stats_models import CategoryStats, VaultStats
+from src.obsidian.analytics.stats_models import CategoryStats, VaultStats
 
 logger = structlog.get_logger(__name__)
 

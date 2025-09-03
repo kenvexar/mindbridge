@@ -10,11 +10,11 @@ from typing import Any
 
 import aiofiles
 
-from ..utils.mixins import LoggerMixin
+from src.utils.mixins import LoggerMixin
 
 try:
-    from ..config import get_settings
-    from ..obsidian import ObsidianFileManager
+    from src.config import get_settings
+    from src.obsidian import ObsidianFileManager
 except ImportError:
     # Mock for standalone testing
     class MockSettings:

@@ -8,13 +8,13 @@ from typing import Any
 import aiofiles
 import structlog
 
-from ..config import get_settings
-from ..utils.mixins import LoggerMixin
-from .analytics import VaultStatistics
-from .backup import BackupConfig, BackupManager
-from .core import FileOperations, VaultManager
-from .models import FileOperation, ObsidianNote
-from .search import NoteSearch, SearchCriteria
+from src.config import get_settings
+from src.obsidian.analytics import VaultStatistics
+from src.obsidian.backup import BackupConfig, BackupManager
+from src.obsidian.core import FileOperations, VaultManager
+from src.obsidian.models import FileOperation, ObsidianNote
+from src.obsidian.search import NoteSearch, SearchCriteria
+from src.utils.mixins import LoggerMixin
 
 logger = structlog.get_logger(__name__)
 
@@ -55,7 +55,7 @@ class ObsidianFileManager(LoggerMixin):
         self.local_data_manager = None
         if enable_local_data:
             try:
-                from .local_data_manager import LocalDataManager
+                from src.local_data_manager import LocalDataManager
 
                 self.local_data_manager = LocalDataManager(self.vault_path)
             except ImportError:
@@ -89,16 +89,16 @@ class ObsidianFileManager(LoggerMixin):
     # File Operations
     async def save_note(
         self, note: ObsidianNote, subfolder: str | None = None, overwrite: bool = False
-    ) -> bool:
+    ) -> Path | None:
         """Save a note to the vault."""
         try:
             # For now, ignore the overwrite parameter as the file_operations doesn't support it
-            await self.file_operations.save_note(note, subfolder)
+            saved_path = await self.file_operations.save_note(note, subfolder)
             # Invalidate stats cache when adding new notes
             self.statistics.invalidate_cache()
-            return True
+            return saved_path
         except Exception:
-            return False
+            return None
 
     async def load_note(self, file_path: Path) -> ObsidianNote | None:
         """Load a note from the vault."""
@@ -157,7 +157,7 @@ class ObsidianFileManager(LoggerMixin):
             return daily_file_path
         else:
             # Create new daily note
-            from .models import NoteFrontmatter
+            from src.obsidian.models import NoteFrontmatter
 
             daily_frontmatter = NoteFrontmatter(
                 obsidian_folder="Daily Notes",
@@ -382,7 +382,7 @@ class ObsidianFileManager(LoggerMixin):
 
     async def _create_template_files(self) -> None:
         """テンプレートファイルを作成（後方互換性のため）"""
-        from .models import VaultFolder
+        from src.obsidian.models import VaultFolder
 
         templates_dir = self.vault_path / VaultFolder.TEMPLATES.value
 

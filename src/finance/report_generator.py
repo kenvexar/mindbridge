@@ -6,12 +6,12 @@ from typing import Any
 
 from structlog import get_logger
 
-from ..ai import GeminiClient
-from ..obsidian import ObsidianFileManager
-from .budget_manager import BudgetManager
-from .expense_manager import ExpenseManager
-from .models import FinanceSummary
-from .subscription_manager import SubscriptionManager
+from src.ai import GeminiClient
+from src.finance.budget_manager import BudgetManager
+from src.finance.expense_manager import ExpenseManager
+from src.finance.models import FinanceSummary
+from src.finance.subscription_manager import SubscriptionManager
+from src.obsidian import ObsidianFileManager
 
 logger = get_logger(__name__)
 
@@ -334,7 +334,7 @@ tags: [finance, report, monthly]
 """
 
             # Create ObsidianNote and save it
-            from ..obsidian.models import NoteFrontmatter, ObsidianNote
+            from src.obsidian.models import NoteFrontmatter, ObsidianNote
 
             note = ObsidianNote(
                 filename=file_path.name,

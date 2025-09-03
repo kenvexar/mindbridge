@@ -45,7 +45,7 @@ class AIModelConfig(BaseModel):
 class ProcessingSettings(BaseModel):
     """AI 処理設定"""
 
-    min_text_length: int = Field(default=50, ge=1)
+    min_text_length: int = Field(default=3, ge=1)  # 3文字以上で処理
     max_text_length: int = Field(default=8000, ge=1)
     enable_summary: bool = True
     enable_tags: bool = True
@@ -54,6 +54,15 @@ class ProcessingSettings(BaseModel):
     cache_duration_hours: int = Field(default=24, ge=1)
     retry_count: int = Field(default=3, ge=0, le=10)
     timeout_seconds: int = Field(default=30, ge=5, le=300)
+
+    def __post_init__(self):
+        """初期化後の設定検証と強制修正"""
+        # 🔧 FORCE FIX: min_text_length が異常に大きい場合は強制的に 3 に設定
+        if self.min_text_length > 20:
+            print(
+                f"⚠️ WARNING: min_text_length was {self.min_text_length}, forcing to 3"
+            )
+            object.__setattr__(self, "min_text_length", 3)
 
 
 class SummaryResult(BaseModel):

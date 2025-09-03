@@ -10,10 +10,10 @@ from typing import Any
 
 from discord.ext import commands, tasks
 
-from ..config.settings import get_settings
-from ..obsidian.github_sync import GitHubObsidianSync
-from ..utils.mixins import LoggerMixin
-from .notification_system import NotificationCategory, NotificationLevel
+from src.bot.notification_system import NotificationCategory, NotificationLevel
+from src.config.settings import get_settings
+from src.obsidian.github_sync import GitHubObsidianSync
+from src.utils.mixins import LoggerMixin
 
 
 class BackupType(str, Enum):

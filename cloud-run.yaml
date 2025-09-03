@@ -22,14 +22,14 @@ spec:
         run.googleapis.com/startup-probe-timeout-seconds: "10"
 
         # Service account
-        run.googleapis.com/service-account: mindbridge-service@PROJECT_ID.iam.gserviceaccount.com
+        run.googleapis.com/service-account: mindbridge-service@mindbridge-469901.iam.gserviceaccount.com
     spec:
       containerConcurrency: 1000
       timeoutSeconds: 300
-      serviceAccountName: mindbridge-service@PROJECT_ID.iam.gserviceaccount.com
+      serviceAccountName: mindbridge-service@mindbridge-469901.iam.gserviceaccount.com
       containers:
       - name: mindbridge
-        image: gcr.io/PROJECT_ID/mindbridge:latest
+        image: gcr.io/mindbridge-469901/mindbridge:latest
         ports:
         - containerPort: 8080
           name: http1
@@ -42,7 +42,7 @@ spec:
         - name: OBSIDIAN_VAULT_PATH
           value: "/app/vault"
         - name: GOOGLE_CLOUD_PROJECT
-          value: "PROJECT_ID"
+          value: "mindbridge-469901"
         - name: ENVIRONMENT
           value: "production"
         - name: DISCORD_BOT_TOKEN

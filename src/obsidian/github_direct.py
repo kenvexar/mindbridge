@@ -8,7 +8,7 @@ from typing import Any
 
 import structlog
 
-from ..config.settings import get_settings
+from src.config.settings import get_settings
 
 
 class GitHubDirectClient:
@@ -99,65 +99,116 @@ class GitHubDirectClient:
         self, file_path: str, content: str, commit_message: str, branch: str = "main"
     ) -> dict[str, Any] | None:
         """GitHub API を使用してファイルを作成または更新"""
-        if not self.is_configured:
-            self.logger.warning("GitHub direct client not configured")
-            return None
-
         try:
-            # MCP GitHub ツールを使用してファイルを作成/更新
-            from ..utils.mcp_client import get_mcp_client
+            import base64
 
-            github_client = get_mcp_client("github")
-            if not github_client:
-                self.logger.error("GitHub MCP client not available")
-                return None
+            import aiohttp
 
-            # 既存ファイルをチェックして SHA を取得
-            sha = None
-            try:
-                existing_file = await github_client.get_file_contents(
-                    owner=self.owner, repo=self.repo, path=file_path, branch=branch
-                )
-                if existing_file:
-                    sha = existing_file.get("sha")
-            except Exception:
-                # ファイルが存在しない場合は新規作成
-                pass
+            # 🔧 FIX: 最終段階で自動生成メッセージを確実に除去
+            clean_content = self._remove_bot_attribution_messages(content)
 
-            # ファイル作成/更新
-            result = await github_client.create_or_update_file(
-                owner=self.owner,
-                repo=self.repo,
-                path=file_path,
-                content=content,
-                message=commit_message,
-                branch=branch,
-                sha=sha,
+            # Base64 エンコード
+            encoded_content = base64.b64encode(clean_content.encode("utf-8")).decode(
+                "utf-8"
             )
+
+            # API エンドポイント
+            api_url = f"https://api.github.com/repos/{self.owner}/{self.repo}/contents/{file_path}"
+
+            # 既存ファイルのSHAを取得を試行
+            existing_sha = None  # 新規作成として処理
+
+            # リクエストペイロード
+            payload = {
+                "message": commit_message,
+                "content": encoded_content,
+                "branch": branch,
+            }
+
+            if existing_sha:
+                payload["sha"] = existing_sha
+
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "Discord-Obsidian-Memo-Bot/1.0",
+            }
 
             self.logger.info(
-                "Successfully created/updated file via GitHub API",
+                "Creating/updating GitHub file",
                 file_path=file_path,
-                commit_sha=result.get("commit", {}).get("sha"),
+                content_length=len(clean_content),
+                existing_sha=bool(existing_sha),
+                commit_message=commit_message,
             )
-            return result
+
+            async with aiohttp.ClientSession() as session:
+                async with session.put(
+                    api_url, headers=headers, json=payload
+                ) as response:
+                    response_text = await response.text()
+
+                    if response.status in [200, 201]:
+                        result = await response.json()
+                        self.logger.info(
+                            "✅ File successfully synced to GitHub",
+                            file_path=file_path,
+                            status=response.status,
+                            sha=result.get("content", {}).get("sha", "unknown"),
+                        )
+                        return result
+                    else:
+                        self.logger.error(
+                            "❌ GitHub sync failed",
+                            file_path=file_path,
+                            status=response.status,
+                            response_text=response_text,
+                            payload_keys=list(payload.keys()),
+                            existing_sha=existing_sha,
+                        )
+                        return None
 
         except Exception as e:
             self.logger.error(
-                "Failed to create/update file via GitHub API",
+                "❌ Exception during GitHub sync",
                 file_path=file_path,
                 error=str(e),
                 exc_info=True,
             )
             return None
 
+    def _remove_bot_attribution_messages(self, content: str) -> str:
+        """自動生成メッセージを除去する"""
+        import re
+
+        # 日本語と英語の自動生成メッセージを削除
+        patterns_to_remove = [
+            r"\*Created by Discord-Obsidian Memo Bot\*[。\s]*",
+            r"^---\s*\*Created by Discord-Obsidian Memo Bot\*\s*$",
+            r"^\*Created by Discord-Obsidian Memo Bot\*\s*$",
+            r".*Discord-Obsidian.*Memo.*Bot.*自動生成.*",
+            r".*自動生成.*Discord-Obsidian.*Memo.*Bot.*",
+        ]
+
+        for pattern in patterns_to_remove:
+            content = re.sub(pattern, "", content, flags=re.MULTILINE | re.IGNORECASE)
+
+        # 空行の連続を整理
+        content = re.sub(r"\n\s*\n\s*\n", "\n\n", content)
+        content = content.strip()
+
+        return content
+
     async def create_note_from_discord(
         self, note_data: dict[str, Any], category: str = "Memos"
     ) -> dict[str, Any] | None:
         """Discord メッセージから Obsidian ノートを直接 GitHub に作成"""
         try:
-            # ファイル名生成
-            timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+            # 日本時間でファイル名生成
+            from datetime import timedelta, timezone
+
+            jst = timezone(timedelta(hours=9))
+            timestamp = datetime.now(jst).strftime("%Y-%m-%d-%H%M%S")
             title = note_data.get("title", "untitled").replace(" ", "-")
             safe_title = "".join(c for c in title if c.isalnum() or c in "-_")[:50]
             filename = f"{timestamp}-{safe_title}.md"
@@ -214,9 +265,14 @@ class GitHubDirectClient:
 
         # メタデータセクション
         content_parts.append("## メタデータ")
-        content_parts.append(
-            f"- **作成日時**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        )
+
+        # 日本時間で作成日時を表示
+        from datetime import timedelta, timezone
+
+        jst = timezone(timedelta(hours=9))
+        jst_time = datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")
+
+        content_parts.append(f"- **作成日時**: {jst_time}")
         content_parts.append(f"- **カテゴリ**: {category}")
         content_parts.append("- **ソース**: Discord (#memo チャンネル)")
 
@@ -253,9 +309,5 @@ class GitHubDirectClient:
             tag_line = " ".join(f"#{tag}" for tag in all_tags)
             content_parts.append(f"**タグ**: {tag_line}")
             content_parts.append("")
-
-        # フッター
-        content_parts.append("---")
-        content_parts.append("*Created by Discord-Obsidian Memo Bot*")
 
         return "\n".join(content_parts)

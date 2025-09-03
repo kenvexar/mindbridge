@@ -10,14 +10,14 @@ from typing import Any
 import aiofiles
 from structlog import get_logger
 
-from ..config import get_settings
-from ..obsidian import ObsidianFileManager
-from .models import (
+from src.config import get_settings
+from src.finance.models import (
     PaymentRecord,
     Subscription,
     SubscriptionFrequency,
     SubscriptionStatus,
 )
+from src.obsidian import ObsidianFileManager
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -258,7 +258,7 @@ class SubscriptionManager:
         """Calculate total monthly cost of all active subscriptions."""
         from decimal import Decimal
 
-        from .models import SubscriptionFrequency
+        from src.obsidian.models import SubscriptionFrequency
 
         active_subscriptions = await self.get_active_subscriptions()
         monthly_cost = Decimal(0)
@@ -268,7 +268,7 @@ class SubscriptionManager:
                 monthly_cost += subscription.amount
             elif subscription.frequency == SubscriptionFrequency.YEARLY:
                 monthly_cost += subscription.amount / 12
-            elif subscription.frequency == SubscriptionFrequency.QUARTERLY:
+            elif subscription.frequency == "quarterly":
                 monthly_cost += subscription.amount / 3
             elif subscription.frequency == SubscriptionFrequency.WEEKLY:
                 monthly_cost += subscription.amount * Decimal(
@@ -405,7 +405,7 @@ updated: {subscription.updated_at.isoformat()}
 - [[Budget Tracking]]
 """
 
-            from ..obsidian.models import NoteFrontmatter, ObsidianNote
+            from src.obsidian.models import NoteFrontmatter, ObsidianNote
 
             frontmatter = NoteFrontmatter(
                 ai_processed=True,
@@ -484,7 +484,7 @@ updated: {subscription.updated_at.isoformat()}
 
             updated_content = "\n".join(updated_lines)
             # Create an ObsidianNote instance and save it
-            from ..obsidian.models import NoteFrontmatter, ObsidianNote
+            from src.obsidian.models import NoteFrontmatter, ObsidianNote
 
             frontmatter = NoteFrontmatter(obsidian_folder="06_Finance")
             note = ObsidianNote(

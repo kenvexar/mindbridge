@@ -8,13 +8,13 @@ from decimal import Decimal
 import aiofiles
 from structlog import get_logger
 
-from ..config import get_settings
-from ..obsidian import ObsidianFileManager
-from .models import (
+from src.config import get_settings
+from src.finance.models import (
     BudgetCategory,
     ExpenseRecord,
     IncomeRecord,
 )
+from src.obsidian import ObsidianFileManager
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -283,14 +283,14 @@ class ExpenseManager:
     ) -> None:
         """Add expense/income to daily note."""
         try:
-            from ..obsidian.daily_integration import (
+            from src.obsidian.daily_integration import (
                 DailyNoteIntegration as DailyNoteIntegrator,
             )
 
             daily_integrator = DailyNoteIntegrator(self.file_manager)
 
             if record_type == "expense":
-                from .models import ExpenseRecord
+                from src.obsidian.models import ExpenseRecord
 
                 assert isinstance(record, ExpenseRecord)
                 content = f"- **支出**: {record.description} - ¥{record.amount:,} ({record.category.value})"

@@ -7,10 +7,8 @@ import hashlib
 from datetime import datetime
 from typing import Any
 
-from ..utils.mixins import LoggerMixin
-from .models import (
+from src.ai.models import (
     AIProcessingResult,
-    CacheInfo,
     CategoryResult,
     ProcessingCategory,
     ProcessingSettings,
@@ -18,6 +16,7 @@ from .models import (
     SummaryResult,
     TagResult,
 )
+from src.utils.mixins import LoggerMixin
 
 
 class MockAIProcessor(LoggerMixin):
@@ -159,13 +158,13 @@ class MockAIProcessor(LoggerMixin):
         """Get processing statistics"""
         return self.stats
 
-    def get_cache_info(self) -> CacheInfo:
+    def get_cache_info(self) -> dict[str, float]:
         """Get cache information"""
-        return CacheInfo(
-            total_entries=len(self.cache),
-            memory_usage=0,  # Mock value
-            hit_rate=0.75 if self.stats.total_requests > 0 else 0.0,
-        )
+        return {
+            "total_entries": len(self.cache),
+            "memory_usage": 0.0,  # Mock value
+            "hit_rate": 0.75 if self.stats.total_requests > 0 else 0.0,
+        }
 
     def clear_cache(self) -> None:
         """Clear processing cache"""

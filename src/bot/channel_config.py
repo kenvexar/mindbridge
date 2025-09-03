@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING
 import discord
 
 if TYPE_CHECKING:
-    from .client import DiscordBot
+    from src.client import DiscordBot
 
-from ..utils.mixins import LoggerMixin
+from src.utils.mixins import LoggerMixin
 
 
 class ChannelCategory(Enum):

@@ -2,7 +2,14 @@
 Garmin health data formatting utilities
 """
 
-from .models import ActivityData, HealthData, HeartRateData, SleepData, StepsData
+from src.garmin.models import (
+    ActivityData,
+    DataError,
+    HealthData,
+    HeartRateData,
+    SleepData,
+    StepsData,
+)
 
 
 def format_health_data_for_markdown(health_data: HealthData) -> str:
@@ -47,8 +54,8 @@ def format_health_data_for_markdown(health_data: HealthData) -> str:
         sections.append(_format_activities_data(health_data.activities))
 
     # エラー情報（デバッグ用、エラーがある場合のみ）
-    if health_data.errors:
-        sections.append(_format_errors_section(health_data.errors))
+    if health_data.detailed_errors:
+        sections.append(_format_errors_section(health_data.detailed_errors))
 
     # フッター（キャッシュ情報含む）
     footer_info = (
@@ -206,14 +213,15 @@ def _format_activities_data(activities: list[ActivityData]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _format_errors_section(errors: list[str]) -> str:
+def _format_errors_section(errors: list[DataError]) -> str:
     """エラー情報をフォーマット"""
     if not errors:
         return ""
 
     lines = ["### ⚠️ データ取得エラー"]
     for error in errors:
-        lines.append(f"- {error}")
+        user_msg = error.user_message or error.message
+        lines.append(f"- {user_msg}")
 
     return "\n".join(lines) + "\n"
 

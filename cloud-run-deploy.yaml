@@ -81,6 +81,8 @@ spec:
           value: "MindBridge Bot"
         - name: GIT_USER_EMAIL
           value: "mindbridge-bot@example.com"
+        - name: DEPLOYMENT_TIMESTAMP
+          value: "2025-09-03-FINAL-FIX"
         resources:
           requests:
             cpu: 1000m

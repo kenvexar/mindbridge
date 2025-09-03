@@ -10,9 +10,9 @@ from typing import Any, Protocol, cast
 
 import aiofiles
 
-from ..ai.models import AIProcessingResult, ProcessingCategory
-from ..utils.mixins import LoggerMixin
-from .models import NoteFrontmatter, ObsidianNote, VaultFolder
+from src.ai.models import AIProcessingResult, ProcessingCategory
+from src.obsidian.models import NoteFrontmatter, ObsidianNote, VaultFolder
+from src.utils.mixins import LoggerMixin
 
 
 class ITemplateProcessor(Protocol):
@@ -626,7 +626,7 @@ class TemplateEngine(LoggerMixin):
         Args:
             vault_path: Obsidian vault path
         """
-        from .models import VaultFolder
+        from src.obsidian.models import VaultFolder
 
         self.vault_path = vault_path
         self.template_path = vault_path / VaultFolder.TEMPLATES.value
@@ -820,12 +820,15 @@ class TemplateEngine(LoggerMixin):
             # 未処理のテンプレート変数を清理
             rendered = self._clean_unprocessed_template_vars(rendered)
 
+            # 🔧 FINAL FIX: レンダリング後に確実に自動生成メッセージを除去
+            rendered = self._remove_bot_attribution_messages(rendered)
+
             self.logger.debug("Template rendered successfully with components")
             return rendered
 
         except Exception as e:
             self.logger.error("Failed to render template", error=str(e), exc_info=True)
-            return template_content  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す
+            return template_content  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す
 
     def _format_value(self, value: Any) -> str:
         """値をフォーマット"""
@@ -1957,11 +1960,13 @@ class TemplateEngine(LoggerMixin):
             # ファイル名とパスを生成（メッセージ固有の一意名）
             if "message_id" in context:
                 # メッセージ固有のファイル名を生成
-                from datetime import datetime
+                from datetime import datetime, timedelta, timezone
 
-                from .models import NoteFilename
+                from src.obsidian.models import NoteFilename
 
-                timestamp = datetime.now()
+                # 日本時間でタイムスタンプ生成
+                jst = timezone(timedelta(hours=9))
+                timestamp = datetime.now(jst)
                 ai_category = (
                     ai_result.category.category.value
                     if ai_result and ai_result.category
@@ -1989,14 +1994,17 @@ class TemplateEngine(LoggerMixin):
                 # AI 分類結果に基づいてフォルダを決定
                 file_path = self.vault_path / target_folder / filename
 
-            # ObsidianNote オブジェクトを作成
+            # ObsidianNote オブジェクトを作成（日本時間使用）
+            jst = timezone(timedelta(hours=9))
+            current_jst = datetime.now(jst)
+
             note = ObsidianNote(
                 filename=filename,
                 file_path=file_path,
                 frontmatter=frontmatter,
                 content=content,
-                created_at=datetime.now(),
-                modified_at=datetime.now(),
+                created_at=current_jst,
+                modified_at=current_jst,
             )
 
             self.logger.info(
@@ -2058,7 +2066,7 @@ class TemplateEngine(LoggerMixin):
             # フォルダの決定
             if not vault_folder:
                 if ai_result and ai_result.category:
-                    from .organizer import FolderMapping
+                    from src.obsidian.organizer import FolderMapping
 
                     vault_folder = FolderMapping.get_folder_for_category(
                         ai_result.category.category.value
@@ -2077,7 +2085,7 @@ class TemplateEngine(LoggerMixin):
             )
 
             # ファイル名の生成
-            from .models import NoteFilename
+            from src.obsidian.models import NoteFilename
 
             filename = NoteFilename.generate_message_note_filename(
                 timestamp=created_at, category=ai_category, title=title
@@ -2131,7 +2139,7 @@ class TemplateEngine(LoggerMixin):
         """
         try:
             # ファイル名とパス
-            from .models import NoteFilename
+            from src.obsidian.models import NoteFilename
 
             filename = NoteFilename.generate_daily_note_filename(date)
             year = date.strftime("%Y")
@@ -2271,7 +2279,36 @@ class TemplateEngine(LoggerMixin):
             except Exception as e:
                 self.logger.warning("Failed to parse YAML frontmatter", error=str(e))
 
+        # 🔧 FIX: 自動生成メッセージを除去
+        main_content = self._remove_bot_attribution_messages(main_content)
+
         return frontmatter_dict, main_content
+
+    def _remove_bot_attribution_messages(self, content: str) -> str:
+        """自動生成メッセージを除去する"""
+        import re
+
+        # 日本語と英語の自動生成メッセージを削除
+        patterns_to_remove = [
+            r"\*Created by Discord-Obsidian Memo Bot\*[。\s]*",
+            r"^---\s*\*Created by Discord-Obsidian Memo Bot\*\s*$",
+            r"^\*Created by Discord-Obsidian Memo Bot\*\s*$",
+            # 日本語パターンを追加
+            r"\*このノートは Discord-Obsidian Memo Bot によって自動生成されました\*[。\s]*",
+            r"^---\s*\*このノートは Discord-Obsidian Memo Bot によって自動生成されました\*\s*$",
+            r"^\*このノートは Discord-Obsidian Memo Bot によって自動生成されました\*\s*$",
+            r".*Discord-Obsidian.*Memo.*Bot.*自動生成.*",
+            r".*自動生成.*Discord-Obsidian.*Memo.*Bot.*",
+        ]
+
+        for pattern in patterns_to_remove:
+            content = re.sub(pattern, "", content, flags=re.MULTILINE | re.IGNORECASE)
+
+        # 余分な改行を整理
+        content = re.sub(r"\n\n\n+", "\n\n", content)
+        content = content.strip()
+
+        return content
 
     def _sanitize_yaml_values(self, data: dict[str, Any]) -> dict[str, Any]:
         """YAML値を安全な形式に変換"""
@@ -2340,6 +2377,12 @@ class TemplateEngine(LoggerMixin):
                 elif ": &" in line and not re.search(r"&\w+", line):
                     # 不正なエイリアス定義を修正
                     line = re.sub(r":\s*&\s*$", ': ""', line)
+
+                # 空の複数行文字列を修正 (ai_summary: """" -> ai_summary: "")
+                line = re.sub(r':\s*""""\s*$', ': ""', line)
+
+                # 不正なクォート文字を修正
+                line = re.sub(r':\s*"""([^"]*)"""\s*$', r': "\1"', line)
 
                 fixed_lines.append(line)
 

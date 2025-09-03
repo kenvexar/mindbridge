@@ -8,7 +8,7 @@ from typing import Any
 import aiofiles
 import structlog
 
-from ..models import ObsidianNote
+from src.obsidian.models import ObsidianNote
 
 logger = structlog.get_logger(__name__)
 
@@ -343,7 +343,7 @@ class FileOperations:
         """Parse note content from markdown file."""
         from datetime import datetime
 
-        from ..models import NoteFrontmatter, ObsidianNote, VaultFolder
+        from src.obsidian.models import NoteFrontmatter, ObsidianNote, VaultFolder
 
         lines = content.split("\n")
 

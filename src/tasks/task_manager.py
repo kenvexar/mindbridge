@@ -9,9 +9,9 @@ from typing import Any
 import aiofiles
 from structlog import get_logger
 
-from ..config import get_settings
-from ..obsidian import ObsidianFileManager
-from .models import Task, TaskPriority, TaskStatus
+from src.config.settings import get_settings
+from src.obsidian import ObsidianFileManager
+from src.tasks.models import Task, TaskPriority, TaskStatus
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -423,7 +423,7 @@ Progress: {task.progress}%
 - [[Project Overview]]
 """
 
-            from ..obsidian.models import NoteFrontmatter, ObsidianNote
+            from src.obsidian.models import NoteFrontmatter, ObsidianNote
 
             frontmatter = NoteFrontmatter(
                 ai_processed=True,

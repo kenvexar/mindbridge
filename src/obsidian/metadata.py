@@ -6,9 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from ..utils.mixins import LoggerMixin
-from .models import ObsidianNote
-from .refactored_file_manager import ObsidianFileManager
+from src.obsidian.models import ObsidianNote
+from src.obsidian.refactored_file_manager import ObsidianFileManager
+from src.utils.mixins import LoggerMixin
 
 
 class MetadataManager(LoggerMixin):

@@ -2,8 +2,8 @@
 Audio processing module for Discord-Obsidian Memo Bot
 """
 
-from .models import AudioProcessingResult, TranscriptionResult
-from .speech_processor import SpeechProcessor
+from src.audio.speech_processor import SpeechProcessor
+from src.obsidian.models import AudioProcessingResult, TranscriptionResult
 
 __all__ = [
     "SpeechProcessor",

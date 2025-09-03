@@ -1,7 +1,7 @@
 """Task management module for productivity tracking and scheduling."""
 
-from .commands import TaskCommands, setup_task_commands
-from .models import (
+from src.bot.commands import TaskCommands, setup_task_commands
+from src.obsidian.models import (
     Schedule,
     ScheduleType,
     Task,
@@ -9,10 +9,10 @@ from .models import (
     TaskStatus,
     TaskSummary,
 )
-from .reminder_system import TaskReminderSystem
-from .report_generator import TaskReportGenerator
-from .schedule_manager import ScheduleManager
-from .task_manager import TaskManager
+from src.tasks.reminder_system import TaskReminderSystem
+from src.tasks.report_generator import TaskReportGenerator
+from src.tasks.schedule_manager import ScheduleManager
+from src.tasks.task_manager import TaskManager
 
 __all__ = [
     "Task",

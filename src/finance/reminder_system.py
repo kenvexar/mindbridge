@@ -8,10 +8,10 @@ from typing import Any
 import discord
 from structlog import get_logger
 
-from ..bot.channel_config import ChannelConfig
-from .budget_manager import BudgetManager
-from .models import Budget, Subscription
-from .subscription_manager import SubscriptionManager
+from src.bot.channel_config import ChannelConfig
+from src.finance.budget_manager import BudgetManager
+from src.finance.models import Budget, Subscription
+from src.finance.subscription_manager import SubscriptionManager
 
 logger = get_logger(__name__)
 

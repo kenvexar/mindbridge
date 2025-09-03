@@ -9,7 +9,7 @@ from typing import Any
 import discord
 from discord.ext import commands
 
-from ..utils.mixins import LoggerMixin
+from src.utils.mixins import LoggerMixin
 
 
 class NotificationLevel(str, Enum):

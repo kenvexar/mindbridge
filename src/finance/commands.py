@@ -8,13 +8,13 @@ from discord import app_commands
 from discord.ext import commands as discord_commands
 from structlog import get_logger
 
-from ..bot.channel_config import ChannelConfig
-from ..obsidian import ObsidianFileManager
-from .budget_manager import BudgetManager
-from .expense_manager import ExpenseManager
-from .models import BudgetCategory, SubscriptionFrequency
-from .report_generator import FinanceReportGenerator
-from .subscription_manager import SubscriptionManager
+from src.bot.channel_config import ChannelConfig
+from src.budget_manager import BudgetManager
+from src.expense_manager import ExpenseManager
+from src.finance.models import BudgetCategory, SubscriptionFrequency
+from src.obsidian import ObsidianFileManager
+from src.report_generator import FinanceReportGenerator
+from src.subscription_manager import SubscriptionManager
 
 logger = get_logger(__name__)
 

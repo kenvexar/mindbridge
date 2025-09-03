@@ -54,7 +54,7 @@ class VaultManager:
 
     async def _ensure_vault_structure(self) -> None:
         """Create essential vault directories."""
-        from ..models import VaultFolder
+        from src.obsidian.models import VaultFolder
 
         essential_folders = [
             VaultFolder.INBOX.value,
@@ -81,7 +81,7 @@ class VaultManager:
 
     async def _create_template_files(self) -> None:
         """Create default template files."""
-        from ..models import VaultFolder
+        from src.obsidian.models import VaultFolder
 
         templates = {
             "Daily Note.md": self._get_daily_note_template(),

@@ -6,17 +6,17 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from ..utils.mixins import LoggerMixin
-from .models import (
+from src.obsidian.models import (
     FolderMapping,
     NoteStatus,
     ObsidianNote,
     VaultFolder,
 )
-from .refactored_file_manager import ObsidianFileManager
+from src.obsidian.refactored_file_manager import ObsidianFileManager
+from src.utils.mixins import LoggerMixin
 
 # 旧テンプレートシステムは削除済み
-# from .templates import DailyNoteTemplate
+# from src.templates import DailyNoteTemplate
 
 
 class VaultOrganizer(LoggerMixin):
@@ -31,8 +31,8 @@ class VaultOrganizer(LoggerMixin):
         """
         self.file_manager = file_manager
         # TemplateEngine を使用するように変更
-        from .daily_integration import DailyNoteIntegration
-        from .template_system import TemplateEngine
+        from src.obsidian.daily_integration import DailyNoteIntegration
+        from src.obsidian.template_system import TemplateEngine
 
         self.template_engine = TemplateEngine(file_manager.vault_path)
         self.daily_integration = DailyNoteIntegration(file_manager)
@@ -94,7 +94,7 @@ class VaultOrganizer(LoggerMixin):
 
                         if note.frontmatter.ai_category:
                             # AI 分類結果からフォルダを決定
-                            from ..ai.models import ProcessingCategory
+                            from src.ai.models import ProcessingCategory
 
                             try:
                                 category = ProcessingCategory(

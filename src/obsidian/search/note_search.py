@@ -8,7 +8,7 @@ from typing import Any
 import aiofiles
 import structlog
 
-from .search_models import SearchCriteria, SearchResult
+from src.obsidian.search.search_models import SearchCriteria, SearchResult
 
 logger = structlog.get_logger(__name__)
 

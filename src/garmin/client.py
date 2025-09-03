@@ -21,10 +21,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from ..config.settings import get_settings
-from ..utils.mixins import LoggerMixin
-from .cache import GarminDataCache
-from .models import (
+from src.config.settings import get_settings
+from src.garmin.cache import GarminDataCache
+from src.garmin.models import (
     ActivityData,
     DataError,
     DataSource,
@@ -39,6 +38,7 @@ from .models import (
     SleepData,
     StepsData,
 )
+from src.utils.mixins import LoggerMixin
 
 # Settings loaded lazily to avoid circular imports
 

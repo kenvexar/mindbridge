@@ -7,8 +7,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from ..utils.mixins import LoggerMixin
-from .models import HealthData
+from src.garmin.models import HealthData
+from src.utils.mixins import LoggerMixin
 
 
 class GarminDataCache(LoggerMixin):

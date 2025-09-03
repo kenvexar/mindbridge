@@ -11,7 +11,7 @@ from typing import Any
 
 import aiofiles
 
-from ..utils.mixins import LoggerMixin
+from src.utils.mixins import LoggerMixin
 
 
 class SecurityEventType(Enum):

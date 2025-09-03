@@ -1,6 +1,6 @@
 """Utility modules for Discord-Obsidian Memo Bot"""
 
-from .logger import (
+from src.utils.logger import (
     get_logger,
     log_api_usage,
     log_function_call,

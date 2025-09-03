@@ -8,10 +8,10 @@ from typing import Any
 import discord
 from structlog import get_logger
 
-from ..bot.channel_config import ChannelConfig
-from .models import Schedule, Task
-from .schedule_manager import ScheduleManager
-from .task_manager import TaskManager
+from src.bot.channel_config import ChannelConfig
+from src.tasks.models import Schedule, Task
+from src.tasks.schedule_manager import ScheduleManager
+from src.tasks.task_manager import TaskManager
 
 logger = get_logger(__name__)
 
@@ -366,8 +366,8 @@ class TaskReminderSystem:
     async def _add_to_daily_note(self) -> None:
         """Add task and schedule information to daily note."""
         try:
-            from ..obsidian import ObsidianFileManager
-            from ..obsidian.daily_integration import (
+            from src.obsidian import ObsidianFileManager
+            from src.obsidian.daily_integration import (
                 DailyNoteIntegration as DailyNoteIntegrator,
             )
 

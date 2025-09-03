@@ -2,10 +2,10 @@
 Garmin health data integration module
 """
 
-from .cache import GarminDataCache
-from .client import GarminClient
-from .formatter import format_health_data_for_markdown
-from .models import (
+from src.garmin.cache import GarminDataCache
+from src.garmin.client import GarminClient
+from src.garmin.formatter import format_health_data_for_markdown
+from src.obsidian.models import (
     ActivityData,
     DataError,
     DataSource,

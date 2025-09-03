@@ -8,10 +8,10 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from ..garmin.models import HealthData
-from ..obsidian.refactored_file_manager import ObsidianFileManager
-from ..utils.mixins import LoggerMixin
-from .models import ActivityCorrelation
+from src.garmin.models import HealthData
+from src.health_analysis.models import ActivityCorrelation
+from src.obsidian.refactored_file_manager import ObsidianFileManager
+from src.utils.mixins import LoggerMixin
 
 
 class HealthActivityIntegrator(LoggerMixin):

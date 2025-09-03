@@ -13,9 +13,7 @@ try:
 except ImportError:
     GENAI_AVAILABLE = False
 
-from ..config.settings import get_settings
-from ..utils.mixins import LoggerMixin
-from .models import (
+from src.ai.models import (
     AIModelConfig,
     APIUsageInfo,
     CategoryResult,
@@ -23,6 +21,8 @@ from .models import (
     SummaryResult,
     TagResult,
 )
+from src.config.settings import get_settings
+from src.utils.mixins import LoggerMixin
 
 
 class GeminiAPIError(Exception):

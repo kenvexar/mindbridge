@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from typing import Any
 
-from ..utils import get_logger
+from src.utils import get_logger
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):

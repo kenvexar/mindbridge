@@ -16,14 +16,14 @@ from tenacity import (
     wait_exponential,
 )
 
-from ..config import get_settings
-from ..utils.mixins import LoggerMixin
-from .models import (
+from src.audio.models import (
     AudioFormat,
     AudioProcessingResult,
     SpeechAPIUsage,
     TranscriptionResult,
 )
+from src.config import get_settings
+from src.utils.mixins import LoggerMixin
 
 
 class RetryableAPIError(Exception):

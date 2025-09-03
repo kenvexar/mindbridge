@@ -8,11 +8,11 @@ from typing import Any
 import discord
 from discord.ext import commands
 
-from ..config.settings import get_settings
-from ..utils.mixins import LoggerMixin
-from .channel_config import ChannelConfig
-from .commands import setup_commands
-from .handlers import MessageHandler
+from src.bot.channel_config import ChannelConfig
+from src.bot.commands import setup_commands
+from src.bot.handlers import MessageHandler
+from src.config.settings import get_settings
+from src.utils.mixins import LoggerMixin
 
 
 class DiscordBot(LoggerMixin):
@@ -65,7 +65,7 @@ class DiscordBot(LoggerMixin):
         # Initialize client based on mock mode
         if self.settings.is_mock_mode:
             self.logger.info("Initializing Discord bot in MOCK mode")
-            from .mock_client import MockDiscordBot
+            from src.bot.mock_client import MockDiscordBot
 
             self.client: commands.Bot | Any = (
                 MockDiscordBot()
@@ -101,12 +101,12 @@ class DiscordBot(LoggerMixin):
         self._initialize_reminder_systems()
 
         # Initialize notification system after client is ready
-        from .notification_system import NotificationSystem
+        from src.bot.notification_system import NotificationSystem
 
         self.notification_system = NotificationSystem(self.client, self.channel_config)
 
         # Initialize configuration management system
-        from .config_manager import DynamicConfigManager
+        from src.bot.config_manager import DynamicConfigManager
 
         self.config_manager = DynamicConfigManager(
             self.client,  # type: ignore[arg-type]
@@ -114,8 +114,8 @@ class DiscordBot(LoggerMixin):
         )
 
         # Initialize backup and review systems
-        from .backup_system import DataBackupSystem
-        from .review_system import AutoReviewSystem
+        from src.bot.backup_system import DataBackupSystem
+        from src.bot.review_system import AutoReviewSystem
 
         self.backup_system = DataBackupSystem(self.client, self.notification_system)  # type: ignore[arg-type]
         self.review_system = AutoReviewSystem(self.client, self.notification_system)  # type: ignore[arg-type]
@@ -491,11 +491,11 @@ class DiscordBot(LoggerMixin):
 
     def _initialize_reminder_systems(self) -> None:
         """Initialize all reminder systems"""
-        from ..finance import BudgetManager, ExpenseManager, SubscriptionManager
-        from ..finance.reminder_system import FinanceReminderSystem
-        from ..obsidian import ObsidianFileManager
-        from ..tasks import ScheduleManager, TaskManager
-        from ..tasks.reminder_system import TaskReminderSystem
+        from src.finance import BudgetManager, ExpenseManager, SubscriptionManager
+        from src.finance.reminder_system import FinanceReminderSystem
+        from src.obsidian import ObsidianFileManager
+        from src.tasks import ScheduleManager, TaskManager
+        from src.tasks.reminder_system import TaskReminderSystem
 
         try:
             # Create basic obsidian manager for reminder systems
@@ -535,14 +535,14 @@ class DiscordBot(LoggerMixin):
                 and self.settings.garmin_password
             ):
                 try:
-                    from ..garmin import GarminClient
-                    from ..health_analysis import (
+                    from src.garmin import GarminClient
+                    from src.health_analysis import (
                         HealthActivityIntegrator,
                         HealthDataAnalyzer,
                     )
-                    from ..health_analysis.scheduler import HealthAnalysisScheduler
-                    from ..obsidian import ObsidianFileManager
-                    from ..obsidian.daily_integration import DailyNoteIntegration
+                    from src.health_analysis.scheduler import HealthAnalysisScheduler
+                    from src.obsidian import ObsidianFileManager
+                    from src.obsidian.daily_integration import DailyNoteIntegration
 
                     # Initialize health analysis components
                     garmin_client = (

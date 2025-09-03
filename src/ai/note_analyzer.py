@@ -6,12 +6,12 @@ import re
 from datetime import datetime
 from typing import Any, Union
 
-from ..obsidian.refactored_file_manager import ObsidianFileManager
-from ..utils.mixins import LoggerMixin
-from .mock_processor import MockAIProcessor
-from .processor import AIProcessor
-from .url_processor import URLContentExtractor
-from .vector_store import SemanticSearchResult, VectorStore
+from src.ai.mock_processor import MockAIProcessor
+from src.ai.processor import AIProcessor
+from src.ai.url_processor import URLContentExtractor
+from src.ai.vector_store import SemanticSearchResult, VectorStore
+from src.obsidian.refactored_file_manager import ObsidianFileManager
+from src.utils.mixins import LoggerMixin
 
 # Settings loaded lazily to avoid circular imports
 

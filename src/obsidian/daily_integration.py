@@ -6,12 +6,12 @@ import re
 from datetime import date, datetime
 from typing import Any
 
-from ..utils.mixins import LoggerMixin
-from .models import ObsidianNote, VaultFolder
-from .refactored_file_manager import ObsidianFileManager
+from src.obsidian.models import ObsidianNote, VaultFolder
+from src.obsidian.refactored_file_manager import ObsidianFileManager
+from src.utils.mixins import LoggerMixin
 
 # 旧テンプレートシステムは削除済み
-# from .templates import DailyNoteTemplate
+# from src.templates import DailyNoteTemplate
 
 
 class DailyNoteIntegration(LoggerMixin):
@@ -26,7 +26,7 @@ class DailyNoteIntegration(LoggerMixin):
         """
         self.file_manager = file_manager
         # TemplateEngine を使用するように変更
-        from .template_system import TemplateEngine
+        from src.obsidian.template_system import TemplateEngine
 
         self.template_engine = TemplateEngine(file_manager.vault_path)
         self.logger.info("Daily integration initialized")

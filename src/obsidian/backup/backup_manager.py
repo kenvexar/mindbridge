@@ -9,7 +9,7 @@ from typing import Any
 
 import structlog
 
-from .backup_models import BackupConfig, BackupResult
+from src.obsidian.backup.backup_models import BackupConfig, BackupResult
 
 logger = structlog.get_logger(__name__)
 

@@ -53,7 +53,7 @@ class TestAIModels:
         """Test processing settings defaults"""
         settings = ProcessingSettings()
 
-        assert settings.min_text_length == 50
+        assert settings.min_text_length == 3
         assert settings.max_text_length == 8000
         assert settings.enable_summary is True
         assert settings.enable_tags is True

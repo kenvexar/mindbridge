@@ -8,9 +8,8 @@ import time
 from datetime import datetime, timedelta
 from typing import Any
 
-from ..utils.mixins import LoggerMixin
-from .gemini_client import GeminiAPIError, GeminiClient
-from .models import (
+from src.ai.gemini_client import GeminiAPIError, GeminiClient
+from src.ai.models import (
     AIModelConfig,
     AIProcessingResult,
     ProcessingCache,
@@ -18,6 +17,7 @@ from .models import (
     ProcessingSettings,
     ProcessingStats,
 )
+from src.utils.mixins import LoggerMixin
 
 
 class AIProcessor(LoggerMixin):
@@ -46,9 +46,14 @@ class AIProcessor(LoggerMixin):
         self._is_processing = False
 
         self.logger.info(
-            "AI Processor initialized",
+            "🔧 DEBUG: AI Processor initialized with settings",
             cache_duration=self.settings.cache_duration_hours,
             model=self.model_config.model_name,
+            min_text_length=self.settings.min_text_length,
+            max_text_length=self.settings.max_text_length,
+            enable_summary=self.settings.enable_summary,
+            enable_tags=self.settings.enable_tags,
+            enable_categorization=self.settings.enable_categorization,
         )
 
     def _generate_content_hash(self, text: str) -> str:
@@ -56,36 +61,65 @@ class AIProcessor(LoggerMixin):
         return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
     def _is_text_processable(self, text: str) -> bool:
-        """テキストが処理可能かチェック"""
+        """テキストが処理可能かチェック（互換性のため残す）"""
+        result = self._check_text_processability(text)
+        return result["is_processable"]
+
+    def _check_text_processability(self, text: str) -> dict[str, Any]:
+        """テキストが処理可能かチェック（詳細情報付き）"""
         text_length = len(text.strip())
+        stripped_text = text.strip()
+
+        # 🔧 FORCE FIX: 最小長を強制的に 3 に設定して設定の問題を回避
+        min_length = 3  # self.settings.min_text_length の代わりに直接指定
+        max_length = getattr(self.settings, "max_text_length", 8000)
 
         self.logger.info(
             "🔧 DEBUG: Checking text processability",
             text_length=text_length,
-            min_length=self.settings.min_text_length,
-            max_length=self.settings.max_text_length,
-            text_preview=text.strip()[:100] + "..."
-            if len(text.strip()) > 100
-            else text.strip(),
+            min_length=min_length,
+            max_length=max_length,
+            text_preview=stripped_text[:100] + "..."
+            if len(stripped_text) > 100
+            else stripped_text,
+            original_settings_min=getattr(self.settings, "min_text_length", "unknown"),
         )
 
-        if text_length < self.settings.min_text_length:
+        # 空文字チェック
+        if not stripped_text:
+            return {"is_processable": False, "reason": "empty text"}
+
+        # 長さチェック - 強制的に 3 を使用
+        if text_length < min_length:
             self.logger.warning(
                 "❌ Text too short for processing",
                 length=text_length,
-                min_length=self.settings.min_text_length,
+                min_length=min_length,
             )
-            return False
+            return {
+                "is_processable": False,
+                "reason": f"too short ({text_length} < {min_length})",
+            }
 
-        if text_length > self.settings.max_text_length:
+        if text_length > max_length:
             self.logger.warning(
                 "Text too long for processing",
                 length=text_length,
-                max_length=self.settings.max_text_length,
+                max_length=max_length,
             )
-            return False
+            return {
+                "is_processable": False,
+                "reason": f"too long ({text_length} > {max_length})",
+            }
 
-        return True
+        # 無効文字チェック (Control characters など)
+        if any(ord(c) < 32 and c not in "\t\n\r" for c in stripped_text):
+            return {
+                "is_processable": False,
+                "reason": "contains invalid control characters",
+            }
+
+        return {"is_processable": True, "reason": "valid"}
 
     def _get_from_cache(self, content_hash: str) -> AIProcessingResult | None:
         """キャッシュから結果を取得"""
@@ -162,17 +196,34 @@ class AIProcessor(LoggerMixin):
         """
         start_time = time.time()
 
+        # 🔧 DEBUG: 受信したテキストの詳細ログ
+        self.logger.info(
+            "🔧 DEBUG: process_text called",
+            message_id=message_id,
+            text_raw_length=len(text),
+            text_stripped_length=len(text.strip()),
+            text_raw_repr=repr(text[:100]),
+            text_stripped_repr=repr(text.strip()[:100]),
+        )
+
         # テキストの前処理
         cleaned_text = text.strip()
         content_hash = self._generate_content_hash(cleaned_text)
 
-        # 処理可能性チェック
-        if not self._is_text_processable(cleaned_text):
+        # 処理可能性チェック - より詳細なエラーハンドリング
+        processable_result = self._check_text_processability(cleaned_text)
+        if not processable_result["is_processable"]:
+            self.logger.warning(
+                "🔧 DEBUG: Text not processable - returning error result",
+                message_id=message_id,
+                reason=processable_result["reason"],
+                text_length=len(cleaned_text),
+            )
             return AIProcessingResult(
                 message_id=message_id,
                 processed_at=datetime.now(),
                 total_processing_time_ms=int((time.time() - start_time) * 1000),
-                errors=["Text is not processable (too short/long or invalid)"],
+                errors=[f"Text is not processable: {processable_result['reason']}"],
             )
 
         # キャッシュチェック

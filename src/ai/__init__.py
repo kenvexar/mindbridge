@@ -2,8 +2,8 @@
 AI処理モジュール
 """
 
-from .gemini_client import GeminiAPIError, GeminiClient, RateLimitExceeded
-from .models import (
+from src.ai.gemini_client import GeminiAPIError, GeminiClient, RateLimitExceeded
+from src.ai.models import (
     AIModelConfig,
     AIProcessingResult,
     CategoryResult,
@@ -15,12 +15,12 @@ from .models import (
     SummaryResult,
     TagResult,
 )
-from .note_analyzer import AdvancedNoteAnalyzer
-from .processor import AIProcessor
-from .url_processor import URLContentExtractor
+from src.ai.note_analyzer import AdvancedNoteAnalyzer
+from src.ai.processor import AIProcessor
+from src.ai.url_processor import URLContentExtractor
 
 # 高度なAI機能
-from .vector_store import NoteEmbedding, SemanticSearchResult, VectorStore
+from src.ai.vector_store import NoteEmbedding, SemanticSearchResult, VectorStore
 
 __all__ = [
     # クライアント

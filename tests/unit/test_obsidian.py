@@ -249,8 +249,8 @@ class TestObsidianFileManager:
         )
 
         # Save note
-        success = await self.file_manager.save_note(note)
-        assert success is True
+        saved_path = await self.file_manager.save_note(note)
+        assert saved_path is not None
         assert note.file_path.exists()
 
         # Load note

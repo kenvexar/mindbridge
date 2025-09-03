@@ -8,8 +8,8 @@ import subprocess
 from datetime import datetime
 from typing import Any
 
-from ..config.settings import get_settings
-from ..utils.mixins import LoggerMixin
+from src.config.settings import get_settings
+from src.utils.mixins import LoggerMixin
 
 
 class GitHubSyncError(Exception):

@@ -4,11 +4,11 @@ from datetime import date, datetime, timedelta
 
 from structlog import get_logger
 
-from ..ai import GeminiClient
-from ..obsidian import ObsidianFileManager
-from .models import TaskStatus, TaskSummary
-from .schedule_manager import ScheduleManager
-from .task_manager import TaskManager
+from src.ai import GeminiClient
+from src.obsidian import ObsidianFileManager
+from src.tasks.models import TaskStatus, TaskSummary
+from src.tasks.schedule_manager import ScheduleManager
+from src.tasks.task_manager import TaskManager
 
 logger = get_logger(__name__)
 
@@ -453,7 +453,7 @@ tags: [productivity, report, weekly]
 """
 
             # Create ObsidianNote and save it
-            from ..obsidian.models import NoteFrontmatter, ObsidianNote
+            from src.obsidian.models import NoteFrontmatter, ObsidianNote
 
             note = ObsidianNote(
                 filename=file_path.name,
@@ -505,7 +505,7 @@ tags: [productivity, report, monthly]
 """
 
             # Create ObsidianNote and save it
-            from ..obsidian.models import NoteFrontmatter, ObsidianNote
+            from src.obsidian.models import NoteFrontmatter, ObsidianNote
 
             note = ObsidianNote(
                 filename=file_path.name,
