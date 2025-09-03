@@ -24,7 +24,7 @@ class TaskCommands(commands.Cog):
             description="Available task commands",
             color=discord.Color.blue(),
         )
-        
+
         embed.add_field(
             name="!task_create",
             value="Create a new task",
@@ -44,7 +44,9 @@ class TaskCommands(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name="task_create")
-    async def task_create(self, ctx: commands.Context, *, task_description: str) -> None:
+    async def task_create(
+        self, ctx: commands.Context, *, task_description: str
+    ) -> None:
         """Create a new task."""
         try:
             # Task creation logic would go here

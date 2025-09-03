@@ -24,7 +24,7 @@ class FinanceCommands(commands.Cog):
             description="Available finance commands",
             color=discord.Color.gold(),
         )
-        
+
         embed.add_field(
             name="!expense_add",
             value="Add an expense record",
@@ -44,7 +44,9 @@ class FinanceCommands(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name="expense_add")
-    async def expense_add(self, ctx: commands.Context, amount: float, *, description: str) -> None:
+    async def expense_add(
+        self, ctx: commands.Context, amount: float, *, description: str
+    ) -> None:
         """Add an expense record."""
         try:
             # Expense creation logic would go here

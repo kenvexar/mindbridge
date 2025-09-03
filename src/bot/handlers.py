@@ -2,6 +2,7 @@
 Message handlers for Discord bot
 """
 
+import os
 from datetime import datetime
 from typing import Any
 

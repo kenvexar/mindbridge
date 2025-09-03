@@ -67,18 +67,23 @@ def get_mcp_client(client_type: str) -> Any | None:
                 class MCPGitHubClient:
                     def __init__(self):
                         self.logger = logger
-                        
-                    async def get_file_contents(self, owner: str, repo: str, path: str, branch: str = "main") -> dict | None:
+
+                    async def get_file_contents(
+                        self, owner: str, repo: str, path: str, branch: str = "main"
+                    ) -> dict | None:
                         """ファイル内容を取得"""
                         try:
                             # MCP GitHub ツールを直接使用
                             from src.tools.mcp_github import get_file_contents
-                            result = await get_file_contents(owner=owner, repo=repo, path=path, branch=branch)
+
+                            result = await get_file_contents(
+                                owner=owner, repo=repo, path=path, branch=branch
+                            )
                             return result
                         except Exception as e:
                             self.logger.warning(f"Failed to get file contents: {e}")
                             return None
-                    
+
                     async def create_or_update_file(
                         self,
                         owner: str,
@@ -93,6 +98,7 @@ def get_mcp_client(client_type: str) -> Any | None:
                         try:
                             # MCP GitHub ツールを直接使用
                             from src.tools.mcp_github import create_or_update_file
+
                             result = await create_or_update_file(
                                 owner=owner,
                                 repo=repo,
@@ -100,24 +106,26 @@ def get_mcp_client(client_type: str) -> Any | None:
                                 content=content,
                                 message=message,
                                 branch=branch,
-                                sha=sha
+                                sha=sha,
                             )
                             self.logger.info(
                                 "Successfully created/updated file",
                                 owner=owner,
                                 repo=repo,
                                 path=path,
-                                message=message
+                                message=message,
                             )
                             return result
                         except Exception as e:
                             self.logger.error(f"Failed to create/update file: {e}")
                             return None
-                
+
                 return MCPGitHubClient()
-                
+
             except ImportError:
-                logger.warning("MCP GitHub tools not available, falling back to mock client")
+                logger.warning(
+                    "MCP GitHub tools not available, falling back to mock client"
+                )
                 return MockMCPClient("github")
 
         logger.warning(f"Unknown MCP client type: {client_type}")
