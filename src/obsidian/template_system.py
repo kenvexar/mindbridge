@@ -220,98 +220,104 @@ class ConditionalProcessor:
     ) -> str:
         """Complex conditional parsing - extracted from TemplateEngine"""
         try:
-            # if 文の解析
-            if_match = re.search(r"\{\{\s*#if\s+([^}]+)\s*\}\}", full_match)
+            if_match = self._extract_if_condition(full_match)
             if not if_match:
                 return ""
 
-            # 条件とコンテンツブロックを順次解析
             remaining_content = full_match[if_match.end() :]
-            conditions_and_content = []
+            conditions_and_content = [("if", if_match.group(1).strip(), "")]
 
-            # if 条件
-            if_condition = if_match.group(1).strip()
-            conditions_and_content.append(("if", if_condition, ""))
-
-            # elif 条件を検索
-            elif_pattern = r"\{\{\s*#elif\s+([^}]+)\s*\}\}"
-            else_pattern = r"\{\{\s*#else\s*\}\}"
-            endif_pattern = r"\{\{\s*/if\s*\}\}"
-
-            current_pos = 0
-
-            while current_pos < len(remaining_content):
-                elif_match = re.search(elif_pattern, remaining_content[current_pos:])
-                else_match = re.search(else_pattern, remaining_content[current_pos:])
-                endif_match = re.search(endif_pattern, remaining_content[current_pos:])
-
-                # 次に現れるタグを特定
-                next_matches = []
-                if elif_match:
-                    next_matches.append(
-                        (elif_match.start() + current_pos, "elif", elif_match)
-                    )
-                if else_match:
-                    next_matches.append(
-                        (else_match.start() + current_pos, "else", else_match)
-                    )
-                if endif_match:
-                    next_matches.append(
-                        (endif_match.start() + current_pos, "endif", endif_match)
-                    )
-
-                if not next_matches:
-                    break
-
-                # 最も近いタグを選択
-                next_matches.sort()
-                next_pos, next_type, next_match = next_matches[0]
-
-                # 現在のブロックのコンテンツを抽出
-                block_content = remaining_content[current_pos:next_pos].strip()
-
-                # 前の条件にコンテンツを設定
-                if conditions_and_content:
-                    conditions_and_content[-1] = (
-                        conditions_and_content[-1][0],
-                        conditions_and_content[-1][1],
-                        block_content,
-                    )
-
-                if next_type == "elif":
-                    elif_condition = next_match.group(1).strip()
-                    conditions_and_content.append(("elif", elif_condition, ""))
-                    current_pos = next_pos + len(next_match.group(0))
-                elif next_type == "else":
-                    conditions_and_content.append(("else", "", ""))
-                    current_pos = next_pos + len(next_match.group(0))
-                elif next_type == "endif":
-                    if (
-                        len(conditions_and_content) > 0
-                        and conditions_and_content[-1][2] == ""
-                    ):
-                        # 最後のブロックのコンテンツを設定
-                        final_content = remaining_content[current_pos:next_pos].strip()
-                        conditions_and_content[-1] = (
-                            conditions_and_content[-1][0],
-                            conditions_and_content[-1][1],
-                            final_content,
-                        )
-                    break
-
-            # 条件を順次評価
-            for cond_type, condition, content in conditions_and_content:
-                if cond_type == "else":
-                    return content  # else 句は無条件で実行
-
-                if self._evaluate_condition(condition, context):
-                    return content
-
-            return ""  # どの条件も満たされない場合
+            self._parse_conditional_blocks(remaining_content, conditions_and_content)
+            return self._evaluate_conditions(conditions_and_content, context)
 
         except Exception as e:
             self.logger.error("Failed to parse complex conditional", error=str(e))
             return ""
+
+    def _extract_if_condition(self, full_match: str) -> re.Match[str] | None:
+        """Extract the initial if condition from the template."""
+        return re.search(r"\{\{\s*#if\s+([^}]+)\s*\}\}", full_match)
+
+    def _parse_conditional_blocks(
+        self, remaining_content: str, conditions_and_content: list
+    ) -> None:
+        """Parse elif, else, and endif blocks from the template."""
+        patterns = {
+            "elif": r"\{\{\s*#elif\s+([^}]+)\s*\}\}",
+            "else": r"\{\{\s*#else\s*\}\}",
+            "endif": r"\{\{\s*/if\s*\}\}",
+        }
+
+        current_pos = 0
+        while current_pos < len(remaining_content):
+            next_tag = self._find_next_template_tag(
+                remaining_content, current_pos, patterns
+            )
+
+            if not next_tag:
+                break
+
+            next_pos, next_type, next_match = next_tag
+            block_content = remaining_content[current_pos:next_pos].strip()
+
+            self._update_current_block_content(conditions_and_content, block_content)
+
+            if not self._process_template_tag(
+                next_type, next_match, conditions_and_content, next_pos
+            ):
+                current_pos = next_pos + len(next_match.group(0))
+            else:
+                break  # endif encountered
+
+    def _find_next_template_tag(
+        self, content: str, start_pos: int, patterns: dict[str, str]
+    ) -> tuple[int, str, re.Match[str]] | None:
+        """Find the next template tag (elif, else, or endif)."""
+        matches = []
+        for tag_type, pattern in patterns.items():
+            match = re.search(pattern, content[start_pos:])
+            if match:
+                matches.append((match.start() + start_pos, tag_type, match))
+
+        if not matches:
+            return None
+
+        matches.sort()
+        return matches[0]
+
+    def _update_current_block_content(
+        self, conditions_and_content: list, block_content: str
+    ) -> None:
+        """Update the content of the current condition block."""
+        if conditions_and_content:
+            current = conditions_and_content[-1]
+            conditions_and_content[-1] = (current[0], current[1], block_content)
+
+    def _process_template_tag(
+        self,
+        tag_type: str,
+        match: re.Match[str],
+        conditions_and_content: list,
+        pos: int,
+    ) -> bool:
+        """Process a template tag and return True if endif encountered."""
+        if tag_type == "elif":
+            elif_condition = match.group(1).strip()
+            conditions_and_content.append(("elif", elif_condition, ""))
+        elif tag_type == "else":
+            conditions_and_content.append(("else", "", ""))
+        elif tag_type == "endif":
+            return True
+        return False
+
+    def _evaluate_conditions(
+        self, conditions_and_content: list, context: dict[str, Any]
+    ) -> str:
+        """Evaluate conditions and return the appropriate content."""
+        for cond_type, condition, content in conditions_and_content:
+            if cond_type == "else" or self._evaluate_condition(condition, context):
+                return content
+        return ""
 
     def _evaluate_condition(self, condition: str, context: dict[str, Any]) -> bool:
         """Evaluate conditional expression - extracted from TemplateEngine"""
@@ -322,69 +328,14 @@ class ConditionalProcessor:
             if condition.startswith("not "):
                 return not self._evaluate_condition(condition[4:].strip(), context)
 
-            # AND/OR 演算子を優先的に処理（複合条件）
-            if " and " in condition:
-                conditions = condition.split(" and ")
-                return all(
-                    self._evaluate_condition(cond.strip(), context)
-                    for cond in conditions
-                )
+            # 複合条件（AND/OR）の処理
+            if result := self._evaluate_logical_operators(condition, context):
+                return result[0] if result[1] else False
 
-            if " or " in condition:
-                conditions = condition.split(" or ")
-                return any(
-                    self._evaluate_condition(cond.strip(), context)
-                    for cond in conditions
-                )
-
-            # 比較演算子をサポート
-            if " == " in condition:
-                left, right = condition.split(" == ", 1)
-                left_val = self._get_condition_value(left.strip(), context)
-                right_val = self._get_condition_value(right.strip(), context)
-                return str(left_val) == str(right_val)
-
-            if " != " in condition:
-                left, right = condition.split(" != ", 1)
-                left_val = self._get_condition_value(left.strip(), context)
-                right_val = self._get_condition_value(right.strip(), context)
-                return str(left_val) != str(right_val)
-
-            if " >= " in condition:
-                left, right = condition.split(" >= ", 1)
-                left_val = self._get_condition_value(left.strip(), context)
-                right_val = self._get_condition_value(right.strip(), context)
-                try:
-                    return float(left_val) >= float(right_val)
-                except (ValueError, TypeError):
-                    return False
-
-            if " <= " in condition:
-                left, right = condition.split(" <= ", 1)
-                left_val = self._get_condition_value(left.strip(), context)
-                right_val = self._get_condition_value(right.strip(), context)
-                try:
-                    return float(left_val) <= float(right_val)
-                except (ValueError, TypeError):
-                    return False
-
-            if " > " in condition:
-                left, right = condition.split(" > ", 1)
-                left_val = self._get_condition_value(left.strip(), context)
-                right_val = self._get_condition_value(right.strip(), context)
-                try:
-                    return float(left_val) > float(right_val)
-                except (ValueError, TypeError):
-                    return False
-
-            if " < " in condition:
-                left, right = condition.split(" < ", 1)
-                left_val = self._get_condition_value(left.strip(), context)
-                right_val = self._get_condition_value(right.strip(), context)
-                try:
-                    return float(left_val) < float(right_val)
-                except (ValueError, TypeError):
-                    return False
+            # 比較演算子の処理
+            comparison_result = self._evaluate_comparison_operators(condition, context)
+            if comparison_result is not None:
+                return comparison_result
 
             # シンプルな真偽値評価
             condition_value = context.get(condition, False)
@@ -395,6 +346,59 @@ class ConditionalProcessor:
                 "Failed to evaluate condition", condition=condition, error=str(e)
             )
             return False
+
+    def _evaluate_logical_operators(
+        self, condition: str, context: dict[str, Any]
+    ) -> tuple[bool, bool] | None:
+        """Evaluate AND/OR logical operators."""
+        if " and " in condition:
+            conditions = condition.split(" and ")
+            result = all(
+                self._evaluate_condition(cond.strip(), context) for cond in conditions
+            )
+            return (result, True)
+
+        if " or " in condition:
+            conditions = condition.split(" or ")
+            result = any(
+                self._evaluate_condition(cond.strip(), context) for cond in conditions
+            )
+            return (result, True)
+
+        return None
+
+    def _evaluate_comparison_operators(
+        self, condition: str, context: dict[str, Any]
+    ) -> bool | None:
+        """Evaluate comparison operators (==, !=, >=, <=, >, <)."""
+        operators = {
+            " == ": lambda left, right: str(left) == str(right),
+            " != ": lambda left, right: str(left) != str(right),
+            " >= ": self._numeric_compare(lambda left, right: left >= right),
+            " <= ": self._numeric_compare(lambda left, right: left <= right),
+            " > ": self._numeric_compare(lambda left, right: left > right),
+            " < ": self._numeric_compare(lambda left, right: left < right),
+        }
+
+        for operator, compare_func in operators.items():
+            if operator in condition:
+                left, right = condition.split(operator, 1)
+                left_val = self._get_condition_value(left.strip(), context)
+                right_val = self._get_condition_value(right.strip(), context)
+                return compare_func(left_val, right_val)
+
+        return None
+
+    def _numeric_compare(self, compare_func):
+        """Create a numeric comparison function with error handling."""
+
+        def wrapper(left_val, right_val):
+            try:
+                return compare_func(float(left_val), float(right_val))
+            except (ValueError, TypeError):
+                return False
+
+        return wrapper
 
     def _get_condition_value(self, value_str: str, context: dict[str, Any]) -> Any:
         """Get value for condition evaluation"""

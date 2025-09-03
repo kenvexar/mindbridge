@@ -738,6 +738,78 @@ class MessageHandler(LoggerMixin):
     # has been integrated into the simplified _handle_obsidian_note_creation
     pass
 
+    def _extract_transcription_text(self, cleaned_content: str) -> str:
+        """音声転写テキストを抽出"""
+        if "🎤 音声文字起こし" not in cleaned_content:
+            return ""
+
+        import re
+
+        pattern = r"🎤 音声文字起こし\s*(.*?)\s*\*\*信頼度\*\*"
+        match = re.search(pattern, cleaned_content, re.DOTALL)
+        return match.group(1).strip() if match else ""
+
+    def _create_transcription_summary(self, transcription_text: str) -> str:
+        """転写テキストの要約を作成"""
+        if len(transcription_text) <= 30:
+            return transcription_text
+
+        summary = transcription_text[:30].rsplit("。", 1)[0]
+        return summary + "..." if not summary.endswith("。") else summary
+
+    def _generate_audio_title(
+        self, content_info: dict[str, Any], channel_name: str
+    ) -> str | None:
+        """音声メッセージのタイトルを生成"""
+        cleaned_content = content_info.get("cleaned_content", "")
+        transcription_text = self._extract_transcription_text(cleaned_content)
+
+        if transcription_text:
+            summary = self._create_transcription_summary(transcription_text)
+            return f"🎤 音声メモ: {summary} - #{channel_name}"
+
+        return None
+
+    def _generate_ai_based_title(
+        self, ai_result: AIProcessingResult | None, channel_name: str
+    ) -> str | None:
+        """AI 結果に基づくタイトルを生成"""
+        if not ai_result:
+            return None
+
+        # AI 要約がある場合
+        if ai_result.summary:
+            summary_text = ai_result.summary.summary
+            if len(summary_text) > 40:
+                summary_text = summary_text[:40] + "..."
+            return f"📝 {summary_text} - #{channel_name}"
+
+        # AI 分類がある場合
+        if ai_result.category:
+            category = ai_result.category.category
+            return f"📝 {category}メモ - #{channel_name}"
+
+        return None
+
+    def _generate_text_based_title(
+        self, content_info: dict[str, Any], channel_name: str
+    ) -> str | None:
+        """テキストコンテンツに基づくタイトルを生成"""
+        raw_content = content_info.get("raw_content", "").strip()
+        if raw_content and len(raw_content) > 10:
+            return f"📝 {raw_content} - #{channel_name}"
+        return None
+
+    def _get_fallback_title(
+        self, message_data: dict[str, Any], error: Exception
+    ) -> str:
+        """エラー時のフォールバックタイトル"""
+        self.logger.warning(
+            "Failed to generate activity log title, using fallback", error=str(error)
+        )
+        channel_name = message_data.get("channel_info", {}).get("name", "unknown")
+        return f"📝 メモ - #{channel_name}"
+
     def _generate_activity_log_title(
         self,
         message_data: dict[str, Any],
@@ -746,67 +818,27 @@ class MessageHandler(LoggerMixin):
     ) -> str:
         """Activity Log エントリの意味のあるタイトルを生成"""
         try:
-            # 音声文字起こし内容を確認
             content_info = message_data.get("metadata", {}).get("content", {})
-            has_audio = content_info.get("has_audio_transcription", False)
             channel_name = message_data["channel_info"]["name"]
 
-            if has_audio:
-                # 音声メッセージの場合、転写内容から短い要約を作成
-                cleaned_content = content_info.get("cleaned_content", "")
+            # 音声メッセージの処理
+            if content_info.get("has_audio_transcription", False):
+                if title := self._generate_audio_title(content_info, channel_name):
+                    return title
 
-                # 音声転写部分を抽出
-                transcription_text = ""
-                if "🎤 音声文字起こし" in cleaned_content:
-                    # 音声セクションから実際の転写テキストを抽出
-                    import re
+            # AI 結果に基づくタイトル生成
+            if title := self._generate_ai_based_title(ai_result, channel_name):
+                return title
 
-                    pattern = r"🎤 音声文字起こし\s*(.*?)\s*\*\*信頼度\*\*"
-                    match = re.search(pattern, cleaned_content, re.DOTALL)
-                    if match:
-                        transcription_text = match.group(1).strip()
+            # テキストコンテンツに基づくタイトル生成
+            if title := self._generate_text_based_title(content_info, channel_name):
+                return title
 
-                if transcription_text:
-                    # 転写内容から適切な長さの要約を作成
-                    if len(transcription_text) > 30:
-                        # 最初の文またはフレーズを使用
-                        summary = transcription_text[:30].rsplit("。", 1)[0]
-                        if not summary.endswith("。"):
-                            summary += "..."
-                    else:
-                        summary = transcription_text
-
-                    return f"🎤 音声メモ: {summary} - #{channel_name}"
-
-            # AI 要約がある場合
-            if ai_result and ai_result.summary:
-                summary_text = ai_result.summary.summary
-                if len(summary_text) > 40:
-                    summary_text = summary_text[:40] + "..."
-                return f"📝 {summary_text} - #{channel_name}"
-
-            # AI 分類がある場合
-            if ai_result and ai_result.category:
-                category = ai_result.category.category
-                return f"📝 {category}メモ - #{channel_name}"
-
-            # 通常のテキストメッセージ（全文表示）
-            raw_content = content_info.get("raw_content", "").strip()
-            if raw_content and len(raw_content) > 10:
-                # 全文を表示（省略なし）
-                preview = raw_content
-                return f"📝 {preview} - #{channel_name}"
-
-            # フォールバック: ノートタイトルを使用
+            # フォールバック
             return f"📝 {note.title} - #{channel_name}"
 
         except Exception as e:
-            self.logger.warning(
-                "Failed to generate activity log title, using fallback", error=str(e)
-            )
-            # エラー時のフォールバック
-            channel_name = message_data.get("channel_info", {}).get("name", "unknown")
-            return f"📝 メモ - #{channel_name}"
+            return self._get_fallback_title(message_data, e)
 
     async def _organize_note_by_ai_category(self, note, ai_result) -> None:
         """AI 分類結果に基づいてノートを適切なフォルダに移動"""
