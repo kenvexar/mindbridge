@@ -142,7 +142,7 @@ find . -type d | grep -E "^\./(00_|01_|02_|03_|10_|11_|12_|20_|21_|30_|80_|90_)"
 uv run python -c "
 from src.obsidian.models import VaultFolder, FolderMapping
 print('Finance mapping:', FolderMapping.get_folder_for_category('finance').value)
-print('Task mapping:', FolderMapping.get_folder_for_category('task').value)  
+print('Task mapping:', FolderMapping.get_folder_for_category('task').value)
 print('Health mapping:', FolderMapping.get_folder_for_category('health').value)
 print('Knowledge mapping:', FolderMapping.get_folder_for_category('learning').value)
 "
