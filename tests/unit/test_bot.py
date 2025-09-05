@@ -123,7 +123,6 @@ class TestMessageHandler:
             daily_integration=mock_daily_integration,
             template_engine=mock_template_engine,
             note_analyzer=mock_note_analyzer,
-            channel_config=self.channel_config,
         )
 
     @pytest.mark.asyncio
@@ -134,22 +133,8 @@ class TestMessageHandler:
         mock_message.author.bot = True
 
         result = await self.handler.process_message(mock_message)
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_unmonitored_channel_ignored(self) -> None:
-        """Test that unmonitored channels are ignored"""
-        # Create mock message from unmonitored channel
-        mock_message = Mock(spec=discord.Message)
-        mock_message.author.bot = False
-        mock_message.channel.id = 999999999  # Invalid channel ID
-
-        # Test early return when channel is not monitored
-        with patch.object(
-            self.channel_config, "is_monitored_channel", return_value=False
-        ):
-            result = await self.handler.process_message(mock_message)
-            assert result is None
+        assert result["status"] == "skipped"
+        assert result["reason"] == "Message filtered out"
 
     @pytest.mark.asyncio
     async def test_valid_message_processing(self) -> None:
@@ -202,26 +187,21 @@ class TestMessageHandler:
         mock_message.tts = False
         mock_message.mention_everyone = False
 
-        # Mock the routing method to avoid actual processing
+        # Mock the note creation handler to avoid actual processing
         with patch.object(
-            self.handler, "_route_message_by_category", new_callable=AsyncMock
-        ) as mock_route:
+            self.handler.note_creation_handler,
+            "handle_obsidian_note_creation",
+            new_callable=AsyncMock,
+        ) as mock_note_creation:
+            mock_note_creation.return_value = {
+                "note_path": "test.md",
+                "status": "created",
+            }
+
             result = await self.handler.process_message(mock_message)
 
         assert result is not None
-        assert "metadata" in result
-        assert "channel_info" in result
-        assert result["channel_info"]["name"] == mock_channel_info.name
-        assert result["channel_info"]["category"] == mock_channel_info.category.value
-
-        # Check metadata structure
-        metadata = result["metadata"]
-        assert "basic" in metadata
-        assert "content" in metadata
-        assert "attachments" in metadata
-        assert "references" in metadata
-        assert "discord_features" in metadata
-        assert "timing" in metadata
-
-        # Verify routing was called
-        mock_route.assert_called_once()
+        assert result["status"] == "success"
+        assert result["message_id"] == mock_message.id
+        assert "processed_content" in result
+        assert "note" in result

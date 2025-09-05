@@ -28,7 +28,7 @@ def setup_logging() -> None:
     # Configure standard library logging
     logging.basicConfig(
         level=log_level,
-        format="%(message)s",
+        format="%(message) s",
         datefmt="[%X]",
         handlers=[
             RichHandler(
@@ -84,3 +84,7 @@ def log_api_usage(api_name: str, usage_data: dict[str, Any]) -> None:
     """Log API usage for monitoring"""
     logger = get_logger("api_usage")
     logger.info(f"{api_name} API usage", **usage_data)
+
+
+# Default logger instance for convenient access
+logger = get_logger("mindbridge")

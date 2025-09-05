@@ -178,16 +178,10 @@ class DailyNoteIntegration(LoggerMixin):
         """デイリーノートを取得または作成"""
         try:
             # 既存のデイリーノートを検索
-            year = date.strftime("%Y")
-            month = date.strftime("%m-%B")
             filename = f"{date.strftime('%Y-%m-%d')}.md"
 
             daily_note_path = (
-                self.file_manager.vault_path
-                / VaultFolder.DAILY_NOTES.value
-                / year
-                / month
-                / filename
+                self.file_manager.vault_path / VaultFolder.DAILY_NOTES.value / filename
             )
 
             # 既存ノートの読み込みを試行
@@ -197,12 +191,39 @@ class DailyNoteIntegration(LoggerMixin):
                     return existing_note
 
             # 新しいデイリーノートを作成
-            daily_stats = await self._collect_daily_stats(date)
-            new_note = await self.template_engine.generate_daily_note(date, daily_stats)
+            # Convert datetime to string for new API
+            date_str = date.strftime("%Y-%m-%d")
+            new_note_dict = await self.template_engine.generate_daily_note(date_str)
 
-            if not new_note:
+            if not new_note_dict:
                 self.logger.error("Failed to generate daily note from template")
                 return None
+
+            # Convert dict result to ObsidianNote
+            from pathlib import Path
+
+            from src.obsidian.models import NoteFrontmatter, ObsidianNote
+
+            # Handle GeneratedNote object
+            if hasattr(new_note_dict, "filename"):
+                note_filename = new_note_dict.filename
+                note_content = new_note_dict.content
+                note_folder = "01_DailyNotes"  # Default folder for daily notes
+            else:
+                # Fallback for dict format
+                note_filename = f"{new_note_dict.get('title', 'untitled')}.md"  # type: ignore
+                note_content = new_note_dict.get("content", "")  # type: ignore
+                note_folder = new_note_dict.get("folder", "01_DailyNotes")  # type: ignore
+
+            note_file_path = (
+                Path(self.file_manager.vault_path) / note_folder / note_filename
+            )
+            new_note = ObsidianNote(
+                filename=note_filename,
+                file_path=note_file_path,
+                frontmatter=NoteFrontmatter(obsidian_folder=note_folder),
+                content=note_content,
+            )
 
             # ベースセクションを追加
             new_note.content = self._ensure_base_sections(new_note.content)

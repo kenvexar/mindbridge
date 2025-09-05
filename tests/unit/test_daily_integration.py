@@ -78,11 +78,8 @@ class TestDailyNoteIntegration:
         assert success is True
 
         # Verify the daily note was created and contains the activity log entry
-        year = date.strftime("%Y")
-        month = date.strftime("%m-%B")
         filename = f"{date.strftime('%Y-%m-%d')}.md"
-
-        daily_note_path = self.temp_dir / "01_DailyNotes" / year / month / filename
+        daily_note_path = self.temp_dir / "01_DailyNotes" / filename
 
         assert daily_note_path.exists()
 
@@ -113,11 +110,8 @@ class TestDailyNoteIntegration:
         assert success is True
 
         # Verify the daily note was created and contains the task entries
-        year = date.strftime("%Y")
-        month = date.strftime("%m-%B")
         filename = f"{date.strftime('%Y-%m-%d')}.md"
-
-        daily_note_path = self.temp_dir / "01_DailyNotes" / year / month / filename
+        daily_note_path = self.temp_dir / "01_DailyNotes" / filename
 
         assert daily_note_path.exists()
 
@@ -212,11 +206,8 @@ class TestDailyNoteIntegration:
         assert success_3 is True
 
         # Verify all entries are in the same note
-        year = date.strftime("%Y")
-        month = date.strftime("%m-%B")
         filename = f"{date.strftime('%Y-%m-%d')}.md"
-
-        daily_note_path = self.temp_dir / "01_DailyNotes" / year / month / filename
+        daily_note_path = self.temp_dir / "01_DailyNotes" / filename
 
         daily_note = await self.file_manager.load_note(daily_note_path)
         assert daily_note is not None

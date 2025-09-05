@@ -41,8 +41,9 @@ class DiscordBot(LoggerMixin):
             template_engine=template_engine,
             note_analyzer=note_analyzer,
             speech_processor=speech_processor,
-            channel_config=self.channel_config,  # 同一インスタンスを共有
         )
+        # Set channel config after initialization
+        self.message_handler.channel_config = self.channel_config
 
         self.settings = get_settings()
 

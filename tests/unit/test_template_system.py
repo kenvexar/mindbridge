@@ -48,7 +48,7 @@ class TestTemplateEngine:
 
     async def test_template_directory_creation(self) -> None:
         """Test template directory creation"""
-        success = await self.template_engine.ensure_template_directory()
+        success = self.template_engine.ensure_template_directory()
         assert success is True
         assert self.template_engine.template_path.exists()
         assert self.template_engine.template_path.is_dir()
@@ -61,6 +61,7 @@ class TestTemplateEngine:
         # Check if default templates were created
         templates = await self.template_engine.list_available_templates()
         expected_templates = {
+            "base_note",
             "daily_note",
             "idea_note",
             "meeting_note",
@@ -474,7 +475,7 @@ Content
             await f.write(valid_template)
 
         result = await self.template_engine.validate_template("valid")
-        assert result["valid"] is True
+        assert result["is_valid"] is True
         assert len(result["errors"]) == 0
 
         # 不正なテンプレート（括弧が対応していない）

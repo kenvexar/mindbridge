@@ -226,16 +226,41 @@ class VaultOrganizer(LoggerMixin):
             # その日の統計情報を収集
             daily_stats = await self._collect_daily_stats(date)
 
-            # 日次ノートを生成
-            daily_note = await self.template_engine.generate_daily_note(
-                date=date, daily_stats=daily_stats
-            )
+            # 日次ノートを生成 (新しい API に対応)
+            date_str = date.strftime("%Y-%m-%d")
+            daily_note_dict = await self.template_engine.generate_daily_note(date_str)
 
-            if daily_note is None:
+            if daily_note_dict is None:
                 self.logger.error(
                     "Failed to generate daily note", date=date.strftime("%Y-%m-%d")
                 )
                 return None
+
+            # Convert dict result to ObsidianNote
+            from pathlib import Path
+
+            from src.obsidian.models import NoteFrontmatter, ObsidianNote
+
+            # Handle GeneratedNote object
+            if hasattr(daily_note_dict, "filename"):
+                note_filename = daily_note_dict.filename
+                note_content = daily_note_dict.content
+                note_folder = "01_DailyNotes"  # Default folder for daily notes
+            else:
+                # Fallback for dict format
+                note_filename = f"{daily_note_dict.get('title', 'untitled')}.md"  # type: ignore
+                note_content = daily_note_dict.get("content", "")  # type: ignore
+                note_folder = daily_note_dict.get("folder", "01_DailyNotes")  # type: ignore
+
+            daily_note_path = (
+                Path(self.file_manager.vault_path) / note_folder / note_filename
+            )
+            daily_note = ObsidianNote(
+                filename=note_filename,
+                file_path=daily_note_path,
+                frontmatter=NoteFrontmatter(obsidian_folder=note_folder),
+                content=note_content,
+            )
 
             # 既存の日次ノートをチェック
             existing_note = None
