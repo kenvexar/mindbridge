@@ -328,7 +328,7 @@ class ConditionalProcessor:
             if condition.startswith("not "):
                 return not self._evaluate_condition(condition[4:].strip(), context)
 
-            # 複合条件（AND/OR）の処理
+            # 複合条件（ AND/OR ）の処理
             if result := self._evaluate_logical_operators(condition, context):
                 return result[0] if result[1] else False
 
@@ -833,6 +833,115 @@ class TemplateEngine(LoggerMixin):
         except Exception as e:
             self.logger.error("Failed to render template", error=str(e), exc_info=True)
             return template_content  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す  # 失敗した場合は元のテンプレートを返す
+
+    async def select_optimal_template(
+        self, context: dict[str, Any], template_hint: str | None = None
+    ) -> str:
+        """コンテキストに基づいて最適なテンプレートを選択"""
+
+        # 明示的なテンプレートヒントがある場合はそれを優先
+        if template_hint:
+            template_path = self.template_path / f"{template_hint}.md"
+            if template_path.exists():
+                async with aiofiles.open(template_path, encoding="utf-8") as f:
+                    return await f.read()
+
+        # スマート選択ロジック
+        ai_confidence = context.get("ai_confidence", 0.0)
+        source_type = context.get("source_type", "")
+        media_type = context.get("media_type", "")
+        ai_category = context.get("ai_category", "").lower()
+
+        # 1. ソースタイプに基づく選択
+        if source_type == "voice_memo":
+            return self._get_voice_memo_template()
+        elif media_type in ["image", "document", "audio", "video"]:
+            return self._get_media_note_template()
+
+        # 2. AI 分析結果に基づく選択
+        if ai_confidence > 0.9:
+            # 高信頼度は専門テンプレート
+            if "project" in ai_category or "meeting" in ai_category:
+                return self._get_project_note_template()
+            elif "task" in ai_category or "todo" in ai_category:
+                return self._get_task_note_template()
+            elif "daily" in ai_category:
+                return self._get_daily_note_template()
+            elif "idea" in ai_category or "brainstorm" in ai_category:
+                return self._get_idea_note_template()
+            else:
+                return self._get_high_confidence_general_template(context)
+
+        elif ai_confidence < 0.6:
+            # 低信頼度は要確認テンプレート
+            return self._get_review_required_template(context)
+
+        # 3. デフォルトのカテゴリ別選択
+        category_template_map = {
+            "task": self._get_task_note_template(),
+            "project": self._get_project_note_template(),
+            "idea": self._get_idea_note_template(),
+            "daily": self._get_daily_note_template(),
+            "meeting": self._get_meeting_note_template(),
+        }
+
+        for category, template in category_template_map.items():
+            if category in ai_category:
+                return template
+
+        # 4. フォールバック: 標準テンプレート
+        return self._get_standard_template(context)
+
+    def _get_standard_template(self, context: dict[str, Any]) -> str:
+        """標準汎用テンプレート"""
+        return """---
+type: {{default(ai_category, "general")}}
+ai_confidence: {{default(ai_confidence, 0.0)}}
+created: {{date_iso}}
+tags:
+  - {{default(ai_category, "general")}}
+{{#if ai_tags}}
+{{#each ai_tags}}
+  - {{@item}}
+{{/each}}
+{{/if}}
+ai_processed: {{default(ai_processed, false)}}
+---
+
+# {{#if title}}{{title}}{{elif ai_summary}}{{ai_summary}}{{else}}新しいノート{{/if}}
+
+## 📋 内容
+
+{{content}}
+
+{{#if ai_processed}}
+## 🤖 AI 分析結果
+
+**カテゴリ**: {{ai_category}}{{#if ai_subcategory}} > {{ai_subcategory}}{{/if}}
+**信頼度**: {{number_format(ai_confidence, "percent")}}
+
+{{#if ai_summary}}
+**要約**: {{ai_summary}}
+{{/if}}
+
+{{#if ai_key_points and length(ai_key_points) > 0}}
+### 🎯 重要ポイント
+{{#each ai_key_points}}
+- {{@item}}
+{{/each}}
+{{/if}}
+{{/if}}
+
+## 🔗 関連情報
+
+{{#if discord_channel}}
+- **投稿チャンネル**: #{{discord_channel}}
+{{/if}}
+- **作成日**: {{date_format(current_date, "%Y 年%m 月%d 日 %H:%M")}}
+
+---
+*🤖 自動生成されたノートです*
+"""
 
     def _format_value(self, value: Any) -> str:
         """値をフォーマット"""
@@ -1364,7 +1473,7 @@ class TemplateEngine(LoggerMixin):
     async def _process_each_sections(
         self, content: str, context: dict[str, Any]
     ) -> str:
-        """繰り返しセクションを処理"""
+        """繰り返しセクションを処理（空白行問題を修正）"""
         # よりシンプルで確実なパターンを使用
         pattern = r"\{\{\s*#each\s+(\w+)\s*\}\}(.*?)\{\{\s*/each\s*\}\}"
 
@@ -1412,7 +1521,8 @@ class TemplateEngine(LoggerMixin):
                 self.logger.debug(f"Item {i} content: {repr(item_content[:50])}")
                 results.append(item_content)
 
-            result = "\n".join(results)
+            # 空文字列で結合して余計な改行を避ける
+            result = "".join(results)
             self.logger.debug(f"Final each result: {repr(result[:100])}")
             return result
 
@@ -1712,10 +1822,10 @@ class TemplateEngine(LoggerMixin):
                 # YAML エラーを防ぐため改行や特殊文字を処理
                 ai_summary = ai_summary.replace("\n", " ").replace("\r", " ").strip()
 
-            # タグをYAML配列形式で準備
+            # タグを YAML 配列形式で準備
             ai_tags = ai_result.tags.tags if ai_result.tags else []
 
-            # キーポイントもYAML safe に
+            # キーポイントも YAML safe に
             ai_key_points = (
                 [
                     self._clean_content_text(point)
@@ -2315,7 +2425,7 @@ class TemplateEngine(LoggerMixin):
         return content
 
     def _sanitize_yaml_values(self, data: dict[str, Any]) -> dict[str, Any]:
-        """YAML値を安全な形式に変換"""
+        """YAML 値を安全な形式に変換"""
         sanitized: dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, bool):
@@ -2360,7 +2470,7 @@ class TemplateEngine(LoggerMixin):
                 if key_match:
                     indent, key, content = key_match.groups()
                     if content.strip():
-                        # リスト項目を抽出してYAML配列形式に変換
+                        # リスト項目を抽出して YAML 配列形式に変換
                         items = [
                             item.strip().strip("'\"")
                             for item in content.split(",")
@@ -2395,25 +2505,72 @@ class TemplateEngine(LoggerMixin):
     def _prepare_frontmatter_dict(
         self, frontmatter_dict: dict[str, Any], context: dict[str, Any]
     ) -> None:
-        """フロントマターディクショナリを NoteFrontmatter モデルに適合するよう準備"""
-        # デバッグ用ログ（ error レベルで確実に表示）
-        self.logger.error(
-            "=== FRONTMATTER DEBUG START ===",
-            existing_obsidian_folder=frontmatter_dict.get("obsidian_folder"),
-            target_folder_from_context=context.get("target_folder"),
-            frontmatter_keys=list(frontmatter_dict.keys()),
-            context_keys=list(context.keys()),
-        )
+        """フロントマターディクショナリを NoteFrontmatter モデルに適合するよう準備し、
+        より包括的なメタデータを自動生成"""
+
+        # 現在時刻の取得
+        now = datetime.now()
+        timestamp = now.isoformat()
+
+        # 基本的なメタデータの確保
+        if "created" not in frontmatter_dict:
+            frontmatter_dict["created"] = timestamp
+        if "modified" not in frontmatter_dict:
+            frontmatter_dict["modified"] = timestamp
+
+        # Discord 関連情報の処理
+        if "discord_message_id" in context:
+            frontmatter_dict["discord_message_id"] = context["discord_message_id"]
+        if "discord_channel" in context:
+            frontmatter_dict["discord_channel"] = context["discord_channel"]
+        if "discord_author" in context:
+            frontmatter_dict["discord_author"] = context["discord_author"]
+        if "discord_author_id" in context:
+            frontmatter_dict["discord_author_id"] = context["discord_author_id"]
+        if "discord_timestamp" in context:
+            frontmatter_dict["discord_timestamp"] = context["discord_timestamp"]
+        if "discord_guild" in context:
+            frontmatter_dict["discord_guild"] = context["discord_guild"]
+
+        # AI 処理情報
+        if "ai_processed" not in frontmatter_dict:
+            frontmatter_dict["ai_processed"] = context.get("ai_processed", True)
+        if "ai_processing_time" in context:
+            frontmatter_dict["ai_processing_time"] = context["ai_processing_time"]
+        if "ai_summary" in context:
+            frontmatter_dict["ai_summary"] = context["ai_summary"]
+        if "ai_category" in context:
+            frontmatter_dict["ai_category"] = context["ai_category"]
+        if "ai_subcategory" in context:
+            frontmatter_dict["ai_subcategory"] = context["ai_subcategory"]
+        if "ai_confidence" in context:
+            frontmatter_dict["ai_confidence"] = context["ai_confidence"]
+
+        # AI 生成タグの処理
+        if "ai_tags" in context and context["ai_tags"]:
+            # AI タグは#を含む形式で保存
+            ai_tags = []
+            for tag in context["ai_tags"]:
+                if isinstance(tag, str) and tag.strip():
+                    if not tag.startswith("#"):
+                        tag = f"#{tag}"
+                    ai_tags.append(tag)
+            frontmatter_dict["ai_tags"] = ai_tags
+        elif "ai_tags" not in frontmatter_dict:
+            frontmatter_dict["ai_tags"] = []
+
+        # 通常のタグの処理（#なし）
+        if "tags" not in frontmatter_dict:
+            frontmatter_dict["tags"] = []
 
         # AI 分類による target_folder が利用可能な場合は常にそれを優先
         if "target_folder" in context and context["target_folder"]:
             previous_value = frontmatter_dict.get("obsidian_folder", "None")
             frontmatter_dict["obsidian_folder"] = context["target_folder"]
-            self.logger.error(
-                "=== AI FOLDER OVERRIDE APPLIED ===",
+            self.logger.debug(
+                "AI folder override applied",
                 target_folder=context["target_folder"],
                 previous_value=previous_value,
-                final_value=frontmatter_dict["obsidian_folder"],
             )
         elif "obsidian_folder" not in frontmatter_dict:
             # note type に基づいてフォルダを決定（フォールバック）
@@ -2422,27 +2579,77 @@ class TemplateEngine(LoggerMixin):
                 "idea": VaultFolder.IDEAS.value,
                 "task": VaultFolder.TASKS.value,
                 "meeting": VaultFolder.PROJECTS.value,
-                "daily": VaultFolder.INBOX.value,  # daily_note テンプレートでも AI 分類を優先
+                "daily": VaultFolder.DAILY_NOTES.value,
+                "knowledge": VaultFolder.KNOWLEDGE.value,
+                "learning": VaultFolder.KNOWLEDGE.value,
+                "finance": VaultFolder.FINANCE.value,
+                "health": VaultFolder.HEALTH.value,
+                "resource": VaultFolder.RESOURCES.value,
+                "archive": VaultFolder.ARCHIVE.value,
+                "general": VaultFolder.INBOX.value,
             }
             frontmatter_dict["obsidian_folder"] = folder_mapping.get(
                 note_type, VaultFolder.INBOX.value
             )
-            self.logger.error(
-                "=== USING FALLBACK FOLDER MAPPING ===",
+            self.logger.debug(
+                "Using fallback folder mapping",
                 note_type=note_type,
                 obsidian_folder=frontmatter_dict["obsidian_folder"],
             )
-        else:
-            self.logger.error(
-                "=== OBSIDIAN FOLDER ALREADY EXISTS - NO OVERRIDE ===",
-                existing_value=frontmatter_dict["obsidian_folder"],
-                target_folder_available=bool(context.get("target_folder")),
-                target_folder_value=context.get("target_folder"),
-            )
 
-        self.logger.error(
-            "=== FRONTMATTER DEBUG END ===",
+        # ソースタイプの設定
+        if "source_type" not in frontmatter_dict:
+            if "discord_message_id" in frontmatter_dict:
+                frontmatter_dict["source_type"] = "discord_message"
+            elif "voice_file" in context:
+                frontmatter_dict["source_type"] = "voice_memo"
+            else:
+                frontmatter_dict["source_type"] = "manual"
+
+        # ステータスの設定
+        if "status" not in frontmatter_dict:
+            frontmatter_dict["status"] = "active"
+
+        # CSS クラスの設定
+        if "cssclass" not in frontmatter_dict:
+            if frontmatter_dict.get("source_type") == "discord_message":
+                frontmatter_dict["cssclass"] = "discord-note"
+            elif frontmatter_dict.get("source_type") == "voice_memo":
+                frontmatter_dict["cssclass"] = "voice-note"
+            else:
+                frontmatter_dict["cssclass"] = "default-note"
+
+        # エイリアスの初期化
+        if "aliases" not in frontmatter_dict:
+            frontmatter_dict["aliases"] = []
+
+        # 階層構造メタデータ
+        folder = frontmatter_dict.get("obsidian_folder", "")
+        if folder and "vault_hierarchy" not in frontmatter_dict:
+            # フォルダ名から階層情報を生成
+            folder_parts = folder.split("/")
+            if folder_parts:
+                frontmatter_dict["vault_hierarchy"] = "/".join(folder_parts)
+
+        # 組織レベルの設定
+        if "organization_level" not in frontmatter_dict:
+            folder = frontmatter_dict.get("obsidian_folder", "")
+            if any(daily in folder for daily in ["DailyNotes", "Daily"]):
+                frontmatter_dict["organization_level"] = "daily"
+            elif any(proj in folder for proj in ["Projects", "Tasks"]):
+                frontmatter_dict["organization_level"] = "project"
+            elif any(know in folder for know in ["Knowledge", "Resources"]):
+                frontmatter_dict["organization_level"] = "knowledge"
+            else:
+                frontmatter_dict["organization_level"] = "general"
+
+        self.logger.debug(
+            "Frontmatter preparation completed",
             final_obsidian_folder=frontmatter_dict.get("obsidian_folder"),
+            ai_processed=frontmatter_dict.get("ai_processed"),
+            source_type=frontmatter_dict.get("source_type"),
+            tags_count=len(frontmatter_dict.get("tags", [])),
+            ai_tags_count=len(frontmatter_dict.get("ai_tags", [])),
         )
 
     async def ensure_template_directory(self) -> bool:
@@ -2479,16 +2686,21 @@ class TemplateEngine(LoggerMixin):
             return []
 
     async def create_default_templates(self) -> bool:
-        """デフォルトテンプレートを作成"""
+        """改良されたデフォルトテンプレートを作成"""
         try:
             await self.ensure_template_directory()
 
-            # デフォルトテンプレートの定義
+            # 拡張されたデフォルトテンプレートの定義
             default_templates = {
                 "daily_note": self._get_daily_note_template(),
                 "idea_note": self._get_idea_note_template(),
                 "meeting_note": self._get_meeting_note_template(),
                 "task_note": self._get_task_note_template(),
+                "voice_memo": self._get_voice_memo_template(),
+                "project_note": self._get_project_note_template(),
+                "media_note": self._get_media_note_template(),
+                "high_confidence": self._get_high_confidence_general_template({}),
+                "review_required": self._get_review_required_template({}),
             }
 
             for template_name, template_content in default_templates.items():
@@ -2501,13 +2713,13 @@ class TemplateEngine(LoggerMixin):
                 async with aiofiles.open(template_file, "w", encoding="utf-8") as f:
                     await f.write(template_content)
 
-                self.logger.info("Default template created", template=template_name)
+                self.logger.info("Enhanced template created", template=template_name)
 
             return True
 
         except Exception as e:
             self.logger.error(
-                "Failed to create default templates", error=str(e), exc_info=True
+                "Failed to create enhanced templates", error=str(e), exc_info=True
             )
             return False
 
@@ -3062,6 +3274,542 @@ ai_processed: {{ai_processed}}
 ## 🔗 関連リンク
 
 -
+"""
+
+    def _get_voice_memo_template(self) -> str:
+        """音声メモ専用テンプレート"""
+        return """---
+type: voice_memo
+source_type: voice_memo
+created: {{date_iso}}
+transcription_quality: {{default(transcription_confidence, 0.0)}}
+duration: {{default(audio_duration, "unknown")}}
+language: {{default(detected_language, "ja")}}
+tags:
+  - voice-memo
+  - {{date_format(current_date, "%Y-%m")}}{{#if ai_tags}}{{#each ai_tags}}
+  - {{@item}}{{/each}}{{/if}}
+ai_processed: {{ai_processed}}
+cssclass: voice-note
+---
+
+# 🎙️ 音声メモ - {{date_format(current_date, "%H:%M")}}
+
+{{#if transcription_confidence < 0.8}}
+> ⚠️ **注意**: 文字起こし品質が低い可能性があります (信頼度: {{number_format(transcription_confidence, "percent")}})
+{{/if}}
+
+## 📝 文字起こし結果
+
+{{content}}
+
+{{#if ai_processed}}
+## 🤖 AI 分析結果
+
+**要約**: {{ai_summary}}
+
+**カテゴリ**: {{ai_category}}{{#if ai_subcategory}} > {{ai_subcategory}}{{/if}}
+**信頼度**: {{number_format(ai_confidence, "percent")}}
+
+{{#if ai_key_points and length(ai_key_points) > 0}}
+### 🎯 主要ポイント{{#each ai_key_points}}
+- {{@item}}{{/each}}
+{{/if}}
+
+{{#if ai_action_items and length(ai_action_items) > 0}}
+### ✅ アクション項目{{#each ai_action_items}}
+- [ ] {{@item}}{{/each}}
+{{/if}}
+
+{{#if ai_sentiment}}
+**感情分析**: {{ai_sentiment}}
+{{/if}}
+{{/if}}
+
+## 📊 音声情報
+
+- **録音時刻**: {{date_format(current_date, "%Y 年%m 月%d 日 %H:%M:%S")}}
+- **音声長**: {{default(audio_duration, "不明")}}
+- **検出言語**: {{default(detected_language, "日本語")}}
+{{#if audio_quality}}
+- **音声品質**: {{audio_quality}}
+{{/if}}
+
+{{#if follow_up_needed}}
+## 🔄 フォローアップ
+
+{{follow_up_needed}}
+{{/if}}
+
+## 🔗 関連情報
+
+{{#if discord_channel}}
+- **元チャンネル**: #{{discord_channel}}
+{{/if}}
+{{#if related_notes and length(related_notes) > 0}}
+- **関連ノート**: {{#each related_notes}}
+  - [[{{@item}}]]{{/each}}
+{{/if}}
+
+---
+*📱 このノートは音声メモから自動生成されました*
+"""
+
+    def _get_project_note_template(self) -> str:
+        """プロジェクト連携テンプレート"""
+        return """---
+type: project
+project_name: {{default(project_name, "New Project")}}
+project_status: {{default(project_status, "planning")}}
+priority: {{default(priority_level, "medium")}}
+created: {{date_iso}}
+tags:
+  - project
+  - {{default(project_name, "general")}}
+{{#if ai_tags}}
+{{#each ai_tags}}
+  - {{@item}}
+{{/each}}
+{{/if}}
+related_tasks: {{default(task_references, [])}}
+team_members: {{default(team_members, [])}}
+ai_processed: {{ai_processed}}
+cssclass: project-note
+---
+
+# 🚀 {{default(project_name, "新規プロジェクト")}}{{#if title}} - {{title}}{{/if}}
+
+{{#if project_status}}
+**ステータス**: {{project_status}} | **優先度**: {{default(priority_level, "medium")}}
+{{/if}}
+
+## 📋 プロジェクト概要
+
+{{#if content}}
+{{content}}
+{{elif project_description}}
+{{project_description}}
+{{else}}
+プロジェクトの詳細、目的、期待される成果を記載します。
+{{/if}}
+
+{{#if ai_processed}}
+## 🤖 AI 分析結果
+
+**要約**: {{ai_summary}}
+**カテゴリ**: {{ai_category}}{{#if ai_subcategory}} > {{ai_subcategory}}{{/if}}
+**信頼度**: {{number_format(ai_confidence, "percent")}}
+
+{{#if ai_key_points and length(ai_key_points) > 0}}
+### 🎯 重要ポイント
+{{#each ai_key_points}}
+- {{@item}}
+{{/each}}
+{{/if}}
+
+{{#if ai_deliverables and length(ai_deliverables) > 0}}
+### 📦 成果物
+{{#each ai_deliverables}}
+- [ ] {{@item}}
+{{/each}}
+{{/if}}
+{{/if}}
+
+## ✅ 関連タスク
+
+{{#if related_tasks and length(related_tasks) > 0}}
+{{#each related_tasks}}
+- [[{{@item}}]]
+{{/each}}
+{{else}}
+- [ ] 初期タスクを作成
+{{/if}}
+
+## 👥 チームメンバー
+
+{{#if team_members and length(team_members) > 0}}
+{{#each team_members}}
+- {{@item}}
+{{/each}}
+{{else}}
+- 担当者未定
+{{/if}}
+
+## 📅 スケジュール
+
+- **開始日**: {{default(start_date, "未定")}}
+- **終了予定**: {{default(end_date, "未定")}}
+- **次回ミーティング**: {{default(next_meeting, "未定")}}
+
+## 🎯 目標・マイルストーン
+
+{{#if milestones and length(milestones) > 0}}
+{{#each milestones}}
+- [ ] {{@item.title}} ({{@item.date}})
+{{/each}}
+{{else}}
+- [ ] 初期マイルストーンを設定
+{{/if}}
+
+## 📊 進捗状況
+
+- **全体進捗**: {{default(overall_progress, "0")}}%
+- **現在のフェーズ**: {{default(current_phase, "計画段階")}}
+
+{{#if blockers and length(blockers) > 0}}
+### ⚠️ ブロッカー・課題
+{{#each blockers}}
+- {{@item}}
+{{/each}}
+{{/if}}
+
+## 🔗 関連リソース
+
+{{#if discord_thread_url}}
+- **Discord スレッド**: {{discord_thread_url}}
+{{/if}}
+{{#if github_repository}}
+- **GitHub**: {{github_repository}}
+{{/if}}
+{{#if documentation_url}}
+- **ドキュメント**: {{documentation_url}}
+{{/if}}
+{{#if related_projects and length(related_projects) > 0}}
+### 関連プロジェクト
+{{#each related_projects}}
+- [[{{@item}}]]
+{{/each}}
+{{/if}}
+
+## 📝 会議録・決定事項
+
+{{#if meeting_notes}}
+{{meeting_notes}}
+{{else}}
+会議録や重要な決定事項をここに記録します。
+{{/if}}
+
+---
+*🚀 作成日: {{date_format(current_date, "%Y 年%m 月%d 日")}}*
+"""
+
+    def _get_media_note_template(self) -> str:
+        """メディア（画像・文書）対応テンプレート"""
+        return """---
+type: media_note
+media_type: {{default(media_type, "unknown")}}
+file_size: {{default(file_size, "unknown")}}
+original_filename: {{default(original_filename, "unknown")}}
+attachment_path: {{default(attachment_path, "")}}
+created: {{date_iso}}
+tags:
+  - media
+  - {{default(media_type, "file")}}
+{{#if ai_tags}}
+{{#each ai_tags}}
+  - {{@item}}
+{{/each}}
+{{/if}}
+ai_processed: {{ai_processed}}
+cssclass: media-note
+---
+
+# 📎 {{default(media_type, "Media")}} - {{default(title, original_filename)}}
+
+{{#if media_type == "image"}}
+## 🖼️ 画像
+
+![{{original_filename}}]({{attachment_path}})
+
+{{#if ai_processed and ai_image_description}}
+### 🤖 AI 画像解析
+{{ai_image_description}}
+{{/if}}
+
+{{#if image_metadata}}
+### 📊 画像情報
+- **解像度**: {{image_metadata.resolution}}
+- **形式**: {{image_metadata.format}}
+- **サイズ**: {{file_size}}
+{{#if image_metadata.camera}}
+- **撮影機器**: {{image_metadata.camera}}
+{{/if}}
+{{#if image_metadata.date_taken}}
+- **撮影日時**: {{image_metadata.date_taken}}
+{{/if}}
+{{/if}}
+
+{{elif media_type == "document"}}
+## 📄 文書情報
+
+- **ファイル名**: {{original_filename}}
+- **サイズ**: {{file_size}}
+- **種類**: {{default(file_type, "不明")}}
+- **ページ数**: {{default(page_count, "不明")}}
+
+{{#if document_preview}}
+### 📋 プレビュー
+```
+{{document_preview}}
+```
+{{/if}}
+
+{{#if ai_processed and document_summary}}
+### 🤖 AI 文書解析
+**要約**: {{document_summary}}
+
+{{#if document_key_points and length(document_key_points) > 0}}
+**主要ポイント**:
+{{#each document_key_points}}
+- {{@item}}
+{{/each}}
+{{/if}}
+{{/if}}
+
+{{elif media_type == "audio"}}
+## 🎵 音声ファイル
+
+- **ファイル名**: {{original_filename}}
+- **長さ**: {{default(duration, "不明")}}
+- **形式**: {{default(audio_format, "不明")}}
+- **品質**: {{default(audio_quality, "不明")}}
+
+{{#if transcription}}
+### 📝 文字起こし
+{{transcription}}
+{{/if}}
+
+{{elif media_type == "video"}}
+## 🎬 動画ファイル
+
+- **ファイル名**: {{original_filename}}
+- **長さ**: {{default(duration, "不明")}}
+- **解像度**: {{default(resolution, "不明")}}
+- **形式**: {{default(video_format, "不明")}}
+
+{{#if video_thumbnail}}
+### 🖼️ サムネイル
+![Thumbnail]({{video_thumbnail}})
+{{/if}}
+
+{{#if video_description}}
+### 📝 動画説明
+{{video_description}}
+{{/if}}
+
+{{else}}
+## 📁 ファイル情報
+
+- **ファイル名**: {{original_filename}}
+- **サイズ**: {{file_size}}
+- **種類**: {{default(file_type, "不明")}}
+{{/if}}
+
+{{#if content}}
+## 📝 説明・メモ
+
+{{content}}
+{{/if}}
+
+{{#if ai_processed}}
+## 🤖 AI 分析結果
+
+**カテゴリ**: {{ai_category}}{{#if ai_subcategory}} > {{ai_subcategory}}{{/if}}
+**信頼度**: {{number_format(ai_confidence, "percent")}}
+
+{{#if ai_summary}}
+**要約**: {{ai_summary}}
+{{/if}}
+
+{{#if ai_key_points and length(ai_key_points) > 0}}
+### 🎯 重要ポイント
+{{#each ai_key_points}}
+- {{@item}}
+{{/each}}
+{{/if}}
+
+{{#if ai_suggested_actions and length(ai_suggested_actions) > 0}}
+### ✅ 推奨アクション
+{{#each ai_suggested_actions}}
+- [ ] {{@item}}
+{{/each}}
+{{/if}}
+{{/if}}
+
+## 🏷️ タグ・分類
+
+{{#if ai_tags and length(ai_tags) > 0}}
+**AI 生成タグ**: {{join(ai_tags, ", ")}}
+{{/if}}
+
+## 🔗 関連情報
+
+{{#if discord_channel}}
+- **投稿チャンネル**: #{{discord_channel}}
+{{/if}}
+{{#if discord_message_url}}
+- **元メッセージ**: {{discord_message_url}}
+{{/if}}
+{{#if related_notes and length(related_notes) > 0}}
+- **関連ノート**:
+{{#each related_notes}}
+  - [[{{@item}}]]
+{{/each}}
+{{/if}}
+
+## 📅 履歴
+
+- **アップロード日**: {{date_format(current_date, "%Y 年%m 月%d 日 %H:%M")}}
+{{#if processed_date}}
+- **処理完了日**: {{processed_date}}
+{{/if}}
+
+---
+*📎 このノートはメディアファイルから自動生成されました*
+"""
+
+    def _get_smart_template(self, context: dict[str, Any]) -> str:
+        """コンテキストに基づいてスマートにテンプレートを選択"""
+        ai_confidence = context.get("ai_confidence", 0.0)
+
+        # 高信頼度の場合は専用テンプレート
+        if ai_confidence > 0.9:
+            return self._get_high_confidence_general_template(context)
+
+        # 低信頼度の場合は確認要求テンプレート
+        elif ai_confidence < 0.6:
+            return self._get_review_required_template(context)
+
+        # 中程度の信頼度は標準テンプレート
+        else:
+            return self._get_standard_template(context)
+
+    def _get_high_confidence_general_template(self, context: dict[str, Any]) -> str:
+        """高信頼度汎用テンプレート"""
+        return """---
+type: {{ai_category}}
+ai_confidence: {{ai_confidence}}
+confidence_level: high
+created: {{date_iso}}
+tags:
+  - {{ai_category}}
+  - high-confidence{{#if ai_tags}}{{#each ai_tags}}
+  - {{@item}}{{/each}}{{/if}}
+ai_processed: true
+cssclass: high-confidence-note
+---
+
+# ✨ {{#if ai_summary}}{{ai_summary}}{{else}}{{title}}{{/if}}
+
+> 🤖 **AI 分析**: 高信頼度 ({{number_format(ai_confidence, "percent")}})
+
+## 📋 内容
+
+{{content}}
+
+## 🤖 AI 分析結果 (高信頼度)
+
+**カテゴリ**: {{ai_category}}{{#if ai_subcategory}} > {{ai_subcategory}}{{/if}}
+**信頼度**: {{number_format(ai_confidence, "percent")}}
+
+{{#if ai_key_points and length(ai_key_points) > 0}}
+### 🎯 重要ポイント{{#each ai_key_points}}
+- {{@item}}{{/each}}
+{{/if}}
+
+{{#if ai_action_items and length(ai_action_items) > 0}}
+### ✅ 推奨アクション{{#each ai_action_items}}
+- [ ] {{@item}}{{/each}}
+{{/if}}
+
+{{#if ai_reasoning}}
+### 🧠 分析根拠
+{{ai_reasoning}}
+{{/if}}
+
+## 🔗 関連情報
+
+{{#if similar_notes and length(similar_notes) > 0}}
+### 類似ノート{{#each similar_notes}}
+- [[{{@item}}]]{{/each}}
+{{/if}}
+
+---
+*✨ 高信頼度 AI による自動処理完了*
+"""
+
+    def _get_review_required_template(self, context: dict[str, Any]) -> str:
+        """要確認テンプレート（低信頼度）"""
+        return """---
+type: {{default(ai_category, "review_required")}}
+ai_confidence: {{ai_confidence}}
+confidence_level: low
+review_required: true
+created: {{date_iso}}
+tags:
+  - review-required
+  - {{default(ai_category, "unknown")}}
+  - needs-attention{{#if ai_tags}}{{#each ai_tags}}
+  - {{@item}}{{/each}}{{/if}}
+ai_processed: true
+cssclass: review-required-note
+---
+
+# ⚠️ 要確認 - {{#if title}}{{title}}{{else}}内容確認が必要{{/if}}
+
+> 🚨 **注意**: AI 分析の信頼度が低いため、内容の確認が必要です (信頼度: {{number_format(ai_confidence, "percent")}})
+
+## 📋 元内容
+
+{{content}}
+
+## 🤔 AI 分析結果 (要確認)
+
+**推定カテゴリ**: {{default(ai_category, "不明")}}{{#if ai_subcategory}} > {{ai_subcategory}}{{/if}}
+**信頼度**: {{number_format(ai_confidence, "percent")}}
+
+{{#if ai_summary}}
+**AI 推定要約**: {{ai_summary}}
+{{/if}}
+
+{{#if ai_possible_categories and length(ai_possible_categories) > 0}}
+### 🎯 考えられるカテゴリ{{#each ai_possible_categories}}
+- {{@item.category}} (信頼度: {{@item.confidence}}){{/each}}
+{{/if}}
+
+## ✅ 確認チェックリスト
+
+- [ ] 内容カテゴリの確認
+- [ ] 適切なタグの設定
+- [ ] 関連ノートとの紐付け確認
+- [ ] アクション項目の特定
+{{#if source_type == "voice_memo"}}
+- [ ] 音声転写内容の確認
+{{/if}}
+
+## 📝 手動修正エリア
+
+**正しいカテゴリ**:
+
+**追加すべきタグ**:
+
+**重要なポイント**:
+-
+
+**必要なアクション**:
+- [ ]
+
+## 🔗 参考情報
+
+{{#if discord_channel}}
+- **元チャンネル**: #{{discord_channel}}
+{{/if}}
+{{#if timestamp}}
+- **投稿日時**: {{timestamp}}
+{{/if}}
+
+---
+*⚠️ このノートは確認が必要です*
 """
 
     async def _create_default_template(self, template_name: str) -> None:

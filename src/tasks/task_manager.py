@@ -11,6 +11,7 @@ from structlog import get_logger
 
 from src.config.settings import get_settings
 from src.obsidian import ObsidianFileManager
+from src.obsidian.models import VaultFolder
 from src.tasks.models import Task, TaskPriority, TaskStatus
 
 logger = get_logger(__name__)
@@ -22,7 +23,9 @@ class TaskManager:
 
     def __init__(self, file_manager: ObsidianFileManager):
         self.file_manager = file_manager
-        self.data_file = settings.obsidian_vault_path / "07_Tasks" / "tasks.json"
+        self.data_file = (
+            settings.obsidian_vault_path / VaultFolder.TASKS.value / "tasks.json"
+        )
 
         # Ensure tasks directory exists
         self.data_file.parent.mkdir(parents=True, exist_ok=True)
@@ -341,7 +344,9 @@ class TaskManager:
         """Create Obsidian note for task."""
         try:
             filename = f"{task.title.replace(' ', '_')}_task.md"
-            file_path = Path("07_Tasks") / "Tasks" / filename
+            from src.obsidian.models import VaultFolder
+
+            file_path = Path(VaultFolder.TASKS.value) / filename
 
             # Status emoji mapping
             status_emoji = {
@@ -431,7 +436,7 @@ Progress: {task.progress}%
                 ai_tags=task.tags,
                 ai_category="task",
                 tags=task.tags,
-                obsidian_folder="Tasks",
+                obsidian_folder=VaultFolder.TASKS.value,
             )
             note = ObsidianNote(
                 filename=file_path.name,
@@ -453,9 +458,6 @@ Progress: {task.progress}%
     async def _update_task_note(self, task: Task) -> None:
         """Update task note with current information."""
         try:
-            filename = f"{task.title.replace(' ', '_')}_task.md"
-            Path("07_Tasks") / "Tasks" / filename
-
             # Re-create the note with updated information
             await self._create_task_note(task)
 

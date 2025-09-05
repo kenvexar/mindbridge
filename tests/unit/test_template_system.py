@@ -60,7 +60,17 @@ class TestTemplateEngine:
 
         # Check if default templates were created
         templates = await self.template_engine.list_available_templates()
-        expected_templates = {"daily_note", "idea_note", "meeting_note", "task_note"}
+        expected_templates = {
+            "daily_note",
+            "idea_note",
+            "meeting_note",
+            "task_note",
+            "voice_memo",
+            "project_note",
+            "media_note",
+            "high_confidence",
+            "review_required",
+        }
         assert set(templates) == expected_templates
 
         # Verify template files exist
@@ -581,4 +591,4 @@ def test_template_loading_nonexistent() -> None:
     template_engine = TemplateEngine(Path("/tmp/nonexistent"))
 
     # This should be tested in async context, but we'll test the path logic
-    assert template_engine.template_path == Path("/tmp/nonexistent/99_Meta/Templates")
+    assert template_engine.template_path == Path("/tmp/nonexistent/90_Meta/Templates")

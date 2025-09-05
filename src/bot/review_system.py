@@ -357,10 +357,10 @@ class AutoReviewSystem(LoggerMixin):
                 if note.frontmatter.ai_category:
                     category = note.frontmatter.ai_category.lower()
                     if "task" in category or "todo" in category:
-                        suggested_folder = "07_Tasks"
+                        suggested_folder = "02_Tasks"
                         reasoning = "タスク関連の内容"
                     elif "finance" in category or "money" in category:
-                        suggested_folder = "06_Finance"
+                        suggested_folder = "20_Finance"
                         reasoning = "家計・金融関連の内容"
                     elif "idea" in category or "insight" in category:
                         suggested_folder = "01_Projects"

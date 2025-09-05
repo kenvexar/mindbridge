@@ -26,9 +26,9 @@ class ExpenseManager:
     def __init__(self, file_manager: ObsidianFileManager):
         self.file_manager = file_manager
         self.expenses_file = (
-            settings.obsidian_vault_path / "06_Finance" / "expenses.json"
+            settings.obsidian_vault_path / "20_Finance" / "expenses.json"
         )
-        self.income_file = settings.obsidian_vault_path / "06_Finance" / "income.json"
+        self.income_file = settings.obsidian_vault_path / "20_Finance" / "income.json"
 
         # Ensure finance directory exists
         self.expenses_file.parent.mkdir(parents=True, exist_ok=True)
@@ -286,6 +286,7 @@ class ExpenseManager:
             from src.obsidian.daily_integration import (
                 DailyNoteIntegration as DailyNoteIntegrator,
             )
+            from src.obsidian.models import VaultFolder
 
             daily_integrator = DailyNoteIntegrator(self.file_manager)
 
@@ -304,7 +305,7 @@ class ExpenseManager:
             # Add to daily note using activity log
             message_data = {
                 "content": f"Finance: {content}",
-                "category": "Finance",
+                "category": VaultFolder.FINANCE.value,
                 "type": record_type,
             }
             from datetime import datetime as dt

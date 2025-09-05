@@ -314,7 +314,7 @@ class FinanceReportGenerator:
             from pathlib import Path
 
             filename = f"{year}年{month:02d}月_家計レポート.md"
-            file_path = Path("06_Finance") / "Reports" / str(year) / filename
+            file_path = Path("20_Finance") / "Reports" / str(year) / filename
 
             # Add metadata
             full_content = f"""---
@@ -339,7 +339,7 @@ tags: [finance, report, monthly]
             note = ObsidianNote(
                 filename=file_path.name,
                 file_path=file_path,
-                frontmatter=NoteFrontmatter(obsidian_folder="06_Finance"),
+                frontmatter=NoteFrontmatter(obsidian_folder="20_Finance"),
                 content=full_content,
             )
             await self.file_manager.save_note(note)

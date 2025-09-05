@@ -182,14 +182,19 @@ class MessageHandler(LoggerMixin):
 
         # Skip bot messages (but log what's happening for debugging)
         # 🔧 TEMPORARY FIX: Allow processing bot messages for testing MCP integration
-        if message.author.bot and not message.content.startswith("🔧"):
+        # Allow messages with TEST: or 🔧 prefix for testing
+        if message.author.bot and not (
+            message.content.startswith("🔧") or message.content.startswith("TEST:")
+        ):
             self.logger.info(
                 f"🤖 DEBUG: Skipping bot message from {message.author} (bot={message.author.bot})"
             )
             # 🔧 FIX: ボットメッセージをスキップする場合も処理済みセットから削除
             self._processed_messages.discard(message_key)
             return None
-        elif message.author.bot and message.content.startswith("🔧"):
+        elif message.author.bot and (
+            message.content.startswith("🔧") or message.content.startswith("TEST:")
+        ):
             content_preview = (
                 str(message.content)[:50]
                 if hasattr(message.content, "__getitem__")
@@ -468,9 +473,9 @@ class MessageHandler(LoggerMixin):
                     if isinstance(ai_processing, dict)
                     else "not_dict",
                 )
-                # AI処理失敗時でも処理を継続するため、ai_result は None のままにする
+                # AI 処理失敗時でも処理を継続するため、 ai_result は None のままにする
 
-        # Obsidian ノートの生成と保存（GitHub 直接同期統合版）
+        # Obsidian ノートの生成と保存（ GitHub 直接同期統合版）
         self.logger.info("🔧 DEBUG: About to call _handle_obsidian_note_creation")
         await self._handle_obsidian_note_creation(ai_result, message_data)
         self.logger.info("🔧 DEBUG: _handle_obsidian_note_creation completed")
@@ -484,7 +489,7 @@ class MessageHandler(LoggerMixin):
         ai_result: AIProcessingResult | None,
         message_data: dict[str, Any],
     ) -> None:
-        """✅ FINAL SOLUTION: 問題を確実に解決するシンプルなGitHub Directノート作成"""
+        """✅ FINAL SOLUTION: 問題を確実に解決するシンプルな GitHub Direct ノート作成"""
         self.logger.info(
             "🚀 FINAL SOLUTION: Starting simple GitHub Direct note creation"
         )
@@ -495,12 +500,31 @@ class MessageHandler(LoggerMixin):
 
             import aiohttp
 
-            # GitHub認証情報を取得
-            github_token = os.getenv("GITHUB_TOKEN")  # 環境変数から取得
-            github_repo = "kenvexar/obsidian-vault"  # 直接指定
+            # GitHub 認証情報を取得
+            github_token = os.getenv("GITHUB_TOKEN")
+
+            # 環境変数からリポジトリ情報を取得（フォールバック付き）
+            backup_repo_url = os.getenv("OBSIDIAN_BACKUP_REPO", "")
+            if backup_repo_url:
+                # URL からリポジトリ名を抽出 (例: https://github.com/user/repo.git -> user/repo)
+                import re
+
+                match = re.match(
+                    r"https://github\.com/([^/]+/[^/]+?)(?:\.git)?/?$", backup_repo_url
+                )
+                if match:
+                    github_repo = match.group(1)
+                else:
+                    github_repo = "kenvexar/obsidian-vault-test"  # フォールバック
+            else:
+                github_repo = "kenvexar/obsidian-vault-test"  # デフォルト値
 
             if not github_token or not github_repo:
-                self.logger.error("❌ GitHub credentials not available")
+                self.logger.error(
+                    "❌ GitHub credentials not available",
+                    has_token=bool(github_token),
+                    repo=github_repo,
+                )
                 return
 
             # 日本時間で統一処理
@@ -517,20 +541,391 @@ class MessageHandler(LoggerMixin):
             )
             title_preview = content[:30].replace("\n", " ").strip()
 
-            # AI分析に基づくカテゴリ決定（シンプル化）
-            category = "Ideas"
+            # ✅ VAULT_MIGRATION.md に基づく完全な AI 分類システム
+
+            # デフォルト分類
+            category = "00_Inbox"  # 受信箱・未分類
+
             if ai_result and ai_result.category:
-                cat_val = ai_result.category.category.value
-                if "task" in cat_val.lower() or "タスク" in cat_val:
-                    category = "Tasks"
-                elif (
-                    "finance" in cat_val.lower()
-                    or "金融" in cat_val
-                    or "お金" in cat_val
+                # AI 分析結果からカテゴリ文字列を取得
+                ai_category_raw = ai_result.category.category.value
+                ai_category = ai_category_raw.lower()
+
+                # 🔍 デバッグ: AI 分析結果の詳細出力
+                self.logger.info(
+                    "🔍 DEBUG: AI Category Analysis",
+                    ai_category_raw=ai_category_raw,
+                    ai_category_lower=ai_category,
+                    confidence=getattr(ai_result.category, "confidence_score", 0),
+                )
+
+                # === 優先度ベース分類（ VAULT_MIGRATION.md 準拠）===
+
+                # 🔍 STEP 1: メッセージ内容と AI 分類の直接チェック（最優先）
+                message_content = content.lower()
+
+                # ⚙️ メタ・システム関連（最高優先度）
+                if (
+                    "テンプレート" in message_content
+                    or "template" in message_content
+                    or "90_meta" in message_content
+                    or "meta" in message_content
+                    or ai_category_raw in ["メタ", "システム", "テンプレート"]
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "meta",
+                            "メタ",
+                            "システム",
+                            "設定",
+                            "template",
+                            "テンプレート",
+                            "config",
+                            "system",
+                        ]
+                    )
                 ):
-                    category = "Finance"
-                elif "health" in cat_val.lower() or "健康" in cat_val:
-                    category = "Health"
+                    category = "90_Meta"
+                    self.logger.info(
+                        "⚙️ MATCHED: Meta -> 90_Meta",
+                        ai_category=ai_category_raw,
+                        content_keywords="template/meta detected",
+                    )
+
+                # 📎 添付ファイル関連（高優先度）
+                elif (
+                    "ファイル" in message_content
+                    or "pdf" in message_content
+                    or "契約書" in message_content
+                    or "80_attachments" in message_content
+                    or "attachment" in message_content
+                    or ai_category_raw in ["添付", "ファイル", "文書"]
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "attachment",
+                            "添付",
+                            "ファイル",
+                            "画像",
+                            "音声",
+                            "document",
+                            "file",
+                            "image",
+                            "audio",
+                            "pdf",
+                            "契約書",
+                        ]
+                    )
+                ):
+                    category = "80_Attachments"
+                    self.logger.info(
+                        "📎 MATCHED: Attachment -> 80_Attachments",
+                        ai_category=ai_category_raw,
+                        content_keywords="file/pdf detected",
+                    )
+
+                # 📦 アーカイブ関連（高優先度 - より厳密な条件）
+                elif (
+                    "アーカイブ" in message_content
+                    or "archive" in message_content
+                    or "30_archive" in message_content
+                    or "キャンペーン" in message_content
+                    or (
+                        "完了" in message_content
+                        and (
+                            "プロジェクト" in message_content
+                            or "キャンペーン" in message_content
+                            or "案件" in message_content
+                        )
+                    )
+                    or ai_category_raw in ["アーカイブ", "終了"]
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "archive",
+                            "アーカイブ",
+                            "終了",
+                            "過去",
+                            "古い",
+                            "old",
+                            "キャンペーン",
+                            "案件完了",
+                        ]
+                    )
+                ):
+                    category = "30_Archive"
+                    self.logger.info(
+                        "📦 MATCHED: Archive -> 30_Archive",
+                        ai_category=ai_category_raw,
+                        content_keywords="archive/campaign detected",
+                    )
+
+                # 📖 リソース・資料関連（高優先度）
+                elif (
+                    "参考" in message_content
+                    or "ブックマーク" in message_content
+                    or "記事" in message_content
+                    or "12_resources" in message_content
+                    or "resource" in message_content
+                    or "https://" in message_content
+                    or ai_category_raw in ["資料", "参考", "リソース"]
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "resource",
+                            "資料",
+                            "bookmark",
+                            "参考",
+                            "document",
+                            "reference",
+                            "link",
+                            "article",
+                            "research",
+                            "ブックマーク",
+                        ]
+                    )
+                ):
+                    category = "12_Resources"
+                    self.logger.info(
+                        "📖 MATCHED: Resource -> 12_Resources",
+                        ai_category=ai_category_raw,
+                        content_keywords="reference/bookmark detected",
+                    )
+
+                # 📥 未分類・ Inbox 関連（明示的チェック）
+                elif (
+                    "未分類" in message_content
+                    or "inbox" in message_content
+                    or "整理" in message_content
+                    or "00_inbox" in message_content
+                    or "カテゴリが決まらない" in message_content
+                    or ai_category_raw in ["未分類", "その他", "不明"]
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "inbox",
+                            "未分類",
+                            "その他",
+                            "整理",
+                            "unclassified",
+                            "misc",
+                            "other",
+                        ]
+                    )
+                ):
+                    category = "00_Inbox"
+                    self.logger.info(
+                        "📥 MATCHED: Inbox -> 00_Inbox",
+                        ai_category=ai_category_raw,
+                        content_keywords="unclassified detected",
+                    )
+
+                # 💰 財務関連
+                elif (
+                    ai_category_raw in ["財務", "金融", "お金", "支出"]
+                    or "円" in message_content
+                    or "finance" in message_content
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "finance",
+                            "金融",
+                            "お金",
+                            "財務",
+                            "費用",
+                            "支出",
+                            "投資",
+                            "subscriptions",
+                            "budget",
+                            "expense",
+                            "income",
+                            "payment",
+                            "円",
+                        ]
+                    )
+                ):
+                    category = "20_Finance"
+                    self.logger.info(
+                        "💰 MATCHED: Finance -> 20_Finance", ai_category=ai_category_raw
+                    )
+
+                # 🏃 健康関連
+                elif (
+                    ai_category_raw in ["健康", "運動", "医療", "体調"]
+                    or "体重" in message_content
+                    or "ジョギング" in message_content
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "health",
+                            "健康",
+                            "運動",
+                            "医療",
+                            "体調",
+                            "fitness",
+                            "wellness",
+                            "exercise",
+                            "medical",
+                            "sleep",
+                            "diet",
+                            "体重",
+                            "kg",
+                        ]
+                    )
+                ):
+                    category = "21_Health"
+                    self.logger.info(
+                        "🏃 MATCHED: Health -> 21_Health", ai_category=ai_category_raw
+                    )
+
+                # 📚 学習・知識関連
+                elif (
+                    ai_category_raw in ["学習", "勉強", "技術", "知識"]
+                    or "react" in message_content
+                    or "学習" in message_content
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "learning",
+                            "学習",
+                            "勉強",
+                            "知識",
+                            "technical",
+                            "study",
+                            "course",
+                            "book",
+                            "tutorial",
+                            "skill",
+                            "react",
+                            "python",
+                            "技術",
+                        ]
+                    )
+                ):
+                    category = "10_Knowledge"
+                    self.logger.info(
+                        "📚 MATCHED: Learning -> 10_Knowledge",
+                        ai_category=ai_category_raw,
+                    )
+
+                # 🚀 プロジェクト関連
+                elif (
+                    ai_category_raw in ["プロジェクト", "仕事", "開発"]
+                    or "プロジェクト" in message_content
+                    or "フェーズ" in message_content
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "project",
+                            "プロジェクト",
+                            "仕事",
+                            "work",
+                            "開発",
+                            "設計",
+                            "planning",
+                            "business",
+                            "career",
+                            "フェーズ",
+                            "ec",
+                        ]
+                    )
+                ):
+                    category = "11_Projects"
+                    self.logger.info(
+                        "🚀 MATCHED: Project -> 11_Projects",
+                        ai_category=ai_category_raw,
+                    )
+
+                # 📅 日記・日常関連
+                elif (
+                    ai_category_raw in ["日記", "日常", "生活"]
+                    or "今日" in message_content
+                    or "天気" in message_content
+                    or "コーヒー" in message_content
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "daily",
+                            "日記",
+                            "生活",
+                            "日常",
+                            "振り返り",
+                            "diary",
+                            "journal",
+                            "reflection",
+                            "personal",
+                            "今日",
+                            "天気",
+                        ]
+                    )
+                ):
+                    category = "01_DailyNotes"
+                    self.logger.info(
+                        "📅 MATCHED: Daily -> 01_DailyNotes",
+                        ai_category=ai_category_raw,
+                    )
+
+                # ✅ タスク関連
+                elif (
+                    ai_category_raw in ["タスク", "作業", "TODO"]
+                    or "明日まで" in message_content
+                    or "完成" in message_content
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "task",
+                            "タスク",
+                            "todo",
+                            "やること",
+                            "作業",
+                            "action",
+                            "assignment",
+                            "deadline",
+                            "明日",
+                            "完成",
+                        ]
+                    )
+                ):
+                    category = "02_Tasks"
+                    self.logger.info(
+                        "✅ MATCHED: Task -> 02_Tasks", ai_category=ai_category_raw
+                    )
+
+                # 💡 アイデア・着想関連
+                elif (
+                    ai_category_raw in ["アイデア", "着想", "創造"]
+                    or "コンセプト" in message_content
+                    or "web アプリ" in message_content
+                    or any(
+                        keyword in ai_category
+                        for keyword in [
+                            "idea",
+                            "アイデア",
+                            "着想",
+                            "発想",
+                            "創造",
+                            "innovation",
+                            "concept",
+                            "brainstorm",
+                            "creative",
+                            "コンセプト",
+                            "音楽",
+                        ]
+                    )
+                ):
+                    category = "03_Ideas"
+                    self.logger.info(
+                        "💡 MATCHED: Idea -> 03_Ideas", ai_category=ai_category_raw
+                    )
+
+                # 📥 デフォルト（未分類）
+                else:
+                    category = "00_Inbox"
+                    self.logger.info(
+                        "📥 DEFAULT: No specific match -> 00_Inbox",
+                        ai_category=ai_category_raw,
+                        message_preview=message_content[:50],
+                    )
 
             # 安全なファイル名生成
             safe_title = "".join(
@@ -553,11 +948,11 @@ class MessageHandler(LoggerMixin):
                 content,
             ]
 
-            # AI分析結果を追加（あれば）
+            # AI 分析結果を追加（あれば）
             if ai_result:
                 if ai_result.summary:
                     markdown_parts.extend(
-                        ["", "## 🤖 AI分析", f"**要約**: {ai_result.summary.summary}"]
+                        ["", "## 🤖 AI 分析", f"**要約**: {ai_result.summary.summary}"]
                     )
                 if ai_result.category:
                     confidence = getattr(ai_result.category, "confidence_score", 0)
@@ -574,9 +969,13 @@ class MessageHandler(LoggerMixin):
                 category=category,
                 title=title_preview,
                 time=jst_display,
+                repo=github_repo,
+                ai_category=ai_result.category.category.value
+                if ai_result and ai_result.category
+                else "None",
             )
 
-            # GitHub APIに直接送信
+            # GitHub API に直接送信
             headers = {
                 "Authorization": f"token {github_token}",
                 "Accept": "application/vnd.github.v3+json",
@@ -602,12 +1001,15 @@ class MessageHandler(LoggerMixin):
                             "✅ SUCCESS: Clean note created on GitHub",
                             file_path=file_path,
                             sha=result_data.get("content", {}).get("sha"),
+                            repo=github_repo,
                         )
                     else:
                         self.logger.error(
                             "❌ GitHub creation failed",
                             status=response.status,
                             response=result_data,
+                            repo=github_repo,
+                            url=url,
                         )
 
         except Exception as e:
@@ -686,7 +1088,7 @@ class MessageHandler(LoggerMixin):
 
             file_path = f"{category}/{filename}"
 
-            # ローカルノートの完全な内容をGitHubに同期（重複作成を避ける）
+            # ローカルノートの完全な内容を GitHub に同期（重複作成を避ける）
             full_markdown_content = note.to_markdown()
 
             self.logger.info(

@@ -29,10 +29,10 @@ class SubscriptionManager:
     def __init__(self, file_manager: ObsidianFileManager):
         self.file_manager = file_manager
         self.data_file = (
-            settings.obsidian_vault_path / "06_Finance" / "subscriptions.json"
+            settings.obsidian_vault_path / "20_Finance" / "subscriptions.json"
         )
         self.payments_file = (
-            settings.obsidian_vault_path / "06_Finance" / "payments.json"
+            settings.obsidian_vault_path / "20_Finance" / "payments.json"
         )
 
         # Ensure finance directory exists
@@ -365,7 +365,7 @@ class SubscriptionManager:
         """Create Obsidian note for subscription."""
         try:
             filename = f"{subscription.name.replace(' ', '_')}_subscription.md"
-            file_path = Path("06_Finance") / "Subscriptions" / filename
+            file_path = Path("20_Finance") / "Subscriptions" / filename
 
             content = f"""---
 subscription_id: {subscription.id}
@@ -413,7 +413,7 @@ updated: {subscription.updated_at.isoformat()}
                 ai_tags=[],
                 ai_category="finance",
                 tags=[],
-                obsidian_folder="Finance",
+                obsidian_folder="20_Finance",
             )
             note = ObsidianNote(
                 filename=file_path.name,
@@ -440,7 +440,7 @@ updated: {subscription.updated_at.isoformat()}
         """Update subscription note with payment information."""
         try:
             filename = f"{subscription.name.replace(' ', '_')}_subscription.md"
-            file_path = Path("06_Finance") / "Subscriptions" / filename
+            file_path = Path("20_Finance") / "Subscriptions" / filename
 
             # Read existing content
             note = await self.file_manager.load_note(file_path)
@@ -486,7 +486,7 @@ updated: {subscription.updated_at.isoformat()}
             # Create an ObsidianNote instance and save it
             from src.obsidian.models import NoteFrontmatter, ObsidianNote
 
-            frontmatter = NoteFrontmatter(obsidian_folder="06_Finance")
+            frontmatter = NoteFrontmatter(obsidian_folder="20_Finance")
             note = ObsidianNote(
                 filename=file_path.name,
                 file_path=file_path,

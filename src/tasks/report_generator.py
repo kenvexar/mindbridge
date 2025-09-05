@@ -431,7 +431,7 @@ class TaskReportGenerator:
             week_num = start_date.isocalendar()[1]
             year = start_date.year
             filename = f"{year}年第{week_num:02d}週_生産性レポート.md"
-            file_path = Path("07_Tasks") / "Reports" / "Weekly" / str(year) / filename
+            file_path = Path("02_Tasks") / "Reports" / "Weekly" / str(year) / filename
 
             # Add metadata
             full_content = f"""---
@@ -484,7 +484,7 @@ tags: [productivity, report, weekly]
             from pathlib import Path
 
             filename = f"{year}年{month:02d}月_生産性レポート.md"
-            file_path = Path("07_Tasks") / "Reports" / "Monthly" / str(year) / filename
+            file_path = Path("02_Tasks") / "Reports" / "Monthly" / str(year) / filename
 
             # Add metadata
             full_content = f"""---

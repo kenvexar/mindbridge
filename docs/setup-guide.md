@@ -161,11 +161,11 @@ MOCK_SPEECH_ENABLED=false
 # Obsidian Vault ディレクトリの作成
 mkdir -p obsidian_vault
 
-# 基本フォルダ構造の作成
-mkdir -p obsidian_vault/{00_Inbox,01_Projects,02_DailyNotes,03_Ideas,04_Archive,05_Resources,06_Finance,07_Tasks,08_Health,99_Meta}
+# 基本フォルダ構造の作成（新構成・使用頻度順）
+mkdir -p obsidian_vault/{00_Inbox,01_DailyNotes,02_Tasks,03_Ideas,10_Knowledge,11_Projects,12_Resources,20_Finance,21_Health,30_Archive,80_Attachments,90_Meta}
 
 # テンプレートファイルの作成
-mkdir -p obsidian_vault/99_Meta/templates
+mkdir -p obsidian_vault/90_Meta/templates
 ```
 
 #### テンプレートファイルの作成

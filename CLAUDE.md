@@ -326,17 +326,33 @@ OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 # - #notifications   (システム通知)
 # - #commands        (ボットコマンド)
 #
-# AI CONTENT CLASSIFICATION:
+# AI CONTENT CLASSIFICATION & OBSIDIAN FOLDER STRUCTURE:
 # #memo チャンネルに投稿されたコンテンツは AI により自動分類され、
-# Obsidian の適切なフォルダに保存されます:
-# • 💰 Finance → "1500 ランチ", "¥3000 本" → Finance フォルダ
-# • ✅ Tasks → "TODO: 資料作成", "期限: 明日まで" → Tasks フォルダ
-# • 🏃 Health → "体重 70kg", "ランニング 5km" → Health フォルダ
-# • 📚 Learning → "Python 学習", "読書メモ" → Learning フォルダ
-# • 🎙️ Voice Memos → 音声ファイル → 自動文字起こし
-# • 📁 Files → ファイル共有 → 適切なフォルダに自動分類
-# • 📝 Quick Notes → 短いメモ → Quick Notes フォルダ
-# • 📋 Memos → その他全般 → Memos フォルダ
+# 使用頻度に基づいて最適化されたObsidianフォルダ構造に保存されます:
+#
+# === 日常使用フォルダ（高頻度・00-09番台）===
+# • 📥 00_Inbox → 未分類・その他全般
+# • 📅 01_DailyNotes → 日記・日常記録
+# • ✅ 02_Tasks → タスク管理・TODO
+# • 💡 03_Ideas → アイデア・着想
+#
+# === 知識・学習系（中頻度・10-19番台）===
+# • 📚 10_Knowledge → 学習内容・技術知識
+# • 🚀 11_Projects → プロジェクト・仕事
+# • 📖 12_Resources → 資料・参考文献
+#
+# === 記録・管理系（中頻度・20-29番台）===
+# • 💰 20_Finance → 家計・財務管理
+# • 🏃 21_Health → 健康・運動記録
+#
+# === アーカイブ（低頻度・30番台）===
+# • 📦 30_Archive → 完了・過去のもの
+#
+# === システム関連（80-90番台）===
+# • 📎 80_Attachments → 添付ファイル（画像・音声・文書）
+# • ⚙️ 90_Meta → メタデータ・テンプレート
+#
+# 🎙️ Voice Memos → 音声ファイルは自動文字起こし後、内容に応じて適切なフォルダに分類
 
 # Optional: Voice Recognition
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json

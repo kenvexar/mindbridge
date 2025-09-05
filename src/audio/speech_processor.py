@@ -800,10 +800,16 @@ class SpeechProcessor(LoggerMixin):
     ) -> str:
         """手動処理用に音声ファイルを保存"""
         try:
+            from src.obsidian.models import VaultFolder
+
             # Obsidian vault内のaudioフォルダに保存
             settings = get_settings()
 
-            audio_dir = Path(settings.obsidian_vault_path) / "06_Attachments" / "Audio"
+            audio_dir = (
+                Path(settings.obsidian_vault_path)
+                / VaultFolder.ATTACHMENTS.value
+                / "Audio"
+            )
             audio_dir.mkdir(parents=True, exist_ok=True)
 
             # ユニークなファイル名を生成

@@ -206,12 +206,15 @@ test_vault_*/
 test-vault*/
 *-test-vault/
 
-# Temporary test files
+# Temporary test files and development artifacts
 test_*.py
 *_test.py
 *test*.md
 temp_*.py
 *_temp.py
+demo_vault/
+FOLDER_CLASSIFICATION_TEST.md
+docker-test-summary.md
 
 # Environment backups
 .env.*.backup

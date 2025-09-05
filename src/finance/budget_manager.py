@@ -26,7 +26,7 @@ class BudgetManager:
     ):
         self.file_manager = file_manager
         self.expense_manager = expense_manager
-        self.budgets_file = settings.obsidian_vault_path / "06_Finance" / "budgets.json"
+        self.budgets_file = settings.obsidian_vault_path / "20_Finance" / "budgets.json"
 
         # Ensure finance directory exists
         self.budgets_file.parent.mkdir(parents=True, exist_ok=True)

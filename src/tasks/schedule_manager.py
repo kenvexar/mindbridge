@@ -22,7 +22,7 @@ class ScheduleManager:
 
     def __init__(self, file_manager: ObsidianFileManager):
         self.file_manager = file_manager
-        self.data_file = settings.obsidian_vault_path / "07_Tasks" / "schedules.json"
+        self.data_file = settings.obsidian_vault_path / "02_Tasks" / "schedules.json"
 
         # Ensure tasks directory exists
         self.data_file.parent.mkdir(parents=True, exist_ok=True)
@@ -246,7 +246,7 @@ class ScheduleManager:
             filename = (
                 f"{schedule.start_date}_{schedule.title.replace(' ', '_')}_schedule.md"
             )
-            file_path = Path("07_Tasks") / "Schedules" / filename
+            file_path = Path("02_Tasks") / "Schedules" / filename
 
             # Type emoji mapping
             type_emoji = {
@@ -331,7 +331,7 @@ updated: {schedule.updated_at.isoformat()}
             filename = (
                 f"{schedule.start_date}_{schedule.title.replace(' ', '_')}_schedule.md"
             )
-            Path("07_Tasks") / "Schedules" / filename
+            Path("02_Tasks") / "Schedules" / filename
 
             # Re-create the note with updated information
             await self._create_schedule_note(schedule)

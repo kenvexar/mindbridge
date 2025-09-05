@@ -82,7 +82,7 @@ class TestDailyNoteIntegration:
         month = date.strftime("%m-%B")
         filename = f"{date.strftime('%Y-%m-%d')}.md"
 
-        daily_note_path = self.temp_dir / "02_DailyNotes" / year / month / filename
+        daily_note_path = self.temp_dir / "01_DailyNotes" / year / month / filename
 
         assert daily_note_path.exists()
 
@@ -117,7 +117,7 @@ class TestDailyNoteIntegration:
         month = date.strftime("%m-%B")
         filename = f"{date.strftime('%Y-%m-%d')}.md"
 
-        daily_note_path = self.temp_dir / "02_DailyNotes" / year / month / filename
+        daily_note_path = self.temp_dir / "01_DailyNotes" / year / month / filename
 
         assert daily_note_path.exists()
 
@@ -216,7 +216,7 @@ class TestDailyNoteIntegration:
         month = date.strftime("%m-%B")
         filename = f"{date.strftime('%Y-%m-%d')}.md"
 
-        daily_note_path = self.temp_dir / "02_DailyNotes" / year / month / filename
+        daily_note_path = self.temp_dir / "01_DailyNotes" / year / month / filename
 
         daily_note = await self.file_manager.load_note(daily_note_path)
         assert daily_note is not None

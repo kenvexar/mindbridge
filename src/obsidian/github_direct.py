@@ -51,8 +51,10 @@ class GitHubDirectClient:
             self.logger.error("Failed to parse GitHub repository URL", error=str(e))
 
     def get_category_folder(self, category) -> str:
-        """カテゴリ enum を Obsidian フォルダー名にマッピング"""
+        """カテゴリ enum を Obsidian フォルダー名にマッピング（新構成対応）"""
         try:
+            from src.obsidian.models import FolderMapping, VaultFolder
+
             if hasattr(category, "value"):
                 # ProcessingCategory enum の場合
                 category_value = category.value.lower()
@@ -60,35 +62,18 @@ class GitHubDirectClient:
                 # 文字列の場合
                 category_value = str(category).lower()
 
-            # カテゴリマッピング
-            folder_mapping = {
-                "金融": "Finance",
-                "仕事": "Work",
-                "学習": "Learning",
-                "プロジェクト": "Projects",
-                "生活": "Life",
-                "アイデア": "Ideas",
-                "タスク": "Tasks",
-                "健康": "Health",
-                "その他": "Memos",
-                "finance": "Finance",
-                "work": "Work",
-                "learning": "Learning",
-                "project": "Projects",
-                "life": "Life",
-                "idea": "Ideas",
-                "tasks": "Tasks",
-                "health": "Health",
-                "other": "Memos",
-            }
-
-            return folder_mapping.get(category_value, "Memos")
+            # FolderMappingクラスを使用して統一的にマッピング
+            vault_folder = FolderMapping.get_folder_for_category(category_value)
+            return vault_folder.value
 
         except Exception as e:
             self.logger.warning(
                 "Failed to map category to folder", category=str(category), error=str(e)
             )
-            return "Memos"
+            # フォールバックとして VaultFolder.INBOX を使用
+            from src.obsidian.models import VaultFolder
+
+            return VaultFolder.INBOX.value
 
     @property
     def is_configured(self) -> bool:

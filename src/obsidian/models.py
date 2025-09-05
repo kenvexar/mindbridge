@@ -32,69 +32,89 @@ class NoteStatus(Enum):
 
 
 class VaultFolder(Enum):
-    """Vault 内のフォルダ構造"""
+    """Vault 内のフォルダ構造（改善版 - 使用頻度と機能別に整理）"""
 
-    # 基本フォルダ（ CLAUDE.md + docs/user/examples.md に基づく）
-    INBOX = "00_Inbox"
-    PROJECTS = "01_Projects"
-    DAILY_NOTES = "02_DailyNotes"
-    IDEAS = "03_Ideas"
-    ARCHIVE = "04_Archive"
-    RESOURCES = "05_Resources"
-    FINANCE = "06_Finance"
-    TASKS = "07_Tasks"
-    HEALTH = "08_Health"
-    KNOWLEDGE = "09_Knowledge"  # チーム知識・ナレッジベース
+    # === 日常使用フォルダ（高頻度）===
+    INBOX = "00_Inbox"  # 受信箱 - 最初に処理するもの
+    DAILY_NOTES = "01_DailyNotes"  # 日次ノート - 毎日のメモ
+    TASKS = "02_Tasks"  # タスク管理 - やること・進捗
+    IDEAS = "03_Ideas"  # アイデア - ひらめき・着想
 
-    # アタッチメント用フォルダ
-    ATTACHMENTS = "10_Attachments"
-    IMAGES = "10_Attachments/Images"
-    AUDIO = "10_Attachments/Audio"
-    DOCUMENTS = "10_Attachments/Documents"
-    OTHER_FILES = "10_Attachments/Other"
+    # === 知識・学習系（中頻度）===
+    KNOWLEDGE = "10_Knowledge"  # 知識ベース - 学習内容・ナレッジ
+    PROJECTS = "11_Projects"  # プロジェクト - 作業中の案件
+    RESOURCES = "12_Resources"  # 資料・参考文献
 
-    # メタデータフォルダ
-    META = "99_Meta"
-    TEMPLATES = "99_Meta/Templates"
+    # === 記録・管理系（中頻度）===
+    FINANCE = "20_Finance"  # 家計・財務管理
+    HEALTH = "21_Health"  # 健康・運動記録
 
-    # サブフォルダ定義（階層構造の改善）
+    # === アーカイブ・保存系（低頻度）===
+    ARCHIVE = "30_Archive"  # 完了・過去のもの
+
+    # === 添付ファイル（技術的フォルダ）===
+    ATTACHMENTS = "80_Attachments"  # 添付ファイル総合
+    IMAGES = "80_Attachments/Images"  # 画像ファイル
+    AUDIO = "80_Attachments/Audio"  # 音声ファイル
+    DOCUMENTS = "80_Attachments/Documents"  # 文書ファイル
+    OTHER_FILES = "80_Attachments/Other"  # その他ファイル
+
+    # === システム・メタデータ（最下位）===
+    META = "90_Meta"  # メタデータ
+    TEMPLATES = "90_Meta/Templates"  # テンプレート
+
+    # === サブフォルダ定義 ===
     # Inbox subfolders
-    INBOX_UNPROCESSED = "00_Inbox/unprocessed"
-    INBOX_PENDING = "00_Inbox/pending"
-    INBOX_STAGED = "00_Inbox/staged"
+    INBOX_UNPROCESSED = "00_Inbox/unprocessed"  # 未処理
+    INBOX_PENDING = "00_Inbox/pending"  # 保留中
+    INBOX_STAGED = "00_Inbox/staged"  # 準備完了
 
-    # Projects subfolders
-    PROJECTS_ACTIVE = "01_Projects/active"
-    PROJECTS_PLANNING = "01_Projects/planning"
-    PROJECTS_ON_HOLD = "01_Projects/on-hold"
-    PROJECTS_COMPLETED = "01_Projects/completed"
-
-    # Finance subfolders
-    FINANCE_EXPENSES = "06_Finance/expenses"
-    FINANCE_INCOME = "06_Finance/income"
-    FINANCE_SUBSCRIPTIONS = "06_Finance/subscriptions"
-    FINANCE_BUDGETS = "06_Finance/budgets"
-    FINANCE_REPORTS = "06_Finance/reports"
+    # Daily Notes subfolders
+    DAILY_NOTES_CURRENT = "01_DailyNotes/current"  # 今月
+    DAILY_NOTES_ARCHIVE = "01_DailyNotes/archive"  # 過去分
 
     # Tasks subfolders
-    TASKS_BACKLOG = "07_Tasks/backlog"
-    TASKS_ACTIVE = "07_Tasks/active"
-    TASKS_WAITING = "07_Tasks/waiting"
-    TASKS_COMPLETED = "07_Tasks/completed"
-    TASKS_TEMPLATES = "07_Tasks/templates"
+    TASKS_BACKLOG = "02_Tasks/backlog"  # バックログ
+    TASKS_ACTIVE = "02_Tasks/active"  # 作業中
+    TASKS_WAITING = "02_Tasks/waiting"  # 待機中
+    TASKS_COMPLETED = "02_Tasks/completed"  # 完了済み
+    TASKS_TEMPLATES = "02_Tasks/templates"  # テンプレート
+
+    # Ideas subfolders
+    IDEAS_BRAINSTORM = "03_Ideas/brainstorm"  # ブレインストーム
+    IDEAS_CONCEPTS = "03_Ideas/concepts"  # コンセプト
+    IDEAS_INNOVATION = "03_Ideas/innovation"  # 革新的アイデア
+
+    # Knowledge subfolders
+    KNOWLEDGE_TECHNICAL = "10_Knowledge/technical"  # 技術知識
+    KNOWLEDGE_PROCESSES = "10_Knowledge/processes"  # プロセス・手順
+    KNOWLEDGE_TOOLS = "10_Knowledge/tools"  # ツール・方法論
+    KNOWLEDGE_LEARNINGS = "10_Knowledge/learnings"  # 学習記録
+
+    # Projects subfolders
+    PROJECTS_ACTIVE = "11_Projects/active"  # 進行中
+    PROJECTS_PLANNING = "11_Projects/planning"  # 計画中
+    PROJECTS_ON_HOLD = "11_Projects/on-hold"  # 保留中
+    PROJECTS_COMPLETED = "11_Projects/completed"  # 完了
+
+    # Resources subfolders
+    RESOURCES_REFERENCES = "12_Resources/references"  # 参考文献
+    RESOURCES_BOOKMARKS = "12_Resources/bookmarks"  # ブックマーク
+    RESOURCES_DOCUMENTS = "12_Resources/documents"  # 重要文書
+
+    # Finance subfolders
+    FINANCE_EXPENSES = "20_Finance/expenses"  # 支出記録
+    FINANCE_INCOME = "20_Finance/income"  # 収入記録
+    FINANCE_SUBSCRIPTIONS = "20_Finance/subscriptions"  # サブスクリプション
+    FINANCE_BUDGETS = "20_Finance/budgets"  # 予算管理
+    FINANCE_REPORTS = "20_Finance/reports"  # 財務レポート
 
     # Health subfolders
-    HEALTH_ACTIVITIES = "08_Health/activities"
-    HEALTH_SLEEP = "08_Health/sleep"
-    HEALTH_WELLNESS = "08_Health/wellness"
-    HEALTH_MEDICAL = "08_Health/medical"
-    HEALTH_ANALYTICS = "08_Health/analytics"
-
-    # Knowledge subfolders （ team-knowledge 対応）
-    KNOWLEDGE_TECHNICAL = "09_Knowledge/technical"
-    KNOWLEDGE_PROCESSES = "09_Knowledge/processes"
-    KNOWLEDGE_TOOLS = "09_Knowledge/tools"
-    KNOWLEDGE_LEARNINGS = "09_Knowledge/learnings"
+    HEALTH_ACTIVITIES = "21_Health/activities"  # 運動・活動
+    HEALTH_SLEEP = "21_Health/sleep"  # 睡眠記録
+    HEALTH_WELLNESS = "21_Health/wellness"  # 健康管理
+    HEALTH_MEDICAL = "21_Health/medical"  # 医療記録
+    HEALTH_ANALYTICS = "21_Health/analytics"  # 健康分析
 
 
 class NoteFrontmatter(BaseModel):
@@ -339,12 +359,13 @@ class AttachmentInfo(BaseModel):
 
 
 class FolderMapping:
-    """フォルダマッピングの管理"""
+    """フォルダマッピングの管理（改善版 - 新構成対応）"""
 
-    # カテゴリベースのマッピング（改善版）
+    # カテゴリベースのマッピング（新構成対応）
     CATEGORY_FOLDER_MAPPING = {
+        # 日本語カテゴリ
         "仕事": VaultFolder.PROJECTS,
-        "学習": VaultFolder.KNOWLEDGE,  # LEARNING → KNOWLEDGE に変更
+        "学習": VaultFolder.KNOWLEDGE,
         "プロジェクト": VaultFolder.PROJECTS,
         "生活": VaultFolder.DAILY_NOTES,
         "アイデア": VaultFolder.IDEAS,
@@ -352,10 +373,12 @@ class FolderMapping:
         "タスク": VaultFolder.TASKS,
         "健康": VaultFolder.HEALTH,
         "その他": VaultFolder.INBOX,
-        # 英語カテゴリも追加
+        "日記": VaultFolder.DAILY_NOTES,
+        "資料": VaultFolder.RESOURCES,
+        # 英語カテゴリ
         "work": VaultFolder.PROJECTS,
-        "learning": VaultFolder.KNOWLEDGE,  # LEARNING → KNOWLEDGE に変更
-        "knowledge": VaultFolder.KNOWLEDGE,  # 新規追加
+        "learning": VaultFolder.KNOWLEDGE,
+        "knowledge": VaultFolder.KNOWLEDGE,
         "project": VaultFolder.PROJECTS,
         "life": VaultFolder.DAILY_NOTES,
         "idea": VaultFolder.IDEAS,
@@ -363,6 +386,9 @@ class FolderMapping:
         "task": VaultFolder.TASKS,
         "health": VaultFolder.HEALTH,
         "other": VaultFolder.INBOX,
+        "daily": VaultFolder.DAILY_NOTES,
+        "resources": VaultFolder.RESOURCES,
+        "archive": VaultFolder.ARCHIVE,
     }
 
     # サブカテゴリベースのマッピング（階層構造対応）
@@ -389,15 +415,26 @@ class FolderMapping:
         "wellness": VaultFolder.HEALTH_WELLNESS,
         "medical": VaultFolder.HEALTH_MEDICAL,
         "health_analytics": VaultFolder.HEALTH_ANALYTICS,
-        # Knowledge subcategories （ LEARNING → KNOWLEDGE に変更）
+        # Knowledge subcategories
         "technical": VaultFolder.KNOWLEDGE_TECHNICAL,
         "processes": VaultFolder.KNOWLEDGE_PROCESSES,
         "tools": VaultFolder.KNOWLEDGE_TOOLS,
         "learnings": VaultFolder.KNOWLEDGE_LEARNINGS,
-        "course": VaultFolder.KNOWLEDGE_LEARNINGS,  # 後方互換性
-        "book": VaultFolder.KNOWLEDGE_LEARNINGS,  # 後方互換性
-        "skill": VaultFolder.KNOWLEDGE_LEARNINGS,  # 後方互換性
-        "study_note": VaultFolder.KNOWLEDGE_LEARNINGS,  # 後方互換性
+        "course": VaultFolder.KNOWLEDGE_LEARNINGS,
+        "book": VaultFolder.KNOWLEDGE_LEARNINGS,
+        "skill": VaultFolder.KNOWLEDGE_LEARNINGS,
+        "study_note": VaultFolder.KNOWLEDGE_LEARNINGS,
+        # Ideas subcategories
+        "brainstorm": VaultFolder.IDEAS_BRAINSTORM,
+        "concept": VaultFolder.IDEAS_CONCEPTS,
+        "innovation": VaultFolder.IDEAS_INNOVATION,
+        # Resources subcategories
+        "reference": VaultFolder.RESOURCES_REFERENCES,
+        "bookmark": VaultFolder.RESOURCES_BOOKMARKS,
+        "document": VaultFolder.RESOURCES_DOCUMENTS,
+        # Daily Notes subcategories
+        "current": VaultFolder.DAILY_NOTES_CURRENT,
+        "archive_daily": VaultFolder.DAILY_NOTES_ARCHIVE,
         # Inbox subcategories
         "unprocessed": VaultFolder.INBOX_UNPROCESSED,
         "pending": VaultFolder.INBOX_PENDING,
@@ -470,13 +507,44 @@ class FolderMapping:
 
     @classmethod
     def get_all_knowledge_folders(cls) -> list[VaultFolder]:
-        """すべてのナレッジ関連フォルダを取得（ LEARNING → KNOWLEDGE に変更）"""
+        """すべての知識関連フォルダを取得"""
         return [
             VaultFolder.KNOWLEDGE,
             VaultFolder.KNOWLEDGE_TECHNICAL,
             VaultFolder.KNOWLEDGE_PROCESSES,
             VaultFolder.KNOWLEDGE_TOOLS,
             VaultFolder.KNOWLEDGE_LEARNINGS,
+        ]
+
+    @classmethod
+    def get_all_project_folders(cls) -> list[VaultFolder]:
+        """すべてのプロジェクト関連フォルダを取得"""
+        return [
+            VaultFolder.PROJECTS,
+            VaultFolder.PROJECTS_ACTIVE,
+            VaultFolder.PROJECTS_PLANNING,
+            VaultFolder.PROJECTS_ON_HOLD,
+            VaultFolder.PROJECTS_COMPLETED,
+        ]
+
+    @classmethod
+    def get_all_idea_folders(cls) -> list[VaultFolder]:
+        """すべてのアイデア関連フォルダを取得"""
+        return [
+            VaultFolder.IDEAS,
+            VaultFolder.IDEAS_BRAINSTORM,
+            VaultFolder.IDEAS_CONCEPTS,
+            VaultFolder.IDEAS_INNOVATION,
+        ]
+
+    @classmethod
+    def get_priority_folders(cls) -> list[VaultFolder]:
+        """高頻度使用フォルダを取得"""
+        return [
+            VaultFolder.INBOX,
+            VaultFolder.DAILY_NOTES,
+            VaultFolder.TASKS,
+            VaultFolder.IDEAS,
         ]
 
 

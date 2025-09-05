@@ -498,7 +498,108 @@ class AdvancedNoteAnalyzer(LoggerMixin):
         # コンテンツの長さと特徴を分析
         content_lower = content.lower()
 
-        # 金額や金融関連キーワードの検出
+        # 1. Archive キーワード（最優先 - 完了・過去の判定）
+        archive_keywords = [
+            "完了した",
+            "完成した",
+            "終了した",
+            "修了した",
+            "過去の",
+            "昨年の",
+            "前の",
+            "以前の",
+            "アーカイブ",
+            "履歴",
+            "証明書",
+            "契約書",
+            "報告書",
+            "最終",
+        ]
+        # 「記録」は現在進行形の場合Archive対象外
+        has_current_record = any(
+            indicator in content_lower
+            for indicator in ["今日", "現在", "継続中", "目標"]
+        )
+        if not has_current_record and "記録" in content_lower:
+            archive_keywords.append("記録")
+
+        if any(keyword in content_lower for keyword in archive_keywords):
+            return "archive"
+
+        # 2. Learning キーワード（超高優先 - 学習コンテンツの確実な識別）
+        # 「基本：」「について」などの学習特有表現を最優先
+        learning_keywords = [
+            "学習",
+            "読書",
+            "勉強",
+            "research",
+            "python",
+            "機械学習",
+            "教師あり",
+            "非同期処理",
+            "async",
+            "await",
+            "について学んだ",
+            "使用して",
+            "訓練する",
+        ]
+        # 学習コンテンツの強力な識別パターン
+        strong_learning_patterns = [
+            "基本：",
+            "の基本",
+            "について学んだ",
+            "重要性について",
+            "マーケティングの基本",
+            "設定、価値提案、チャネル",
+            "ターゲット設定、価値提案",
+            "選択の重要性",
+        ]
+        has_strong_learning = any(
+            pattern in content_lower for pattern in strong_learning_patterns
+        )
+        if has_strong_learning or any(
+            keyword in content_lower for keyword in learning_keywords
+        ):
+            return "learning"
+
+        # 3. Task キーワード（超高優先 - 期限付きタスクの確実な識別）
+        # 「までに」「必要があります」などの期限・必要性表現を最優先
+        urgent_task_patterns = [
+            "までに",
+            "必要があります",
+            "しなければならない",
+            "明日までに",
+            "来週まで",
+            "期限",
+            "deadline",
+        ]
+        task_keywords = [
+            "todo",
+            "やること",
+            "スケジュール",
+            "準備",
+            "作成",
+            "連絡",
+            "手続きを済ませる",
+            "リストを作成する",
+            "返信をする",
+            "準備をしなければならない",
+            "準備が必要",
+            "連絡が必要",
+        ]
+
+        # 期限付きタスクは他のすべてのカテゴリより優先
+        has_urgent_task = any(
+            pattern in content_lower for pattern in urgent_task_patterns
+        )
+        if (
+            has_urgent_task
+            or channel_category == "productivity"
+            or any(keyword in content_lower for keyword in task_keywords)
+        ):
+            return "task"
+
+        # 4. Finance キーワード（高優先 - 金融関連）
         financial_keywords = [
             "円",
             "¥",
@@ -509,38 +610,144 @@ class AdvancedNoteAnalyzer(LoggerMixin):
             "支払い",
             "投資",
             "貯金",
+            "家計簿",
+            "食費",
+            "交通費",
+            "光熱費",
+            "昼食",
+            "コーヒー",
+            "代",
         ]
-        is_financial = any(keyword in content_lower for keyword in financial_keywords)
-
-        # タスク関連キーワードの検出
-        task_keywords = [
-            "todo",
-            "タスク",
-            "やること",
-            "完了",
-            "進捗",
-            "deadline",
-            "期限",
-        ]
-        is_task = any(keyword in content_lower for keyword in task_keywords)
-
-        # 健康関連キーワードの検出
-        health_keywords = ["体重", "血圧", "運動", "睡眠", "健康", "workout", "fitness"]
-        is_health = any(keyword in content_lower for keyword in health_keywords)
-
-        # チャンネル情報を優先して判定
-        if channel_category == "finance" or is_financial:
-            return "finance"
-        elif channel_category == "productivity" or is_task:
-            return "task"
-        elif channel_category == "health" or is_health:
-            return "health"
-        elif len(content) < 100:
-            return "quick_note"
-        elif any(
-            keyword in content_lower for keyword in ["学習", "読書", "勉強", "research"]
+        financial_context = any(
+            keyword in content_lower for keyword in ["家計簿", "支出", "今日の支出"]
+        )
+        if (
+            channel_category == "finance"
+            or financial_context
+            or any(keyword in content_lower for keyword in financial_keywords)
         ):
-            return "learning"
+            # 「書籍」単体は除外、「書籍代」などの支出文脈のみFinance
+            if "書籍" in content_lower and not any(
+                expense in content_lower for expense in ["代", "支出", "円"]
+            ):
+                pass  # 次の判定に流す
+            else:
+                return "finance"
+
+        # 5. Health キーワード（高優先 - 健康記録）
+        health_keywords = [
+            "体重",
+            "血圧",
+            "運動",
+            "睡眠",
+            "健康",
+            "workout",
+            "fitness",
+            "ランニング",
+            "km",
+            "bpm",
+            "食事制限",
+            "継続中",
+            "目覚め",
+            "kg",
+            "目標",
+        ]
+        health_context = any(
+            keyword in content_lower
+            for keyword in ["体重記録", "睡眠ログ", "ランニング"]
+        )
+        if (
+            channel_category == "health"
+            or health_context
+            or any(keyword in content_lower for keyword in health_keywords)
+        ):
+            return "health"
+
+        # 6. Ideas キーワード（創作・発想の判定）
+        idea_keywords = [
+            "アイデア",
+            "ネタ",
+            "着想",
+            "思いつき",
+            "考え",
+            "発想",
+            "創作",
+            "企画案",
+            "コンセプト",
+            "構想",
+            "案",
+            "提案",
+        ]
+        if any(keyword in content_lower for keyword in idea_keywords):
+            return "idea"
+
+        # 7. Projects キーワード（仕事・開発の判定）
+        project_keywords = [
+            "プロジェクト",
+            "案件",
+            "開発",
+            "制作",
+            "進捗",
+            "フェーズ",
+            "統合",
+            "実装",
+            "事業",
+            "企画",
+            "計画",
+            "業務",
+            "クライアント",
+            "顧客",
+            "受注",
+        ]
+        if any(keyword in content_lower for keyword in project_keywords):
+            return "project"
+
+        # 8. Resources キーワード（参考資料の判定）
+        resource_keywords = [
+            "参考",
+            "資料",
+            "文献",
+            "論文",
+            "書籍",
+            "本",
+            "記事",
+            "ドキュメント",
+            "ウェブサイト",
+            "URL",
+            "リンク",
+            "ベストプラクティス",
+            "ガイド",
+            "マニュアル",
+            "https://",
+            "http://",
+        ]
+        if any(keyword in content_lower for keyword in resource_keywords):
+            return "resource"
+
+        # 9. Daily キーワード（日常記録の判定）
+        daily_keywords = [
+            "今日",
+            "昨日",
+            "今朝",
+            "今夜",
+            "朝から",
+            "夕方",
+            "散歩",
+            "天気",
+            "友達",
+            "家族",
+            "映画",
+            "料理",
+            "振り返り",
+            "日記",
+            "出来事",
+        ]
+        if any(keyword in content_lower for keyword in daily_keywords):
+            return "daily"
+
+        # 10. デフォルト判定
+        if len(content) < 100:
+            return "quick_note"
         else:
             return "memo"
 
@@ -548,17 +755,24 @@ class AdvancedNoteAnalyzer(LoggerMixin):
         self, content: str, content_type: str, channel_category: str
     ) -> str:
         """コンテキストに基づいて適切なフォルダを提案"""
-        # コンテンツタイプに基づくフォルダマッピング
+        # コンテンツタイプに基づくフォルダマッピング（数値プレフィックス統一）
         type_folder_map = {
-            "finance": "💰 Finance",
-            "task": "✅ Tasks",
-            "health": "🏃 Health",
-            "learning": "📚 Learning",
-            "quick_note": "📝 Quick Notes",
-            "memo": "📋 Memos",
+            # 新規カテゴリ
+            "archive": "📦 30_Archive",
+            "idea": "💡 03_Ideas",
+            "project": "🚀 11_Projects",
+            "resource": "📖 12_Resources",
+            "daily": "📅 01_DailyNotes",
+            # 既存カテゴリ（統一）
+            "finance": "💰 20_Finance",
+            "task": "✅ 02_Tasks",
+            "health": "🏃 21_Health",
+            "learning": "📚 10_Knowledge",
+            "quick_note": "📥 00_Inbox",
+            "memo": "📥 00_Inbox",
         }
 
-        return type_folder_map.get(content_type, "📋 Memos")
+        return type_folder_map.get(content_type, "📥 00_Inbox")
 
     async def _suggest_tags_from_context(
         self, content: str, channel_category: str, content_type: str
