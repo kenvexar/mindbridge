@@ -371,7 +371,7 @@ server {
         proxy_pass http://localhost:8080/metrics;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        
+
         # Basic auth for metrics endpoint
         auth_basic "Metrics";
         auth_basic_user_file /etc/nginx/.htpasswd;
@@ -442,7 +442,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
       - uses: actions/checkout@v4
 
@@ -465,11 +465,11 @@ jobs:
         run: |
           # Wait for deployment to complete
           sleep 60
-          
+
           # Get service URL
           SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
             --region=$REGION --format='value(status.url)')
-          
+
           # Health check
           curl -f $SERVICE_URL/health
 
@@ -656,10 +656,10 @@ Cloud Build configuration with automatic rollback:
       # Health check after deployment
       SERVICE_URL=$(gcloud run services describe mindbridge-bot \
         --region=us-central1 --format='value(status.url)')
-      
+
       # Wait for service to be ready
       sleep 60
-      
+
       # Health check with retries
       for i in {1..5}; do
         if curl -f $SERVICE_URL/health; then
@@ -669,7 +669,7 @@ Cloud Build configuration with automatic rollback:
         echo "Health check failed, attempt $i/5"
         sleep 30
       done
-      
+
       # Rollback to previous revision
       echo "Rolling back to previous revision"
       gcloud run services update-traffic mindbridge-bot \

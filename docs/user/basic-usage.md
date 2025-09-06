@@ -160,12 +160,12 @@ Comment: "Team standup meeting notes"
 
 **Good voice memo examples:**
 ```
-"Today's reflection: Project A is going well. 
-Challenge is API integration - docs are unclear. 
+"Today's reflection: Project A is going well.
+Challenge is API integration - docs are unclear.
 Tomorrow I'll discuss with team for solutions."
 
-"New app idea: AI assistant that learns user behavior 
-and suggests optimal workflows. Could combine ML 
+"New app idea: AI assistant that learns user behavior
+and suggests optimal workflows. Could combine ML
 with good UX design principles."
 ```
 
@@ -302,15 +302,15 @@ Productive day with project meetings and learning activities.
 Include hashtags in your messages for better categorization:
 
 ```
-Today's #reading notes. Learned about #algorithms from this #programming 
-book. The #datastructures chapter was especially helpful. 
+Today's #reading notes. Learned about #algorithms from this #programming
+book. The #datastructures chapter was especially helpful.
 Tomorrow I'll work on #implementation.
 ```
 
 ### 2. Voice Memo Scenarios
 
 - **Commuting:** Record ideas during travel
-- **Walking:** Capture thoughts during walks  
+- **Walking:** Capture thoughts during walks
 - **Post-meeting:** Immediate reflection and notes
 - **After learning:** Verbal summary of new concepts
 
@@ -325,7 +325,7 @@ Issue is API spec changes. Team will discuss solutions tomorrow.
 
 [Learning Notes - Python Async]
 Studied asyncio library usage today.
-Key insight: async/await concepts are crucial. 
+Key insight: async/await concepts are crucial.
 Code examples helped clarify the concepts.
 ```
 
@@ -334,7 +334,7 @@ Code examples helped clarify the concepts.
 ```bash
 # Recommended weekly routine
 /vault_stats              # Check statistics
-/search_notes duplicate   # Find duplicate notes  
+/search_notes duplicate   # Find duplicate notes
 /daily_note               # Review daily note
 ```
 
@@ -383,7 +383,7 @@ priority: "{{priority}}"
 **Q: Messages not being processed**
 A: Check channel names (`memo`, `notifications`, `commands`) and bot permissions
 
-**Q: Voice recognition accuracy is poor**  
+**Q: Voice recognition accuracy is poor**
 A: Use quiet environment, speak clearly, break into shorter segments
 
 **Q: Classification not as expected**

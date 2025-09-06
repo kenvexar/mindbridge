@@ -13,7 +13,7 @@ MindBridge captures messages, processes them with Google Gemini AI, and organize
 ### Core Features
 
 **🤖 AI-Powered Message Processing**
-- Automatic Discord message capture with AI analysis and metadata extraction  
+- Automatic Discord message capture with AI analysis and metadata extraction
 - URL content fetching and summarization
 - Intelligent categorization and folder assignment
 
@@ -30,7 +30,7 @@ MindBridge captures messages, processes them with Google Gemini AI, and organize
 - Expense tracking and subscription management
 - Automatic financial reports and budgeting
 
-**✅ Task Management**  
+**✅ Task Management**
 - Task creation, tracking, and productivity reviews
 - Project management with progress tracking
 
@@ -43,7 +43,7 @@ MindBridge captures messages, processes them with Google Gemini AI, and organize
 ### Prerequisites
 - Python 3.13+
 - [uv](https://github.com/astral-sh/uv) (fast Python package manager)
-- Discord Bot token  
+- Discord Bot token
 - Google Gemini API key
 - Obsidian vault
 
@@ -53,7 +53,7 @@ MindBridge captures messages, processes them with Google Gemini AI, and organize
 git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 
-# Install dependencies  
+# Install dependencies
 uv sync
 
 # Environment setup
@@ -66,7 +66,7 @@ cp .env.example .env
 Required environment variables:
 ```env
 DISCORD_BOT_TOKEN=your_discord_bot_token
-DISCORD_GUILD_ID=your_guild_id  
+DISCORD_GUILD_ID=your_guild_id
 GEMINI_API_KEY=your_gemini_api_key
 OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 ```
@@ -76,7 +76,7 @@ OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 Create these 3 channels in your Discord server:
 ```
 📝 memo           ← Main input channel (text, voice, files)
-🔔 notifications  ← System notifications  
+🔔 notifications  ← System notifications
 🤖 commands       ← Bot commands
 ```
 
@@ -100,7 +100,7 @@ uv run python -m src.main --debug
 
 **High-frequency folders (00-09):**
 - `"Quick note"` → 📥 **00_Inbox** (uncategorized)
-- `"Today's reflection"` → 📅 **01_DailyNotes** (daily logs)  
+- `"Today's reflection"` → 📅 **01_DailyNotes** (daily logs)
 - `"TODO: finish report"` → ✅ **02_Tasks** (task management)
 - `"New idea for project"` → 💡 **03_Ideas** (ideas and insights)
 
@@ -147,7 +147,7 @@ uv run mypy src/          # Type checking
 The application follows a layered architecture:
 
 1. **Bot Layer** (`src/bot/`): Discord interface and command handling
-2. **Processing Layer** (`src/ai/`): AI analysis and content processing  
+2. **Processing Layer** (`src/ai/`): AI analysis and content processing
 3. **Business Logic** (`src/tasks/`, `src/finance/`): Domain functionality
 4. **Integration Layer** (`src/obsidian/`, `src/garmin/`, `src/audio/`): External services
 5. **Security Layer** (`src/security/`): Authentication and access control

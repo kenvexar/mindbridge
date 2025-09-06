@@ -169,7 +169,7 @@ Create these 3 channels in your Discord server:
 
 ```
 📝 memo           ← Main input channel (text, voice, files)
-🔔 notifications  ← System notifications  
+🔔 notifications  ← System notifications
 🤖 commands       ← Bot commands
 ```
 
@@ -228,7 +228,7 @@ Complete `.env` configuration:
 ```env
 # Required
 DISCORD_BOT_TOKEN=your_discord_bot_token
-DISCORD_GUILD_ID=your_guild_id  
+DISCORD_GUILD_ID=your_guild_id
 GEMINI_API_KEY=your_gemini_api_key
 OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 

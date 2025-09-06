@@ -6,7 +6,7 @@ This guide will have you up and running with automatic memo processing in under 
 
 ## ⏱️ Time Breakdown
 - Setup: 2 minutes
-- Installation: 3 minutes  
+- Installation: 3 minutes
 - Configuration: 3 minutes
 - Launch & Test: 2 minutes
 
@@ -16,7 +16,7 @@ Have these ready before starting:
 
 - [ ] Python 3.13+ installed
 - [ ] Discord Bot token ([how to get](#discord-bot-setup))
-- [ ] Google Gemini API key ([how to get](#gemini-api-setup))  
+- [ ] Google Gemini API key ([how to get](#gemini-api-setup))
 - [ ] Obsidian vault (or empty folder)
 - [ ] Discord server (where you can add bots)
 
@@ -79,7 +79,7 @@ echo "OBSIDIAN_VAULT_PATH=$(pwd)/test-vault" >> .env
 Create these **3 channels exactly** in your Discord server:
 ```
 📝 memo           ← Main input channel
-🔔 notifications  ← System notifications  
+🔔 notifications  ← System notifications
 🤖 commands       ← Bot commands
 ```
 
@@ -96,7 +96,7 @@ uv run python -m src.main
 ```
 INFO: Discord bot starting...
 INFO: Found memo channel: 123456789
-INFO: Found notifications channel: 987654321  
+INFO: Found notifications channel: 987654321
 INFO: Found commands channel: 456789123
 INFO: Bot is ready! Logged in as YourBot#1234
 ```
@@ -117,7 +117,7 @@ Test post: Beautiful weather today. Going to study some programming.
 
 Congratulations! MindBridge is now running and will automatically:
 - Analyze Discord messages with AI
-- Generate structured Markdown notes  
+- Generate structured Markdown notes
 - Save to Obsidian vault with AI categorization
 - Organize content into appropriate folders
 

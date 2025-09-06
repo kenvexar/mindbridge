@@ -169,7 +169,7 @@ src/
 ### Key Design Patterns
 
 1. **Dependency Injection**: Constructor-based dependency management
-2. **Factory Pattern**: Client creation and configuration  
+2. **Factory Pattern**: Client creation and configuration
 3. **Strategy Pattern**: Pluggable processing methods
 4. **Template Method Pattern**: Common processing workflows
 5. **Repository Pattern**: Data access abstraction
@@ -181,7 +181,7 @@ src/
 graph TD
     A[main.py] --> B[bot/client.py]
     B --> C[bot/handlers.py]
-    C --> D[ai/processor.py] 
+    C --> D[ai/processor.py]
     D --> E[obsidian/core/vault_manager.py]
     B --> F[bot/commands/]
     F --> G[tasks/task_manager.py]
@@ -215,7 +215,7 @@ uv run ruff format src/
    ```bash
    # Create feature branch
    git checkout -b feature/new-ai-classification
-   
+
    # Document requirements
    echo "## Feature: Enhanced AI Classification" > docs/features/ai-classification.md
    ```
@@ -224,10 +224,10 @@ uv run ruff format src/
    ```bash
    # Write tests first (TDD)
    touch tests/unit/test_new_classification.py
-   
+
    # Implement feature
    # Edit src/ai/enhanced_classifier.py
-   
+
    # Validate implementation
    uv run pytest tests/unit/test_new_classification.py -v
    ```
@@ -236,7 +236,7 @@ uv run ruff format src/
    ```bash
    # Integration testing
    uv run pytest tests/integration/ -v
-   
+
    # Manual testing
    uv run python -m src.main --dev
    ```
@@ -245,11 +245,11 @@ uv run ruff format src/
    ```bash
    # Full test suite
    uv run pytest --cov=src
-   
+
    # Code quality checks
    uv run ruff check src/ --fix && uv run ruff format src/
    uv run mypy src/
-   
+
    # Pre-commit validation
    uv run pre-commit run --all-files
    ```
@@ -286,7 +286,7 @@ target-version = "py313"
 line-length = 88
 select = [
     "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings  
+    "W",    # pycodestyle warnings
     "F",    # pyflakes
     "I",    # isort
     "B",    # flake8-bugbear
@@ -316,7 +316,7 @@ known-first-party = ["src"]
 ```python
 # Good
 async def process_message(
-    content: str, 
+    content: str,
     metadata: dict[str, Any]
 ) -> ProcessingResult:
     """Process message with AI analysis."""
@@ -431,10 +431,10 @@ async def test_process_message_success(ai_processor):
         confidence=0.85
     )
     ai_processor.gemini_client.analyze.return_value = expected_result
-    
+
     # Act
     result = await ai_processor.process_message(content)
-    
+
     # Assert
     assert result.summary == "Programming discussion"
     assert "python" in result.tags
@@ -459,22 +459,22 @@ async def test_full_message_processing_flow():
         # Arrange
         vault_path = Path(temp_dir) / "test_vault"
         vault_manager = VaultManager(vault_path)
-        
+
         # Create mock Discord message
         mock_message = create_mock_discord_message(
             content="Today I learned about async/await in Python",
             author="test_user",
             channel_name="memo"
         )
-        
+
         # Act
         bot = DiscordBot(vault_manager=vault_manager)
         await bot.process_message(mock_message)
-        
+
         # Assert
         created_files = list(vault_path.rglob("*.md"))
         assert len(created_files) == 1
-        
+
         note_content = created_files[0].read_text()
         assert "async/await" in note_content
         assert "Python" in note_content
@@ -518,7 +518,7 @@ markers =
     integration: Integration tests
     slow: Slow tests
     external: Tests requiring external services
-addopts = 
+addopts =
     --strict-markers
     --tb=short
     --capture=no
@@ -576,7 +576,7 @@ async def on_message(message: discord.Message) -> None:
             "guild": message.guild.name if message.guild else None
         }
     )
-    
+
     # Process message with error handling
     try:
         await process_message_handler(message)
@@ -597,12 +597,12 @@ async def on_message(message: discord.Message) -> None:
 async def debug_ai_analysis(content: str) -> ProcessingResult:
     """Debug AI analysis with detailed logging."""
     logger.debug("Starting AI analysis", extra={"content_length": len(content)})
-    
+
     start_time = time.time()
     try:
         result = await gemini_client.analyze(content)
         processing_time = time.time() - start_time
-        
+
         logger.debug(
             "AI analysis completed",
             extra={
@@ -641,13 +641,13 @@ docker compose -f docker-compose.debug.yml up
 1. **Requirements Analysis**
    ```markdown
    # Feature: Enhanced AI Classification
-   
+
    ## Problem
    Current AI classification has limited accuracy for technical content.
-   
+
    ## Solution
    Implement specialized classifiers for different content types.
-   
+
    ## Acceptance Criteria
    - [ ] 95%+ accuracy for programming content
    - [ ] Support for 10+ programming languages
@@ -658,12 +658,12 @@ docker compose -f docker-compose.debug.yml up
    ```python
    # Design interfaces first
    from abc import ABC, abstractmethod
-   
+
    class ContentClassifier(ABC):
        @abstractmethod
        async def classify(self, content: str) -> ClassificationResult:
            pass
-   
+
    class ProgrammingClassifier(ContentClassifier):
        async def classify(self, content: str) -> ClassificationResult:
            # Implementation here
@@ -678,9 +678,9 @@ docker compose -f docker-compose.debug.yml up
        """Test classification of Python code snippets."""
        classifier = ProgrammingClassifier()
        content = "def fibonacci(n): return n if n <= 1 else fibonacci(n-1) + fibonacci(n-2)"
-       
+
        result = await classifier.classify(content)
-       
+
        assert result.category == "programming"
        assert "python" in result.tags
        assert result.confidence > 0.9
@@ -695,29 +695,29 @@ from discord.ext import commands
 
 class NewCommands(commands.Cog):
     """New feature commands."""
-    
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-    
+
     @app_commands.command(name="new_feature")
     @app_commands.describe(
         parameter="Description of parameter"
     )
     async def new_feature_command(
-        self, 
+        self,
         interaction: discord.Interaction,
         parameter: str
     ) -> None:
         """Implement new feature."""
         await interaction.response.defer()
-        
+
         try:
             result = await self.process_new_feature(parameter)
             await interaction.followup.send(f"✅ Feature result: {result}")
         except Exception as e:
             logger.exception("New feature command failed")
             await interaction.followup.send(f"❌ Error: {e}")
-    
+
     async def process_new_feature(self, parameter: str) -> str:
         """Process new feature logic."""
         # Implementation here
@@ -734,12 +734,12 @@ async def setup(bot: commands.Bot) -> None:
 # src/config/settings.py - Add new settings
 class Settings(BaseSettings):
     # ... existing settings ...
-    
+
     # New feature settings
     new_feature_enabled: bool = Field(False, description="Enable new feature")
     new_feature_threshold: float = Field(0.8, description="Confidence threshold")
     new_feature_cache_ttl: int = Field(3600, description="Cache TTL in seconds")
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = True
@@ -802,12 +802,12 @@ from functools import wraps
 
 class AsyncLRUCache:
     """Async LRU cache implementation."""
-    
+
     def __init__(self, max_size: int = 128, ttl: int = 3600):
         self.max_size = max_size
         self.ttl = ttl
         self._cache: dict[str, tuple[Any, float]] = {}
-    
+
     async def get(self, key: str) -> Optional[Any]:
         """Get item from cache."""
         if key in self._cache:
@@ -817,15 +817,15 @@ class AsyncLRUCache:
             else:
                 del self._cache[key]
         return None
-    
+
     async def set(self, key: str, value: Any) -> None:
         """Set item in cache."""
         if len(self._cache) >= self.max_size:
             # Remove oldest item
-            oldest_key = min(self._cache.keys(), 
+            oldest_key = min(self._cache.keys(),
                            key=lambda k: self._cache[k][1])
             del self._cache[oldest_key]
-        
+
         self._cache[key] = (value, time.time())
 
 # Global cache instance
@@ -835,20 +835,20 @@ ai_cache = AsyncLRUCache(max_size=500, ttl=3600)
 async def cached_ai_analysis(content: str) -> ProcessingResult:
     """AI analysis with caching."""
     cache_key = f"ai_analysis:{hash(content)}"
-    
+
     # Try cache first
     cached_result = await ai_cache.get(cache_key)
     if cached_result:
         logger.debug("Cache hit for AI analysis")
         return cached_result
-    
+
     # Compute result
     result = await ai_processor.analyze(content)
-    
+
     # Cache result
     await ai_cache.set(cache_key, result)
     logger.debug("Cache miss for AI analysis - result cached")
-    
+
     return result
 ```
 
@@ -864,7 +864,7 @@ async def batch_file_operations(operations: list[tuple[Path, str]]) -> None:
     async def write_file(path: Path, content: str) -> None:
         async with aiofiles.open(path, "w") as f:
             await f.write(content)
-    
+
     # Execute operations concurrently
     tasks = [write_file(path, content) for path, content in operations]
     await asyncio.gather(*tasks, return_exceptions=True)
