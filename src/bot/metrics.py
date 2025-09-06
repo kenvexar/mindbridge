@@ -46,10 +46,12 @@ class SystemMetrics(LoggerMixin):
 
     def add_error(self, error_info: dict[str, Any]) -> None:
         """エラー情報を追加"""
-        self.error_history.append({
-            "timestamp": datetime.now(),
-            "error": error_info,
-        })
+        self.error_history.append(
+            {
+                "timestamp": datetime.now(),
+                "error": error_info,
+            }
+        )
         self.metrics["errors_last_hour"] += 1
 
         # Keep only last 100 errors
@@ -58,11 +60,13 @@ class SystemMetrics(LoggerMixin):
 
     def add_performance_data(self, operation: str, duration: float) -> None:
         """パフォーマンスデータを追加"""
-        self.performance_history.append({
-            "timestamp": datetime.now(),
-            "operation": operation,
-            "duration": duration,
-        })
+        self.performance_history.append(
+            {
+                "timestamp": datetime.now(),
+                "operation": operation,
+                "duration": duration,
+            }
+        )
 
         # Keep only last 1000 performance records
         if len(self.performance_history) > 1000:
@@ -87,27 +91,27 @@ class SystemMetrics(LoggerMixin):
     def get_system_health_status(self) -> dict[str, Any]:
         """システムヘルス状況を取得"""
         total_requests = (
-            self.metrics["successful_ai_requests"] + 
-            self.metrics["failed_ai_requests"]
+            self.metrics["successful_ai_requests"] + self.metrics["failed_ai_requests"]
         )
         ai_success_rate = (
-            (self.metrics["successful_ai_requests"] / max(1, total_requests)) * 100
-        )
-        
+            self.metrics["successful_ai_requests"] / max(1, total_requests)
+        ) * 100
+
         return {
             "total_messages_processed": self.metrics["total_messages_processed"],
             "ai_success_rate": ai_success_rate,
             "files_created": self.metrics["obsidian_files_created"],
             "performance_score": 100.0 - (self.metrics["errors_last_hour"] * 10),
             "uptime_hours": (
-                (datetime.now() - self.metrics["system_start_time"]).total_seconds() / 3600
+                (datetime.now() - self.metrics["system_start_time"]).total_seconds()
+                / 3600
             ),
         }
 
     def get_metrics_summary(self) -> dict[str, Any]:
         """メトリクス要約を取得"""
         uptime = datetime.now() - self.metrics["system_start_time"]
-        
+
         avg_performance = 0.0
         if self.performance_history:
             total_duration = sum(p["duration"] for p in self.performance_history)
@@ -119,9 +123,10 @@ class SystemMetrics(LoggerMixin):
             "uptime_formatted": str(uptime),
             "avg_operation_duration": avg_performance,
             "error_rate": (
-                self.metrics["failed_ai_requests"] / 
-                max(1, self.metrics["total_messages_processed"])
-            ) * 100,
+                self.metrics["failed_ai_requests"]
+                / max(1, self.metrics["total_messages_processed"])
+            )
+            * 100,
         }
 
     def reset_hourly_stats(self) -> None:
@@ -139,55 +144,55 @@ class APIUsageMonitor(LoggerMixin):
         self.hourly_requests: dict[str, int] = {}
         self.last_reset_day = datetime.now().day
         self.last_reset_hour = datetime.now().hour
-        
+
         # API limits
         self.daily_limits = {
             "gemini": 1500,  # Free tier limit
-            "speech": 60,    # 60 minutes per month
+            "speech": 60,  # 60 minutes per month
         }
-        
+
         self.hourly_limits = {
             "gemini": 15,  # Rate limit
-            "speech": 2,   # Conservative hourly limit
+            "speech": 2,  # Conservative hourly limit
         }
 
     def record_api_usage(self, api_name: str) -> bool:
         """API 使用を記録し、制限チェック"""
         self._check_and_reset_counters()
-        
+
         # Check limits before incrementing
         if not self._check_limits(api_name):
             return False
-            
+
         self.daily_requests[api_name] = self.daily_requests.get(api_name, 0) + 1
         self.hourly_requests[api_name] = self.hourly_requests.get(api_name, 0) + 1
-        
+
         return True
 
     def _check_limits(self, api_name: str) -> bool:
         """API 制限をチェック"""
         daily_count = self.daily_requests.get(api_name, 0)
         hourly_count = self.hourly_requests.get(api_name, 0)
-        
+
         if daily_count >= self.daily_limits.get(api_name, 999999):
             self.logger.warning(f"Daily limit exceeded for {api_name}")
             return False
-            
+
         if hourly_count >= self.hourly_limits.get(api_name, 999999):
             self.logger.warning(f"Hourly limit exceeded for {api_name}")
             return False
-            
+
         return True
 
     def _check_and_reset_counters(self) -> None:
         """カウンタの日時リセットをチェック"""
         now = datetime.now()
-        
+
         if now.day != self.last_reset_day:
             self.daily_requests = {}
             self.last_reset_day = now.day
             self.logger.info("Daily API counters reset")
-            
+
         if now.hour != self.last_reset_hour:
             self.hourly_requests = {}
             self.last_reset_hour = now.hour
@@ -196,25 +201,27 @@ class APIUsageMonitor(LoggerMixin):
     def get_usage_status(self) -> dict[str, Any]:
         """API 使用状況を取得"""
         self._check_and_reset_counters()
-        
+
         status: dict[str, dict[str, int]] = {
             "daily_usage": {},
             "hourly_usage": {},
             "daily_remaining": {},
             "hourly_remaining": {},
         }
-        
+
         for api_name in ["gemini", "speech"]:
             daily_used = self.daily_requests.get(api_name, 0)
             hourly_used = self.hourly_requests.get(api_name, 0)
-            
+
             status["daily_usage"][api_name] = daily_used
             status["hourly_usage"][api_name] = hourly_used
-            status["daily_remaining"][api_name] = max(0, 
-                self.daily_limits[api_name] - daily_used)
-            status["hourly_remaining"][api_name] = max(0, 
-                self.hourly_limits[api_name] - hourly_used)
-                
+            status["daily_remaining"][api_name] = max(
+                0, self.daily_limits[api_name] - daily_used
+            )
+            status["hourly_remaining"][api_name] = max(
+                0, self.hourly_limits[api_name] - hourly_used
+            )
+
         return status
 
     def is_api_available(self, api_name: str) -> bool:
@@ -243,8 +250,7 @@ class APIUsageMonitor(LoggerMixin):
                 "hourly": self.hourly_limits,
             },
             "availability": {
-                api: self.is_api_available(api) 
-                for api in ["gemini", "speech"]
+                api: self.is_api_available(api) for api in ["gemini", "speech"]
             },
         }
 

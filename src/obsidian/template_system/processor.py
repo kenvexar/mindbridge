@@ -57,13 +57,13 @@ class TemplateProcessor:
         """条件分岐セクションを処理 (if/elif/else をサポート)"""
         # First, handle complex if-elif-else structures by parsing them manually
         content = self._process_complex_conditionals(content, context)
-        
+
         # Then handle simple if-else patterns
         simple_patterns = [
             r"\{\{\s*#if\s+(.+?)\s*\}\}(.*?)\{\{\s*/if\s*\}\}",  # {{#if}} {{/if}}
             r"\{\{\s*if\s+(.+?)\s*\}\}(.*?)\{\{\s*endif\s*\}\}",  # {{if}} {{endif}}
         ]
-        
+
         for pattern in simple_patterns:
             content = re.sub(
                 pattern,
@@ -73,64 +73,66 @@ class TemplateProcessor:
             )
         return content
 
-    def _process_complex_conditionals(self, content: str, context: dict[str, Any]) -> str:
+    def _process_complex_conditionals(
+        self, content: str, context: dict[str, Any]
+    ) -> str:
         """複雑な if-elif-else 構造を処理"""
         # Find all if-elif-else blocks and process them
-        pattern = r'\{\{\s*#if\s+.+?\s*\}\}.*?\{\{\s*/if\s*\}\}'
-        
+        pattern = r"\{\{\s*#if\s+.+?\s*\}\}.*?\{\{\s*/if\s*\}\}"
+
         def process_block(match):
             block = match.group(0)
             return self._parse_and_evaluate_block(block, context)
-        
+
         return re.sub(pattern, process_block, content, flags=re.DOTALL)
-    
+
     def _parse_and_evaluate_block(self, block: str, context: dict[str, Any]) -> str:
         """単一の if-elif-else ブロックを解析して評価"""
         # Split into tokens to handle the structure properly
-        tokens = re.split(r'(\{\{[^}]+\}\})', block)
-        
+        tokens = re.split(r"(\{\{[^}]+\}\})", block)
+
         conditions = []
         contents = []
         current_content: list[str] = []
         state = "none"  # none, if, elif, else
-        
+
         for token in tokens:
             token = token.strip()
             if not token:
                 continue
-                
+
             # Check for condition tokens
-            if_match = re.match(r'\{\{\s*#if\s+(.+?)\s*\}\}', token)
-            elif_match = re.match(r'\{\{\s*#elif\s+(.+?)\s*\}\}', token)
-            else_match = re.match(r'\{\{\s*#else\s*\}\}', token)
-            endif_match = re.match(r'\{\{\s*/if\s*\}\}', token)
-            
+            if_match = re.match(r"\{\{\s*#if\s+(.+?)\s*\}\}", token)
+            elif_match = re.match(r"\{\{\s*#elif\s+(.+?)\s*\}\}", token)
+            else_match = re.match(r"\{\{\s*#else\s*\}\}", token)
+            endif_match = re.match(r"\{\{\s*/if\s*\}\}", token)
+
             if if_match:
                 conditions.append(if_match.group(1))
                 if current_content:
-                    contents.append(''.join(current_content))
+                    contents.append("".join(current_content))
                     current_content = []
                 state = "if"
             elif elif_match:
                 conditions.append(elif_match.group(1))
                 if current_content:
-                    contents.append(''.join(current_content))
+                    contents.append("".join(current_content))
                     current_content = []
                 state = "elif"
             elif else_match:
                 conditions.append("true")  # else always matches if reached
                 if current_content:
-                    contents.append(''.join(current_content))
+                    contents.append("".join(current_content))
                     current_content = []
                 state = "else"
             elif endif_match:
                 if current_content:
-                    contents.append(''.join(current_content))
+                    contents.append("".join(current_content))
                 break
             else:
                 if state in ["if", "elif", "else"]:
                     current_content.append(token)
-        
+
         # Evaluate conditions in order
         for i, condition in enumerate(conditions):
             if i < len(contents):
@@ -143,10 +145,13 @@ class TemplateProcessor:
                 except Exception as e:
                     # Log debug info for troubleshooting
                     import structlog
+
                     logger = structlog.get_logger()
-                    logger.debug(f"Condition evaluation failed: {condition}, error: {e}")
+                    logger.debug(
+                        f"Condition evaluation failed: {condition}, error: {e}"
+                    )
                     continue
-        
+
         return ""
 
     async def _process_each_sections(
@@ -155,12 +160,19 @@ class TemplateProcessor:
         """each セクション（リスト処理）を処理"""
         # Support both handlebars-style {{#each items}} and {{each item in items}} syntax
         patterns = [
-            (r"\{\{\s*#each\s+(\w+)\s*\}\}(.*?)\{\{\s*/each\s*\}\}", True),  # {{#each items}} handlebars-style
-            (r"\{\{\s*each\s+(\w+)\s+in\s+(\w+)\s*\}\}(.*?)\{\{\s*endeach\s*\}\}", False)  # {{each item in items}}
+            (
+                r"\{\{\s*#each\s+(\w+)\s*\}\}(.*?)\{\{\s*/each\s*\}\}",
+                True,
+            ),  # {{#each items}} handlebars-style
+            (
+                r"\{\{\s*each\s+(\w+)\s+in\s+(\w+)\s*\}\}(.*?)\{\{\s*endeach\s*\}\}",
+                False,
+            ),  # {{each item in items}}
         ]
 
         for pattern, is_handlebars in patterns:
             if is_handlebars:
+
                 def process_handlebars_each(match):
                     list_name = match.group(1)
                     template = match.group(2)
@@ -180,7 +192,7 @@ class TemplateProcessor:
                         else:
                             item_context["@item"] = item
                         item_context["@index"] = index
-                        
+
                         rendered = template
                         # Process template variables
                         for key, value in item_context.items():
@@ -193,9 +205,12 @@ class TemplateProcessor:
                         result.append(rendered)
 
                     return "\n".join(result)
-                
-                content = re.sub(pattern, process_handlebars_each, content, flags=re.DOTALL)
+
+                content = re.sub(
+                    pattern, process_handlebars_each, content, flags=re.DOTALL
+                )
             else:
+
                 def process_each(match):
                     var_name = match.group(1)
                     list_name = match.group(2)
@@ -223,7 +238,7 @@ class TemplateProcessor:
                         result.append(rendered)
 
                     return "\n".join(result)
-                
+
                 content = re.sub(pattern, process_each, content, flags=re.DOTALL)
 
         return content
@@ -233,7 +248,7 @@ class TemplateProcessor:
     ) -> str:
         """条件を評価"""
         condition = condition.strip()
-        
+
         # Support complex conditions with "and", "or", "not"
         try:
             result = self._evaluate_complex_condition(condition, context)
@@ -245,12 +260,12 @@ class TemplateProcessor:
         if " == " in condition:
             left, right = condition.split(" == ", 1)
             left_val = context.get(left.strip())
-            right_val = right.strip().strip('"\'')
+            right_val = right.strip().strip("\"'")
             return content if str(left_val) == right_val else ""
         elif " != " in condition:
             left, right = condition.split(" != ", 1)
             left_val = context.get(left.strip())
-            right_val = right.strip().strip('"\'')
+            right_val = right.strip().strip("\"'")
             return content if str(left_val) != right_val else ""
         elif " >= " in condition:
             left, right = condition.split(" >= ", 1)
@@ -315,83 +330,95 @@ class TemplateProcessor:
             else:
                 return content if var_value else ""
 
-    def _evaluate_complex_condition(self, condition: str, context: dict[str, Any]) -> bool:
+    def _evaluate_complex_condition(
+        self, condition: str, context: dict[str, Any]
+    ) -> bool:
         """複雑な条件式を評価 (and, or, not をサポート)"""
         # Handle "not" operator
         if condition.startswith("not "):
             inner_condition = condition[4:].strip()
             return not self._evaluate_complex_condition(inner_condition, context)
-            
+
         # Handle "and" operator
         if " and " in condition:
             parts = condition.split(" and ", 1)
             left_result = self._evaluate_complex_condition(parts[0].strip(), context)
             right_result = self._evaluate_complex_condition(parts[1].strip(), context)
             return left_result and right_result
-            
+
         # Handle "or" operator
         if " or " in condition:
             parts = condition.split(" or ", 1)
             left_result = self._evaluate_complex_condition(parts[0].strip(), context)
             right_result = self._evaluate_complex_condition(parts[1].strip(), context)
             return left_result or right_result
-            
+
         # Handle simple conditions
         return self._evaluate_simple_condition(condition, context)
-    
-    def _evaluate_simple_condition(self, condition: str, context: dict[str, Any]) -> bool:
+
+    def _evaluate_simple_condition(
+        self, condition: str, context: dict[str, Any]
+    ) -> bool:
         """単純な条件式を評価"""
         condition = condition.strip()
-        
+
         if " == " in condition:
             left, right = condition.split(" == ", 1)
             left_val = context.get(left.strip())
-            right_val_str = right.strip().strip('"\'')
+            right_val_str = right.strip().strip("\"'")
             try:
                 right_val_float = float(right_val_str)
                 return left_val == right_val_float
             except ValueError:
                 return str(left_val) == right_val_str
-                
+
         elif " != " in condition:
             left, right = condition.split(" != ", 1)
             left_val = context.get(left.strip())
-            right_val_str = right.strip().strip('"\'')
+            right_val_str = right.strip().strip("\"'")
             try:
                 right_val_float = float(right_val_str)
                 return left_val != right_val_float
             except ValueError:
                 return str(left_val) != right_val_str
-                
+
         elif " >= " in condition:
             left, right = condition.split(" >= ", 1)
             left_val = context.get(left.strip())
             try:
-                return isinstance(left_val, int | float) and left_val >= float(right.strip())
+                return isinstance(left_val, int | float) and left_val >= float(
+                    right.strip()
+                )
             except (ValueError, TypeError):
                 return False
-                
+
         elif " <= " in condition:
             left, right = condition.split(" <= ", 1)
             left_val = context.get(left.strip())
             try:
-                return isinstance(left_val, int | float) and left_val <= float(right.strip())
+                return isinstance(left_val, int | float) and left_val <= float(
+                    right.strip()
+                )
             except (ValueError, TypeError):
                 return False
-                
+
         elif " > " in condition:
             left, right = condition.split(" > ", 1)
             left_val = context.get(left.strip())
             try:
-                return isinstance(left_val, int | float) and left_val > float(right.strip())
+                return isinstance(left_val, int | float) and left_val > float(
+                    right.strip()
+                )
             except (ValueError, TypeError):
                 return False
-                
+
         elif " < " in condition:
             left, right = condition.split(" < ", 1)
             left_val = context.get(left.strip())
             try:
-                return isinstance(left_val, int | float) and left_val < float(right.strip())
+                return isinstance(left_val, int | float) and left_val < float(
+                    right.strip()
+                )
             except (ValueError, TypeError):
                 return False
         else:
@@ -424,7 +451,7 @@ class TemplateProcessor:
                     return " ".join(f"#{tag}" for tag in tags)
                 return ""
             elif func_name == "date_format":
-                parts = [p.strip().strip('"\'') for p in args.split(",")]
+                parts = [p.strip().strip("\"'") for p in args.split(",")]
                 if len(parts) >= 2:
                     var_name = parts[0]
                     format_str = parts[1]
@@ -436,14 +463,14 @@ class TemplateProcessor:
             elif func_name == "now":
                 if args:
                     try:
-                        return datetime.now().strftime(args.strip('"\''))
+                        return datetime.now().strftime(args.strip("\"'"))
                     except ValueError:
                         return datetime.now().isoformat()
                 return datetime.now().isoformat()
             elif func_name == "today":
                 if args:
                     try:
-                        return datetime.now().strftime(args.strip('"\''))
+                        return datetime.now().strftime(args.strip("\"'"))
                     except ValueError:
                         return datetime.now().strftime("%Y-%m-%d")
                 return datetime.now().strftime("%Y-%m-%d")
@@ -465,12 +492,14 @@ class TemplateProcessor:
                 parts = args.split(",")
                 if len(parts) >= 2:
                     var_name = parts[0].strip()
-                    format_type = parts[1].strip().strip('"\'').strip()
+                    format_type = parts[1].strip().strip("\"'").strip()
                     if var_name in context:
                         value = context[var_name]
                         if format_type == "currency" and isinstance(value, int | float):
                             return f"¥{value:,.0f}"
-                        elif format_type == "percent" and isinstance(value, int | float):
+                        elif format_type == "percent" and isinstance(
+                            value, int | float
+                        ):
                             return f"{value * 100:.1f}%"
                 return args
             elif func_name == "length":
@@ -483,7 +512,7 @@ class TemplateProcessor:
                 parts = args.split(",")
                 if len(parts) >= 2:
                     var_name = parts[0].strip()
-                    default_val = parts[1].strip().strip('"\'').strip()
+                    default_val = parts[1].strip().strip("\"'").strip()
                     value = context.get(var_name, default_val)
                     if value is None:
                         return default_val
@@ -493,8 +522,8 @@ class TemplateProcessor:
                 parts = args.split(",")
                 if len(parts) >= 3:
                     var_name = parts[0].strip()
-                    true_val = parts[1].strip().strip('"\'').strip()
-                    false_val = parts[2].strip().strip('"\'').strip()
+                    true_val = parts[1].strip().strip("\"'").strip()
+                    false_val = parts[2].strip().strip("\"'").strip()
                     condition_result = context.get(var_name, False)
                     return true_val if condition_result else false_val
                 return args
@@ -520,53 +549,63 @@ class TemplateProcessor:
     ) -> str:
         """テンプレート継承処理 (extends/block)"""
         # Check if this template extends another
-        extends_match = re.match(r'^\s*\{\{\s*extends\s+["\'](.+?)["\']\s*\}\}', content.strip())
+        extends_match = re.match(
+            r'^\s*\{\{\s*extends\s+["\'](.+?)["\']\s*\}\}', content.strip()
+        )
         if not extends_match:
             return content
-            
+
         parent_template_name = extends_match.group(1)
-        child_content = content[extends_match.end():].strip()
-        
+        child_content = content[extends_match.end() :].strip()
+
         # Load parent template
         try:
             from .loader import TemplateLoader
-            loader = TemplateLoader(Path(context.get('vault_path', '.')))  
+
+            loader = TemplateLoader(Path(context.get("vault_path", ".")))
             parent_content = await loader.load_template(parent_template_name)
         except Exception:
             # If parent template not found, return child content without inheritance
             return child_content
-        
+
         # Extract blocks from child template
         child_blocks = self._extract_blocks(child_content)
-        
+
         # Process parent template with child blocks
         return self._merge_parent_with_blocks(parent_content, child_blocks)
-    
+
     def _extract_blocks(self, content: str) -> dict[str, str]:
         """子テンプレートからブロックを抽出"""
         blocks = {}
-        
+
         # Find all block definitions: {{block "name"}} content {{/block}}
-        block_pattern = r'\{\{\s*block\s+["\'](\w+)["\']\s*\}\}(.*?)\{\{\s*/block\s*\}\}'
-        
+        block_pattern = (
+            r'\{\{\s*block\s+["\'](\w+)["\']\s*\}\}(.*?)\{\{\s*/block\s*\}\}'
+        )
+
         for match in re.finditer(block_pattern, content, re.DOTALL):
             block_name = match.group(1)
             block_content = match.group(2).strip()
             blocks[block_name] = block_content
-            
+
         return blocks
-    
-    def _merge_parent_with_blocks(self, parent_content: str, child_blocks: dict[str, str]) -> str:
+
+    def _merge_parent_with_blocks(
+        self, parent_content: str, child_blocks: dict[str, str]
+    ) -> str:
         """親テンプレートと子ブロックをマージ"""
+
         def replace_block(match):
             block_name = match.group(1)
             default_content = match.group(2).strip()
-            
+
             # Use child block content if available, otherwise use default
             return child_blocks.get(block_name, default_content)
-        
+
         # Replace block definitions with child content
-        block_pattern = r'\{\{\s*block\s+["\'](\w+)["\']\s*\}\}(.*?)\{\{\s*/block\s*\}\}'
+        block_pattern = (
+            r'\{\{\s*block\s+["\'](\w+)["\']\s*\}\}(.*?)\{\{\s*/block\s*\}\}'
+        )
         return re.sub(block_pattern, replace_block, parent_content, flags=re.DOTALL)
 
 
@@ -580,7 +619,7 @@ class ConditionalProcessor:
             r"\{\{\s*#if\s+(.+?)\s*\}\}(.*?)\{\{\s*/if\s*\}\}",  # {{#if}} {{/if}}
             r"\{\{\s*if\s+(.+?)\s*\}\}(.*?)\{\{\s*endif\s*\}\}",  # {{if}} {{endif}}
         ]
-        
+
         for pattern in patterns:
             content = re.sub(
                 pattern,
@@ -622,14 +661,14 @@ class CustomFunctionProcessor:
             if func_name == "now":
                 if args:
                     try:
-                        return datetime.now().strftime(args.strip('"\''))
+                        return datetime.now().strftime(args.strip("\"'"))
                     except ValueError:
                         return datetime.now().isoformat()
                 return datetime.now().isoformat()
             elif func_name == "today":
                 if args:
                     try:
-                        return datetime.now().strftime(args.strip('"\''))
+                        return datetime.now().strftime(args.strip("\"'"))
                     except ValueError:
                         return datetime.now().strftime("%Y-%m-%d")
                 return datetime.now().strftime("%Y-%m-%d")
@@ -655,7 +694,7 @@ class CustomFunctionProcessor:
                 parts = args.split(",")
                 if len(parts) >= 2:
                     list_name = parts[0].strip()
-                    separator = parts[1].strip().strip('"\'')
+                    separator = parts[1].strip().strip("\"'")
                     if list_name in context and isinstance(context[list_name], list):
                         return separator.join(str(x) for x in context[list_name])
                 return ""
@@ -663,7 +702,7 @@ class CustomFunctionProcessor:
                 parts = args.split(",")
                 if len(parts) >= 2:
                     var_name = parts[0].strip()
-                    default_val = parts[1].strip().strip('"\'')
+                    default_val = parts[1].strip().strip("\"'")
                     return str(context.get(var_name, default_val))
                 return args
             elif func_name == "truncate":
@@ -684,7 +723,7 @@ class CustomFunctionProcessor:
                 parts = args.split(",")
                 if len(parts) >= 2:
                     var_name = parts[0].strip()
-                    format_str = parts[1].strip().strip('"\'')
+                    format_str = parts[1].strip().strip("\"'")
                     if var_name in context:
                         value = context[var_name]
                         if isinstance(value, datetime):

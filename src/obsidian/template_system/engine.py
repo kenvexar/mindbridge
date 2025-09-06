@@ -20,7 +20,7 @@ class TemplateEngine:
         self.template_processor = TemplateProcessor()
         self.note_generator = NoteGenerator(self.template_processor)
         self.validator = TemplateValidator()
-        
+
     @property
     def template_path(self) -> Path:
         """Template directory path for backward compatibility"""
@@ -134,22 +134,30 @@ tags: [memo, fallback]
         """テンプレートをレンダリング (名前または直接コンテンツ)"""
         # Backward compatibility: if content looks like template content (contains {{), render directly
         if "{{" in template_name_or_content:
-            return await self.template_processor.render_template(template_name_or_content, context)
+            return await self.template_processor.render_template(
+                template_name_or_content, context
+            )
         else:
             # Template name - load from file
-            template = await self.template_loader.load_template(template_name_or_content)
+            template = await self.template_loader.load_template(
+                template_name_or_content
+            )
             return await self.template_processor.render_template(template, context)
-    
+
     async def compile_template(self, template: str, context: dict[str, Any]) -> str:
         """Legacy API: compile template and return content only"""
-        compiled_content, _ = await self.template_processor.render_template(template, context)
+        compiled_content, _ = await self.template_processor.render_template(
+            template, context
+        )
         return compiled_content
-    
+
     async def render_template_content_only(
         self, template_name_or_content: str, context: dict[str, Any]
     ) -> str:
         """Backward compatibility: return content only for tests"""
-        compiled_content, _ = await self.render_template(template_name_or_content, context)
+        compiled_content, _ = await self.render_template(
+            template_name_or_content, context
+        )
         return compiled_content
 
     async def validate_template(
@@ -158,10 +166,14 @@ tags: [memo, fallback]
         """テンプレートを検証 (名前または直接コンテンツ)"""
         # Backward compatibility: if content looks like template content, validate directly
         if "{{" in template_name_or_content:
-            return await self.validator.validate_template(template_name_or_content, context)
+            return await self.validator.validate_template(
+                template_name_or_content, context
+            )
         else:
             # Template name - load from file
-            template = await self.template_loader.load_template(template_name_or_content)
+            template = await self.template_loader.load_template(
+                template_name_or_content
+            )
             return await self.validator.validate_template(template, context)
 
     async def list_available_templates(self) -> list[str]:
@@ -185,36 +197,39 @@ tags: [memo, fallback]
         if isinstance(value, list):
             return ", ".join(str(item) for item in value)
         return str(value)
-    
+
     def ensure_template_directory(self) -> bool:
         """Ensure template directory exists - backward compatibility"""
         self.template_loader.template_path.mkdir(parents=True, exist_ok=True)
         return self.template_loader.template_path.exists()
-    
+
     @property
     def cached_templates(self) -> dict[str, str]:
         """Access to cached templates - backward compatibility"""
         return self.template_loader.cached_templates
-        
-    def _parse_template_content(self, template: str) -> tuple[dict[str, Any] | None, str]:
+
+    def _parse_template_content(
+        self, template: str
+    ) -> tuple[dict[str, Any] | None, str]:
         """Parse template content into frontmatter and body - backward compatibility"""
         import re
+
         frontmatter_match = re.match(
             r"^---\s*\n(.*?)\n---\s*\n(.*)$", template, re.DOTALL
         )
-        
+
         if frontmatter_match:
             frontmatter_content = frontmatter_match.group(1)
             body_content = frontmatter_match.group(2)
             # Enhanced YAML-like parsing to handle multiline lists
             frontmatter = {}
             current_key = None
-            for line in frontmatter_content.split('\n'):
+            for line in frontmatter_content.split("\n"):
                 line = line.strip()
                 if not line:
                     continue
-                if ':' in line and not line.startswith('-'):
-                    key, value = line.split(':', 1)
+                if ":" in line and not line.startswith("-"):
+                    key, value = line.split(":", 1)
                     current_key = key.strip()
                     value = value.strip()
                     if value:
@@ -222,7 +237,7 @@ tags: [memo, fallback]
                     else:
                         # Multiline value starts (like YAML lists)
                         frontmatter[current_key] = ""
-                elif line.startswith('-') and current_key:
+                elif line.startswith("-") and current_key:
                     # YAML list item
                     list_item = line[1:].strip()
                     if frontmatter[current_key] == "":
@@ -307,7 +322,7 @@ tags: [idea, {{ category | default:"general" }}]
 
 
 ## アクション項目
-- [ ] 
+- [ ]
 """,
             "meeting_note": """---
 created: {{ timestamp }}
@@ -318,7 +333,7 @@ tags: [meeting, {{ project | default:"general" }}]
 
 # 📝 {{ title | default:"会議メモ" }}
 
-**日時:** {{ date }} {{ time }}  
+**日時:** {{ date }} {{ time }}
 **参加者:** {{ attendees | join:", " }}
 
 ## アジェンダ
@@ -333,7 +348,7 @@ tags: [meeting, {{ project | default:"general" }}]
 - [ ] {{ item }}
 {{ endeach }}
 {{ else }}
-- [ ] 
+- [ ]
 {{ endif }}
 """,
             "task_note": """---
@@ -371,7 +386,7 @@ tags: [voice, memo, {{ category | default:"general" }}]
 
 # 🎤 {{ title | default:"音声メモ" }}
 
-**録音日時:** {{ date }} {{ time }}  
+**録音日時:** {{ date }} {{ time }}
 {{ if duration }}**長さ:** {{ duration }}{{ endif }}
 
 ## 内容
@@ -400,7 +415,7 @@ tags: [project, {{ category | default:"work" }}]
 - {{ goal }}
 {{ endeach }}
 {{ else }}
-- 
+-
 {{ endif }}
 
 ## 進捗
@@ -411,7 +426,7 @@ tags: [project, {{ category | default:"work" }}]
 {{ endif }}
 
 ## 次のステップ
-- [ ] 
+- [ ]
 """,
             "media_note": """---
 created: {{ timestamp }}
@@ -423,7 +438,7 @@ tags: [media, {{ category | default:"reference" }}]
 
 # 📎 {{ title | default:"メディアメモ" }}
 
-{{ if source }}**ソース:** {{ source }}{{ endif }}  
+{{ if source }}**ソース:** {{ source }}{{ endif }}
 **タイプ:** {{ media_type | default:"unknown" }}
 
 ## 内容
@@ -492,7 +507,9 @@ tags: [review_required, {{ category | default:"general" }}]
         )
 
         # Generate filename based on context
-        timestamp = datetime.fromisoformat(context.get("timestamp", datetime.now().isoformat()))
+        timestamp = datetime.fromisoformat(
+            context.get("timestamp", datetime.now().isoformat())
+        )
         author = context.get("author", "unknown")
         filename = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{author}.md"
 

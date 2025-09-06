@@ -52,47 +52,64 @@ class TemplateValidator:
 
         # if-endif pairs (support both {{ if }} and {{#if}} syntax)
         if_count = len(re.findall(r"\{\{\s*#?if\s+", template))
-        endif_count = len(re.findall(r"\{\{\s*/?endif\s*\}\}", template)) + len(re.findall(r"\{\{\s*/if\s*\}\}", template))
+        endif_count = len(re.findall(r"\{\{\s*/?endif\s*\}\}", template)) + len(
+            re.findall(r"\{\{\s*/if\s*\}\}", template)
+        )
         if if_count != endif_count:
-            errors.append(f"Mismatched if/endif blocks: {if_count} if, {endif_count} endif")
+            errors.append(
+                f"Mismatched if/endif blocks: {if_count} if, {endif_count} endif"
+            )
 
         # each-endeach pairs
         each_count = len(re.findall(r"\{\{\s*each\s+", template))
-        endeach_count = len(re.findall(r"\{\{\s*endeach\s*\}\}", template)) + len(re.findall(r"\{\{\s*/each\s*\}\}", template))
+        endeach_count = len(re.findall(r"\{\{\s*endeach\s*\}\}", template)) + len(
+            re.findall(r"\{\{\s*/each\s*\}\}", template)
+        )
         if each_count != endeach_count:
-            errors.append(f"Mismatched each/endeach blocks: {each_count} each, {endeach_count} endeach")
+            errors.append(
+                f"Mismatched each/endeach blocks: {each_count} each, {endeach_count} endeach"
+            )
 
         return errors
 
     def _check_variables(self, template: str, context: dict[str, Any]) -> list[str]:
         """変数の存在をチェック"""
         errors = []
-        
+
         # Control flow keywords that should be ignored
         control_keywords = {
-            'if', 'endif', 'else', 'elif', 'each', 'endeach', 
-            'block', 'extends', 'include', 'with', 'endwith'
+            "if",
+            "endif",
+            "else",
+            "elif",
+            "each",
+            "endeach",
+            "block",
+            "extends",
+            "include",
+            "with",
+            "endwith",
         }
-        
+
         # Extract loop variables from each statements
         loop_variables = set()
-        each_pattern = r'\{\{\s*each\s+(\w+)\s+in\s+\w+\s*\}\}'
+        each_pattern = r"\{\{\s*each\s+(\w+)\s+in\s+\w+\s*\}\}"
         for match in re.finditer(each_pattern, template):
             loop_variables.add(match.group(1))
-        
+
         # Find all variables but exclude complex expressions and control keywords
         variable_pattern = r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}"
-        
+
         variables = re.findall(variable_pattern, template)
         for var in variables:
             # Skip control flow keywords
             if var in control_keywords:
                 continue
-                
+
             # Skip loop variables (defined within each loops)
             if var in loop_variables:
                 continue
-                
+
             # Skip variables that are part of complex expressions (with operators, pipes, etc.)
             if var not in context:
                 errors.append(f"Undefined variable: {var}")

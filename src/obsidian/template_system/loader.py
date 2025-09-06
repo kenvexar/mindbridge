@@ -40,7 +40,9 @@ class TemplateLoader:
             return self.template_inheritance_cache[content]
 
         # Check for new Handlebars-style extends syntax
-        extends_match = re.match(r'^\s*\{\{\s*extends\s+["\'](.+?)["\']\s*\}\}', content.strip())
+        extends_match = re.match(
+            r'^\s*\{\{\s*extends\s+["\'](.+?)["\']\s*\}\}', content.strip()
+        )
         if not extends_match:
             # Fall back to old comment style for backward compatibility
             extends_match = re.search(r"^<!-- extends: (.+) -->", content, re.MULTILINE)
@@ -57,42 +59,49 @@ class TemplateLoader:
             return content
 
         # Extract child content after extends directive
-        child_content = content[extends_match.end():].strip()
-        
+        child_content = content[extends_match.end() :].strip()
+
         # Extract blocks from child template
         child_blocks = self._extract_blocks(child_content)
-        
+
         # Process parent template with child blocks
         result_content = self._merge_parent_with_blocks(parent_content, child_blocks)
-        
+
         self.template_inheritance_cache[content] = result_content
         return result_content
 
     def _extract_blocks(self, content: str) -> dict[str, str]:
         """子テンプレートからブロックを抽出"""
         blocks = {}
-        
+
         # Find all block definitions: {{block "name"}} content {{/block}}
-        block_pattern = r'\{\{\s*block\s+["\'](\w+)["\']\s*\}\}(.*?)\{\{\s*/block\s*\}\}'
-        
+        block_pattern = (
+            r'\{\{\s*block\s+["\'](\w+)["\']\s*\}\}(.*?)\{\{\s*/block\s*\}\}'
+        )
+
         for match in re.finditer(block_pattern, content, re.DOTALL):
             block_name = match.group(1)
             block_content = match.group(2).strip()
             blocks[block_name] = block_content
-            
+
         return blocks
-    
-    def _merge_parent_with_blocks(self, parent_content: str, child_blocks: dict[str, str]) -> str:
+
+    def _merge_parent_with_blocks(
+        self, parent_content: str, child_blocks: dict[str, str]
+    ) -> str:
         """親テンプレートと子ブロックをマージ"""
+
         def replace_block(match):
             block_name = match.group(1)
             default_content = match.group(2).strip()
-            
+
             # Use child block content if available, otherwise use default
             return child_blocks.get(block_name, default_content)
-        
+
         # Replace block definitions with child content
-        block_pattern = r'\{\{\s*block\s+["\'](\w+)["\']\s*\}\}(.*?)\{\{\s*/block\s*\}\}'
+        block_pattern = (
+            r'\{\{\s*block\s+["\'](\w+)["\']\s*\}\}(.*?)\{\{\s*/block\s*\}\}'
+        )
         return re.sub(block_pattern, replace_block, parent_content, flags=re.DOTALL)
 
     async def _process_template_blocks(self, child: str, parent: str) -> str:
