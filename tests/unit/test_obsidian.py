@@ -126,31 +126,13 @@ class TestObsidianTemplates:
 
     async def test_template_context_creation(self) -> None:
         """Test template context creation"""
-        message_data = {
-            "metadata": {
-                "basic": {
-                    "id": 123456789,
-                    "author": {
-                        "name": "TestUser",
-                        "discriminator": "1234",
-                        "id": 987654321,
-                    },
-                    "channel": {"name": "test-channel", "id": 111111111},
-                    "guild": {"name": "Test Guild"},
-                },
-                "content": {"raw_content": "Test message content"},
-                "timing": {"created_at": {"iso": "2024-01-15T14:30:00"}},
-            },
-            "channel_info": {"name": "test-channel", "category": "capture"},
-        }
+        context = await self.template_engine.create_template_context(
+            content="Test message content", author="TestUser", channel="test-channel"
+        )
 
-        context = await self.template_engine.create_template_context(message_data)
-
-        assert context["message_id"] == 123456789
-        assert context["channel_name"] == "test-channel"
-        assert context["author_name"] == "TestUser"
+        assert context["channel"] == "test-channel"
+        assert context["author"] == "TestUser"
         assert context["content"] == "Test message content"
-        assert context["ai_processed"] == "false"
 
     async def test_template_rendering(self) -> None:
         """Test template rendering functionality"""
@@ -170,7 +152,9 @@ AI Summary: {{ai_summary}}
             "ai_summary": "Test summary",
         }
 
-        rendered = await self.template_engine.render_template(template_content, context)
+        rendered, _ = await self.template_engine.render_template(
+            template_content, context
+        )
 
         assert "# Test Note" in rendered
         assert "This is a test message" in rendered
@@ -179,18 +163,12 @@ AI Summary: {{ai_summary}}
     async def test_daily_note_generation(self) -> None:
         """Test daily note generation"""
         date = datetime(2024, 1, 15)
-        daily_stats = {
-            "total_messages": 25,
-            "processed_messages": 20,
-            "ai_processing_time_total": 15000,
-            "categories": {"work": 10, "learning": 5, "life": 5},
-        }
 
         # Create default templates first
         await self.template_engine.create_default_templates()
 
         daily_note = await self.template_engine.generate_daily_note(
-            date=date, daily_stats=daily_stats
+            template_name="daily_note", date=date
         )
 
         assert daily_note is not None

@@ -4,8 +4,7 @@ Health data AI analysis module
 
 from src.health_analysis.analyzer import HealthDataAnalyzer
 from src.health_analysis.integrator import HealthActivityIntegrator
-from src.health_analysis.scheduler import HealthAnalysisScheduler
-from src.obsidian.models import (
+from src.health_analysis.models import (
     ActivityCorrelation,
     AnalysisReport,
     AnalysisType,
@@ -15,6 +14,7 @@ from src.obsidian.models import (
     TrendAnalysis,
     WeeklyHealthSummary,
 )
+from src.health_analysis.scheduler import HealthAnalysisScheduler
 
 __all__ = [
     "HealthDataAnalyzer",

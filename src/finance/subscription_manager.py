@@ -258,7 +258,7 @@ class SubscriptionManager:
         """Calculate total monthly cost of all active subscriptions."""
         from decimal import Decimal
 
-        from src.obsidian.models import SubscriptionFrequency
+        from src.finance.models import SubscriptionFrequency
 
         active_subscriptions = await self.get_active_subscriptions()
         monthly_cost = Decimal(0)

@@ -1,7 +1,7 @@
 """Task management module for productivity tracking and scheduling."""
 
 from src.bot.commands import TaskCommands, setup_task_commands
-from src.obsidian.models import (
+from src.tasks.models import (
     Schedule,
     ScheduleType,
     Task,

@@ -4,10 +4,7 @@ from src.bot.commands import FinanceCommands, setup_finance_commands
 from src.finance.budget_manager import BudgetManager
 from src.finance.expense_manager import ExpenseManager
 from src.finance.message_handler import FinanceMessageHandler
-from src.finance.reminder_system import FinanceReminderSystem
-from src.finance.report_generator import FinanceReportGenerator
-from src.finance.subscription_manager import SubscriptionManager
-from src.obsidian.models import (
+from src.finance.models import (
     Budget,
     BudgetCategory,
     ExpenseRecord,
@@ -17,6 +14,9 @@ from src.obsidian.models import (
     SubscriptionFrequency,
     SubscriptionStatus,
 )
+from src.finance.reminder_system import FinanceReminderSystem
+from src.finance.report_generator import FinanceReportGenerator
+from src.finance.subscription_manager import SubscriptionManager
 
 __all__ = [
     "Subscription",

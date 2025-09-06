@@ -29,6 +29,7 @@ class DailyNoteIntegration(LoggerMixin):
         from src.obsidian.template_system import TemplateEngine
 
         self.template_engine = TemplateEngine(file_manager.vault_path)
+        self._templates_initialized = False
         self.logger.info("Daily integration initialized")
 
     async def add_activity_log_entry(
@@ -177,6 +178,11 @@ class DailyNoteIntegration(LoggerMixin):
     async def _get_or_create_daily_note(self, date: datetime) -> ObsidianNote | None:
         """デイリーノートを取得または作成"""
         try:
+            # Ensure templates are created first
+            if not self._templates_initialized:
+                await self.template_engine.create_default_templates()
+                self._templates_initialized = True
+
             # 既存のデイリーノートを検索
             filename = f"{date.strftime('%Y-%m-%d')}.md"
 
@@ -191,9 +197,10 @@ class DailyNoteIntegration(LoggerMixin):
                     return existing_note
 
             # 新しいデイリーノートを作成
-            # Convert datetime to string for new API
-            date_str = date.strftime("%Y-%m-%d")
-            new_note_dict = await self.template_engine.generate_daily_note(date_str)
+            # Fix: Use correct API - pass template name and date object
+            new_note_dict = await self.template_engine.generate_daily_note(
+                template_name="daily_note", date=date
+            )
 
             if not new_note_dict:
                 self.logger.error("Failed to generate daily note from template")

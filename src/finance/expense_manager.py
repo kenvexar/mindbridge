@@ -291,7 +291,7 @@ class ExpenseManager:
             daily_integrator = DailyNoteIntegrator(self.file_manager)
 
             if record_type == "expense":
-                from src.obsidian.models import ExpenseRecord
+                from src.finance.models import ExpenseRecord
 
                 assert isinstance(record, ExpenseRecord)
                 content = f"- **支出**: {record.description} - ¥{record.amount:,} ({record.category.value})"
