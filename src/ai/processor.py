@@ -1,5 +1,5 @@
 """
-AI処理統合システム
+AI 処理統合システム
 """
 
 import asyncio
@@ -21,7 +21,7 @@ from src.utils.mixins import LoggerMixin
 
 
 class AIProcessor(LoggerMixin):
-    """AI処理統合システム"""
+    """AI 処理統合システム"""
 
     def __init__(
         self,
@@ -29,10 +29,10 @@ class AIProcessor(LoggerMixin):
         settings: ProcessingSettings | None = None,
     ):
         """
-        AI処理システムの初期化
+        AI 処理システムの初期化
 
         Args:
-            model_config: AIモデル設定
+            model_config: AI モデル設定
             settings: 処理設定
         """
         self.settings = settings or ProcessingSettings()
@@ -46,7 +46,7 @@ class AIProcessor(LoggerMixin):
         self._is_processing = False
 
         self.logger.info(
-            "🔧 DEBUG: AI Processor initialized with settings",
+            "AI Processor initialized",
             cache_duration=self.settings.cache_duration_hours,
             model=self.model_config.model_name,
             min_text_length=self.settings.min_text_length,
@@ -74,15 +74,14 @@ class AIProcessor(LoggerMixin):
         min_length = 3  # self.settings.min_text_length の代わりに直接指定
         max_length = getattr(self.settings, "max_text_length", 8000)
 
-        self.logger.info(
-            "🔧 DEBUG: Checking text processability",
+        self.logger.debug(
+            "Checking text processability",
             text_length=text_length,
             min_length=min_length,
             max_length=max_length,
             text_preview=stripped_text[:100] + "..."
             if len(stripped_text) > 100
             else stripped_text,
-            original_settings_min=getattr(self.settings, "min_text_length", "unknown"),
         )
 
         # 空文字チェック
@@ -184,27 +183,17 @@ class AIProcessor(LoggerMixin):
         self, text: str, message_id: int, force_reprocess: bool = False
     ) -> AIProcessingResult:
         """
-        テキストのAI処理を実行
+        テキストの AI 処理を実行
 
         Args:
             text: 処理対象のテキスト
-            message_id: メッセージID
+            message_id: メッセージ ID
             force_reprocess: 強制再処理フラグ
 
         Returns:
-            AI処理結果
+            AI 処理結果
         """
         start_time = time.time()
-
-        # 🔧 DEBUG: 受信したテキストの詳細ログ
-        self.logger.info(
-            "🔧 DEBUG: process_text called",
-            message_id=message_id,
-            text_raw_length=len(text),
-            text_stripped_length=len(text.strip()),
-            text_raw_repr=repr(text[:100]),
-            text_stripped_repr=repr(text.strip()[:100]),
-        )
 
         # テキストの前処理
         cleaned_text = text.strip()
@@ -214,7 +203,7 @@ class AIProcessor(LoggerMixin):
         processable_result = self._check_text_processability(cleaned_text)
         if not processable_result["is_processable"]:
             self.logger.warning(
-                "🔧 DEBUG: Text not processable - returning error result",
+                "Text not processable",
                 message_id=message_id,
                 reason=processable_result["reason"],
                 text_length=len(cleaned_text),
@@ -230,7 +219,7 @@ class AIProcessor(LoggerMixin):
         if not force_reprocess:
             cached_result = self._get_from_cache(content_hash)
             if cached_result:
-                # メッセージIDを更新
+                # メッセージ ID を更新
                 cached_result.message_id = message_id
                 cached_result.processed_at = datetime.now()
 
@@ -239,7 +228,7 @@ class AIProcessor(LoggerMixin):
 
                 return cached_result
 
-        # AI処理実行
+        # AI 処理実行
         errors = []
         warnings: list[str] = []
         summary = None
@@ -254,7 +243,7 @@ class AIProcessor(LoggerMixin):
                 content_hash=content_hash,
             )
 
-            # 並列AI処理
+            # 並列 AI 処理
             if (
                 self.settings.enable_summary
                 or self.settings.enable_tags
@@ -445,12 +434,12 @@ class AIProcessor(LoggerMixin):
             text: 対象テキスト
 
         Returns:
-            埋め込みベクトル（失敗時はNone）
+            埋め込みベクトル（失敗時は None ）
         """
         try:
             self.logger.debug("Generating embeddings", text_length=len(text))
 
-            # Geminiクライアントで埋め込み生成
+            # Gemini クライアントで埋め込み生成
             if hasattr(self.gemini_client, "generate_embeddings"):
                 embedding = await self.gemini_client.generate_embeddings(text)
                 if embedding and isinstance(embedding, list):
@@ -471,14 +460,14 @@ class AIProcessor(LoggerMixin):
 
     async def summarize_url_content(self, url: str, content: str) -> str | None:
         """
-        URL内容を要約
+        URL 内容を要約
 
         Args:
-            url: 対象URL
+            url: 対象 URL
             content: ウェブページの内容
 
         Returns:
-            要約テキスト（失敗時はNone）
+            要約テキスト（失敗時は None ）
         """
         try:
             self.logger.debug(
@@ -491,10 +480,10 @@ class AIProcessor(LoggerMixin):
 URL: {url}
 
 内容:
-{content[:2000]}...  # 最初の2000文字のみ
+{content[:2000]}...  # 最初の 2000 文字のみ
 
 要約は以下の形式で：
-- 主要なポイントを3-5行で
+- 主要なポイントを 3-5 行で
 - 重要なキーワードを含める
 - 読みやすい文章で"""
 
@@ -535,7 +524,7 @@ URL: {url}
 
             # 関連ノート情報を整理
             note_info = []
-            for note in related_notes[:10]:  # 上位10件まで
+            for note in related_notes[:10]:  # 上位 10 件まで
                 title = note.get("title", "Untitled")
                 similarity = note.get("similarity_score", 0.0)
                 preview = note.get("content_preview", "")[:100]
@@ -552,14 +541,14 @@ URL: {url}
 {chr(10).join(note_info)}
 
 以下の条件で内部リンクを提案してください：
-1. 最も関連性の高い3-5個のノートを選択
+1. 最も関連性の高い 3-5 個のノートを選択
 2. [[ノート名]]の形式でリンクを作成
 3. 簡潔な説明を付ける
 4. 関連性が低いものは除外
 
 出力形式:
-- [[ノート名1]] - 説明
-- [[ノート名2]] - 説明"""
+- [[ノート名 1]] - 説明
+- [[ノート名 2]] - 説明"""
 
             response = await self.gemini_client.generate_summary(prompt)
 

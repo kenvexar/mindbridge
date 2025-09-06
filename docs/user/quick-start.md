@@ -1,200 +1,218 @@
-# 🚀 クイックスタートガイド
+# Quick Start Guide
 
-**10分でMindBridgeを動かす最短手順**
+**Get MindBridge running in 10 minutes**
 
-このガイドに従えば、10分以内にBotを起動してメモの自動保存を開始できます。
+This guide will have you up and running with automatic memo processing in under 10 minutes.
 
-## ⏱️ 時間配分
-- 準備: 2分
-- インストール: 3分
-- 設定: 3分
-- 起動・確認: 2分
+## ⏱️ Time Breakdown
+- Setup: 2 minutes
+- Installation: 3 minutes  
+- Configuration: 3 minutes
+- Launch & Test: 2 minutes
 
-## 📋 必要なもの
+## 📋 Prerequisites
 
-事前に以下を準備してください：
+Have these ready before starting:
 
-- [ ] Python 3.13以上がインストール済み
-- [ ] Discord Botトークン ([取得方法](#discord-bot-の作成))
-- [ ] Google Gemini APIキー ([取得方法](#gemini-api-キーの取得))
-- [ ] Obsidianボルト（または空のフォルダ）
-- [ ] Discordサーバー（ボットを追加できるもの）
+- [ ] Python 3.13+ installed
+- [ ] Discord Bot token ([how to get](#discord-bot-setup))
+- [ ] Google Gemini API key ([how to get](#gemini-api-setup))  
+- [ ] Obsidian vault (or empty folder)
+- [ ] Discord server (where you can add bots)
 
-## 🏃‍♂️ 最短手順
+## 🏃‍♂️ Quick Setup
 
-### 1. プロジェクトの取得 (1分)
+### 1. Get the Project (1 min)
 
 ```bash
-# リポジトリのクローン
+# Clone repository
 git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 
-# uvのインストール（まだの場合）
-curl -LsSf https://astral-sh/uv/install.sh | sh
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### 2. 依存関係のインストール (2分)
+### 2. Install Dependencies (2 min)
 
 ```bash
-# 必要なパッケージをインストール
+# Install required packages
 uv sync
 
-# インストール確認
-uv run python --version  # Python 3.13以上が表示されることを確認
+# Verify installation
+uv run python --version  # Should show Python 3.13+
 ```
 
-### 3. 最小限の設定 (3分)
+### 3. Minimal Configuration (3 min)
 
 ```bash
-# 設定ファイルをコピー
+# Copy configuration template
 cp .env.example .env
 ```
 
-`.env`ファイルを編集して以下の**4つの必須項目のみ**設定：
+Edit `.env` file with **4 required settings only**:
 
 ```env
-# 必須設定（これだけでOK！）
+# Required settings (that's all you need!)
 DISCORD_BOT_TOKEN=your_discord_bot_token_here
 DISCORD_GUILD_ID=your_discord_server_id_here
 GEMINI_API_KEY=your_gemini_api_key_here
-OBSIDIAN_VAULT_PATH=/Users/yourname/Documents/ObsidianVault
-
-# 基本チャンネル（1つのチャンネルIDでテスト可能）
-CHANNEL_INBOX=your_channel_id_here
+OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 ```
 
-### 4. テスト用Obsidianボルト作成 (30秒)
+### 4. Create Test Vault (30 sec)
 
 ```bash
-# テスト用ボルトフォルダを作成
+# Create test vault folder
 mkdir -p ./test-vault
-export OBSIDIAN_VAULT_PATH="$(pwd)/test-vault"
+mkdir -p ./test-vault/{00_Inbox,01_DailyNotes,02_Tasks,03_Ideas}
+mkdir -p ./test-vault/{10_Knowledge,11_Projects,12_Resources}
+mkdir -p ./test-vault/{20_Finance,21_Health}
+mkdir -p ./test-vault/{30_Archive,80_Attachments,90_Meta}
 
-# .envファイルを更新
+# Update .env with test vault path
 echo "OBSIDIAN_VAULT_PATH=$(pwd)/test-vault" >> .env
 ```
 
-### 5. ボット起動 (1分)
+### 5. Create Discord Channels (1 min)
+
+Create these **3 channels exactly** in your Discord server:
+```
+📝 memo           ← Main input channel
+🔔 notifications  ← System notifications  
+🤖 commands       ← Bot commands
+```
+
+**Important**: Use exact channel names (`memo`, `notifications`, `commands`) - bot auto-detects them!
+
+### 6. Launch Bot (1 min)
 
 ```bash
-# Botを起動
+# Start the bot
 uv run python -m src.main
 ```
 
-✅ **成功表示例：**
+✅ **Success indicators:**
 ```
-2025-08-17 10:30:15 - INFO - Bot is ready! Logged in as YourBot#1234
-2025-08-17 10:30:15 - INFO - Listening to guild: Your Server Name
-```
-
-### 6. 動作テスト (2分)
-
-1. 設定したDiscordチャンネルに移動
-2. 以下のメッセージを投稿：
-
-```
-テスト投稿：今日は良い天気です。プログラミングの勉強をします。
+INFO: Discord bot starting...
+INFO: Found memo channel: 123456789
+INFO: Found notifications channel: 987654321  
+INFO: Found commands channel: 456789123
+INFO: Bot is ready! Logged in as YourBot#1234
 ```
 
-3. 約10-30秒後、`test-vault`フォルダに新しいMarkdownファイルが作成されることを確認
-4. Discordで`/status`コマンドを実行してボットの状態を確認
+### 7. Test Functionality (2 min)
 
-## 🎉 完了！
+1. Go to your `#memo` channel
+2. Post this message:
 
-おめでとうございます！MindBridgeが正常に動作しています。
+```
+Test post: Beautiful weather today. Going to study some programming.
+```
 
-これで以下のことが自動化されます：
-- Discordメッセージの自動AI分析
-- 構造化されたMarkdownノートの生成
-- Obsidianボルトへの自動保存
-- 内容に基づく適切なフォルダ分類
+3. Wait 10-30 seconds, check `test-vault` folder for new Markdown file
+4. In `#commands` channel, run `/status` to check bot status
 
-## 📚 次のステップ
+## 🎉 Success!
 
-### すぐに使える機能
-- **音声メモ**: 音声ファイルをアップロードすると自動文字起こし
-- **URL解析**: URLを含むメッセージで自動コンテンツ要約
-- **コマンド**: `/help`でコマンド一覧を確認
+Congratulations! MindBridge is now running and will automatically:
+- Analyze Discord messages with AI
+- Generate structured Markdown notes  
+- Save to Obsidian vault with AI categorization
+- Organize content into appropriate folders
 
-### さらに詳しく学ぶ
-- **[基本的な使い方](basic-usage.md)** - 日常的な使用方法
-- **[詳細インストール](installation.md)** - 全機能を使うための設定
-- **[コマンドリファレンス](commands-reference.md)** - 全コマンド一覧
+## 📚 Next Steps
 
-## 🆘 APIキーの取得方法
+### Immediate Features to Try
+- **Voice memos**: Upload audio files to `#memo` for auto-transcription
+- **URL analysis**: Post URLs for automatic content summarization
+- **Commands**: Try `/help` in `#commands` channel
 
-### Discord Bot の作成
+### Learn More
+- **[Basic Usage](basic-usage.md)** - Day-to-day usage guide
+- **[Installation Guide](installation.md)** - Complete setup for all features
+- **[Commands Reference](commands-reference.md)** - Full command list
 
-1. [Discord Developer Portal](https://discord.com/developers/applications)にアクセス
-2. "New Application"をクリック
-3. アプリケーション名を入力（例: "My Memo Bot"）
-4. 左メニューから"Bot"を選択
-5. "Add Bot"をクリック
-6. "Token"をコピー（これが`DISCORD_BOT_TOKEN`）
+## 🆘 Getting API Keys
 
-**ボットをサーバーに追加：**
-1. 左メニューから"OAuth2" → "URL Generator"
-2. Scopesで"bot"と"applications.commands"を選択
-3. Bot Permissionsで以下を選択：
+### Discord Bot Setup
+
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click "New Application"
+3. Enter application name (e.g., "MindBridge Bot")
+4. Go to "Bot" section
+5. Click "Add Bot"
+6. Copy the "Token" (this is your `DISCORD_BOT_TOKEN`)
+
+**Add bot to server:**
+1. Go to "OAuth2" → "URL Generator"
+2. Select scopes: "bot" and "applications.commands"
+3. Select bot permissions:
    - Send Messages
    - Read Message History
    - Attach Files
    - Use Slash Commands
-4. 生成されたURLでボットをサーバーに招待
+   - Message Content Intent (in Bot settings)
+4. Use generated URL to invite bot
 
-### Gemini API キーの取得
+### Gemini API Setup
 
-1. [Google AI Studio](https://aistudio.google.com/)にアクセス
-2. "Get API key"をクリック
-3. "Create API key in new project"を選択
-4. APIキーをコピー（これが`GEMINI_API_KEY`）
+1. Visit [Google AI Studio](https://aistudio.google.com/)
+2. Click "Get API key"
+3. Select "Create API key in new project"
+4. Copy the API key (this is your `GEMINI_API_KEY`)
 
-### チャンネルIDの取得
+### Get Server ID
 
-1. Discordで開発者モードを有効化：
-   - 設定 → 詳細設定 → 開発者モード を有効
-2. チャンネルを右クリック → "IDをコピー"
-3. コピーしたIDを`CHANNEL_INBOX`に設定
+1. Enable Developer Mode in Discord:
+   - Settings → Advanced → Developer Mode
+2. Right-click your server name → "Copy ID"
+3. This is your `DISCORD_GUILD_ID`
 
-## ❗ よくある問題
+## ❗ Common Issues
 
-**ボットが反応しない**
+**Bot doesn't respond:**
 ```bash
-# ボットのログを確認
+# Check bot logs
 tail -f logs/bot.log
 
-# 設定を確認
+# Verify configuration
 cat .env | grep -E "(DISCORD_|GEMINI_|OBSIDIAN_)"
 ```
 
-**権限エラー**
+**Permission errors:**
 ```bash
-# Obsidianボルトの権限確認
+# Check vault permissions
 ls -la ./test-vault
 chmod 755 ./test-vault
 ```
 
-**依存関係エラー**
+**Dependency errors:**
 ```bash
-# 依存関係を再インストール
+# Reinstall dependencies
 uv sync --reinstall
 ```
 
-## 🔧 モックモードでのテスト
+**Bot can't find channels:**
+- Verify exact channel names: `memo`, `notifications`, `commands`
+- Check bot has permission to see channels
+- Verify `DISCORD_GUILD_ID` is correct
 
-実際のAPIキーがない場合は、モックモードでテストできます：
+## 🧪 Mock Mode Testing
+
+If you don't have API keys yet, test with mock mode:
 
 ```bash
-# モックモードで起動（APIキー不要）
+# Run in mock mode (no API keys needed)
 ENVIRONMENT=development ENABLE_MOCK_MODE=true uv run python -m src.main
 ```
 
-## 📞 サポート
+## 📞 Support
 
-問題が解決しない場合：
-- [トラブルシューティング](../operations/troubleshooting.md)を確認
-- [GitHub Issues](https://github.com/kenvexar/mindbridge/issues)で報告
+If you run into issues:
+- Check [Troubleshooting Guide](../operations/troubleshooting.md)
+- Report problems on [GitHub Issues](https://github.com/kenvexar/mindbridge/issues)
 
 ---
 
-このクイックスタートで基本的な動作を確認できたら、[基本的な使い方](basic-usage.md)で詳細な機能を学んでください。
+Once you've confirmed basic functionality with this quick start, explore the [Basic Usage Guide](basic-usage.md) to learn about all features.

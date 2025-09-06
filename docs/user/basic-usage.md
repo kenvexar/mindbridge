@@ -1,359 +1,358 @@
-# 📖 基本的な使い方
+# Basic Usage Guide
 
-MindBridgeの日常的な使用方法とベストプラクティスを説明します。
+Daily usage patterns and best practices for MindBridge.
 
-## 📋 目次
+## Table of Contents
 
-1. [基本的なメモ入力](#基本的なメモ入力)
-2. [チャンネル別の使い方](#チャンネル別の使い方)
-3. [音声メモの活用](#音声メモの活用)
-4. [デイリーノート統合](#デイリーノート統合)
-5. [よく使うコマンド](#よく使うコマンド)
-6. [Obsidianでの確認](#obsidianでの確認)
-7. [効果的な使い方のコツ](#効果的な使い方のコツ)
+1. [Basic Memo Input](#basic-memo-input)
+2. [AI Auto-Classification](#ai-auto-classification)
+3. [Voice Memo Processing](#voice-memo-processing)
+4. [Common Commands](#common-commands)
+5. [Obsidian Integration](#obsidian-integration)
+6. [Best Practices](#best-practices)
 
-## 📝 基本的なメモ入力
+## 📝 Basic Memo Input
 
-### シンプルなテキストメモ
+### Simple Text Messages
 
-指定したチャンネルにメッセージを投稿するだけで、自動的にObsidianに保存されます。
+Post any message to the `#memo` channel and it will be automatically processed and saved to Obsidian.
 
-**例：**
+**Example:**
 ```
-#inbox チャンネルに投稿:
-今日のミーティングで新しいプロジェクトについて話し合った。来週までに要件定義書を作成する必要がある。UIはモダンなデザインにしたい。
+Posted to #memo channel:
+Had a great meeting about the new project today. Need to create requirements document by next week. Want to use modern UI design.
 ```
 
-**結果：**
-- AIが自動的に要約・タグ付け・分類を実行
-- Obsidianの適切なフォルダ（この場合`01_Projects/`）に自動保存
-- YAMLフロントマターとMarkdown形式で構造化
+**Result:**
+- AI automatically summarizes, tags, and categorizes content
+- Saves to appropriate Obsidian folder (e.g., `11_Projects/`)
+- Structured with YAML frontmatter and Markdown
 
-**保存されるファイル例:**
+**Generated file example:**
 ```markdown
 ---
-title: "プロジェクト計画会議メモ"
-tags: ["project", "meeting", "ui-design"]
+title: "Project Planning Meeting"
+tags: ["project", "meeting", "ui-design", "requirements"]
 category: "Projects"
-created: "2025-08-17T10:30:00Z"
+created: "2025-01-15T10:30:00Z"
+source: "discord"
 ---
 
-# プロジェクト計画会議メモ
+# Project Planning Meeting
 
-## 要約
-新プロジェクトの計画会議で要件定義とUIデザインについて議論
+## Summary
+Discussion about new project planning with focus on requirements and modern UI design.
 
-## 内容
-今日のミーティングで新しいプロジェクトについて話し合った。来週までに要件定義書を作成する必要がある。UIはモダンなデザインにしたい。
+## Content
+Had a great meeting about the new project today. Need to create requirements document by next week. Want to use modern UI design.
 
-## 抽出されたタスク
-- [ ] 要件定義書の作成（期限: 来週）
+## Extracted Tasks
+- [ ] Create requirements document (due: next week)
 
-## 関連項目
-- プロジェクト計画
-- UIデザイン
+## Related Keywords
+- Project planning
+- UI design
+- Requirements documentation
 ```
 
-### URLの自動処理
+### URL Processing
 
-URLを含むメッセージを投稿すると、ウェブページの内容も自動で分析・要約されます。
+Post URLs to `#memo` and the web content will be automatically fetched and summarized.
 
-**例：**
+**Example:**
 ```
-#inbox チャンネルに投稿:
-面白い記事を見つけた https://example.com/ai-trends-2024
-後で詳しく読んで、プロジェクトに活かせそうな部分をメモしたい。
-```
-
-**結果：**
-- URLの内容を自動取得・要約
-- メッセージと組み合わせて構造化
-- 関連性の高いタグとカテゴリを自動付与
-
-## 📺 チャンネル別の使い方
-
-### 📝 #inbox - 汎用メモ
-
-**用途:** 一般的なメモ、アイデア、学習内容
-
-**使用例:**
-```
-学習メモ：Pythonの非同期処理について調べた。
-async/awaitの使い方がようやく理解できた。
-次はコルーチンとタスクの違いを詳しく学ぶ。
+Posted to #memo:
+Found interesting article https://example.com/ai-trends-2025
+Want to read this later and see if we can apply any insights to our project.
 ```
 
-### 🎤 #voice - 音声メモ
+**Result:**
+- URL content automatically fetched and summarized
+- Combined with your message for context
+- Auto-tagged based on content analysis
 
-**用途:** 音声ファイルのアップロードと自動文字起こし
+## 🤖 AI Auto-Classification
 
-**対応フォーマット:** MP3, WAV, FLAC, OGG, M4A, WEBM
+MindBridge uses AI to automatically categorize all content posted to `#memo`. No need to choose channels manually!
 
-**使用手順:**
-1. `#voice`チャンネルを開く
-2. 音声ファイルをドラッグ&ドロップまたは添付
-3. 必要に応じてコメントを追加
+### Classification Examples
 
-**例:**
+**Finance Detection:**
 ```
-音声ファイル: meeting_notes.mp3
-コメント: プロジェクト進捗会議の議事録
-```
-
-### 💰 #money - 家計管理
-
-**用途:** 支出・収入の記録
-
-**使用例:**
-```
-今日の支出：
-- 昼食 1200円（レストラン）
-- コンビニ 800円（日用品）
-- 交通費 400円（電車）
+Posted: "Lunch $15 at the cafe"
+→ Saved to: 20_Finance/
+→ Tags: ["expense", "food", "daily-spending"]
 ```
 
-**または直接コマンド:**
+**Task Detection:**
 ```
-/add_expense amount:1200 description:"昼食" category:"食費"
-```
-
-### 📋 #tasks - タスク管理
-
-**用途:** タスクの作成・追跡
-
-**使用例:**
-```
-新しいタスク：
-- [ ] 要件定義書のレビュー（期限: 明日）
-- [ ] チームミーティングの準備
-- [x] コードレビューの完了
+Posted: "TODO: finish the quarterly report by Friday"
+→ Saved to: 02_Tasks/
+→ Tags: ["task", "deadline", "report"]
 ```
 
-**または直接コマンド:**
+**Health Tracking:**
 ```
-/add_task title:"要件定義書レビュー" due_date:"2025-08-18" priority:"high"
-```
-
-## 🎤 音声メモの活用
-
-### 効果的な音声メモのコツ
-
-1. **明瞭に話す:** 認識精度を上げるため
-2. **静かな環境:** ノイズを避ける
-3. **適切な長さ:** 1-5分程度が最適
-4. **要点を整理:** 話す前に要点をまとめる
-
-### 使用シナリオ
-
-**通勤時間の活用:**
-```
-「今日の振り返りです。プロジェクトAのタスクは順調に進んでいます。
-課題は新しいAPIの統合部分で、ドキュメントが不足している点です。
-明日はチームと相談して解決策を検討します。」
+Posted: "Ran 5km this morning, feeling great!"
+→ Saved to: 21_Health/
+→ Tags: ["exercise", "running", "wellness"]
 ```
 
-**アイデアの即座な記録:**
+**Learning Notes:**
 ```
-「新しいアプリのアイデアです。ユーザーの行動パターンを学習して、
-最適なワークフローを提案するAIアシスタント。
-機械学習とユーザビリティの組み合わせがポイントになりそうです。」
-```
-
-## 📅 デイリーノート統合
-
-### Activity Logの自動記録
-
-`#activity-log`チャンネル（レガシー）または適切なチャンネルの投稿は、自動的にその日のデイリーノートに追記されます。
-
-**例:**
-```
-#activity-log チャンネルに投稿:
-09:00 プロジェクト会議参加 - 新機能の仕様確認
-11:30 要件定義書のレビュー完了
-14:00 新技術の調査開始 - React Server Components
-16:30 コードレビュー実施
+Posted: "Python async/await finally makes sense after reading the docs"
+→ Saved to: 10_Knowledge/
+→ Tags: ["programming", "python", "learning"]
 ```
 
-**デイリーノートへの反映:**
-```markdown
-# 2025-08-17
-
-## Activities
-### 09:00 - プロジェクト会議
-- 新機能の仕様確認
-
-### 11:30 - ドキュメント作業
-- 要件定義書のレビュー完了
-
-### 14:00 - 技術調査
-- React Server Components について調査
-
-### 16:30 - コードレビュー
-- チームメンバーのコードレビュー実施
+**Daily Reflection:**
+```
+Posted: "Great productive day today, completed most of my goals"
+→ Saved to: 01_DailyNotes/
+→ Tags: ["reflection", "productivity", "daily"]
 ```
 
-### Daily Tasksの管理
+### Full Folder Mapping
 
-`#daily-tasks`チャンネルでタスクを管理できます。
+| Content Type | Example | → Folder |
+|--------------|---------|----------|
+| Expenses, budgets | "Coffee $5", "Monthly budget review" | 20_Finance |
+| Tasks, TODOs | "TODO: call client", "Project deadline Friday" | 02_Tasks |
+| Health, fitness | "Gym workout", "Weight 70kg" | 21_Health |
+| Learning, study | "JavaScript notes", "Course completed" | 10_Knowledge |
+| Work projects | "Sprint planning", "Client meeting notes" | 11_Projects |
+| Daily thoughts | "Today's reflection", "Morning thoughts" | 01_DailyNotes |
+| Ideas, inspiration | "App idea", "Creative concept" | 03_Ideas |
+| Reference materials | "Useful tutorial", "Documentation link" | 12_Resources |
+| General notes | "Random thought", "Miscellaneous memo" | 00_Inbox |
 
-**例:**
+## 🎤 Voice Memo Processing
+
+Upload audio files to `#memo` for automatic transcription and processing.
+
+**Supported formats:** MP3, WAV, FLAC, OGG, M4A, WEBM
+
+### Usage Process
+
+1. Open `#memo` channel
+2. Drag & drop or attach audio file
+3. Optionally add text comment
+4. Wait for automatic processing
+
+**Example:**
 ```
-#daily-tasks チャンネルに投稿:
-今日のタスク：
-- [ ] 要件定義書の作成
-- [ ] 顧客への進捗報告メール
-- [x] コードレビューの実施
-- [ ] 新機能の技術調査
+Upload: meeting_notes.mp3
+Comment: "Team standup meeting notes"
 ```
 
-## 🎯 よく使うコマンド
+**Processing:**
+- Audio transcribed to text
+- Transcription combined with your comment
+- AI categorizes based on content
+- Saved to appropriate folder (e.g., 11_Projects if work-related)
 
-### 基本コマンド
+### Voice Memo Tips
+
+1. **Speak clearly:** Better recognition accuracy
+2. **Quiet environment:** Reduce background noise
+3. **Optimal length:** 1-5 minutes per file
+4. **Organize thoughts:** Brief outline before recording
+
+**Good voice memo examples:**
+```
+"Today's reflection: Project A is going well. 
+Challenge is API integration - docs are unclear. 
+Tomorrow I'll discuss with team for solutions."
+
+"New app idea: AI assistant that learns user behavior 
+and suggests optimal workflows. Could combine ML 
+with good UX design principles."
+```
+
+## 🎯 Common Commands
+
+### Basic Commands
+
+Use these in the `#commands` channel:
 
 ```bash
-/help                    # ヘルプ情報の表示
-/status                  # ボットの動作状況を確認
-/ping                    # 接続テスト
+/help                    # Show help information
+/status                  # Check bot operational status
+/ping                    # Connection test
 ```
 
-### Obsidian管理
+### Obsidian Management
 
 ```bash
-/search_notes キーワード   # Obsidian内のノートを検索
-/vault_stats             # Vault統計情報の表示
-/daily_note              # 今日のデイリーノートを表示・作成
+/search_notes keyword     # Search notes in Obsidian
+/vault_stats             # Show vault statistics
+/daily_note              # Show/create today's daily note
 ```
 
-**検索例:**
+**Search examples:**
 ```bash
-/search_notes プロジェクト    # 「プロジェクト」を含むノートを検索
-/search_notes Python AI    # 「Python」と「AI」両方を含むノートを検索
+/search_notes project     # Find notes containing "project"
+/search_notes python ai   # Find notes with both "python" AND "ai"
 ```
 
-### AI機能
+### AI Features
 
 ```bash
-/process text:"分析したいテキスト"     # テキストの手動AI処理
-/summarize text:"長い文章"           # 長文の要約生成
-/analyze_url url:"https://..."      # URL内容の分析
+/process text:"analyze this text"        # Manual AI processing
+/summarize text:"long text content"      # Generate summary
+/analyze_url url:"https://example.com"   # Analyze URL content
 ```
 
-### 金融管理
+### Finance Management
 
 ```bash
-/add_expense amount:1500 description:"書籍購入" category:"教育"
-/expense_report period:monthly                          # 月次支出レポート
+/add_expense amount:1500 description:"book purchase" category:"education"
+/expense_report period:monthly           # Monthly expense report
 /add_subscription name:"Netflix" amount:1200 billing_date:15
 ```
 
-### タスク管理
+### Task Management
 
 ```bash
-/add_task title:"新機能実装" priority:high due_date:"2025-08-20"
-/list_tasks status:pending                             # 未完了タスク一覧
-/complete_task task_id:123 notes:"実装完了"
+/add_task title:"implement feature" priority:high due_date:"2025-01-20"
+/list_tasks status:pending              # List incomplete tasks
+/complete_task task_id:123 notes:"implementation done"
 ```
 
-## 📚 Obsidianでの確認
+## 📚 Obsidian Integration
 
-### フォルダ構造
+### Folder Structure
 
-ボットによって以下のような構造でファイルが自動分類されます：
+Content is automatically organized into this structure:
 
 ```
 Obsidian Vault/
-├── 00_Inbox/                # 未分類・新着メモ
-├── 01_Projects/             # プロジェクト関連
-├── 02_DailyNotes/           # デイリーノート
+├── 00_Inbox/              # Uncategorized, general notes
+├── 01_DailyNotes/         # Daily reflections, logs
 │   └── 2025/
-│       └── 08-August/
-│           └── 2025-08-17.md
-├── 03_Ideas/                # アイデア・発想
-├── 04_Archive/              # アーカイブ済み
-├── 05_Resources/            # リソース・参考資料
-├── 06_Finance/              # 家計・金融関連
-├── 07_Tasks/                # タスク管理
-├── 08_Health/               # 健康関連（Garmin連携）
-└── 99_Meta/                 # メタデータ・テンプレート
+│       └── 01-January/
+│           └── 2025-01-15.md
+├── 02_Tasks/              # Task management
+├── 03_Ideas/              # Ideas, inspiration
+├── 10_Knowledge/          # Learning content, study notes
+├── 11_Projects/           # Work projects, meetings
+├── 12_Resources/          # Reference materials, links
+├── 20_Finance/            # Expenses, budgets, finance
+├── 21_Health/             # Health tracking, fitness
+├── 30_Archive/            # Completed items
+├── 80_Attachments/        # Files, images, documents
+└── 90_Meta/               # Templates, metadata
 ```
 
-### ノートの特徴
+### Note Structure
 
-**YAMLフロントマター:**
+**YAML Frontmatter:**
 ```yaml
 ---
-title: "ノートタイトル"
+title: "Note Title"
 tags: ["tag1", "tag2", "tag3"]
 category: "Projects"
-created: "2025-08-17T10:30:00Z"
+created: "2025-01-15T10:30:00Z"
 source: "discord"
-channel: "inbox"
+channel: "memo"
 ---
 ```
 
-**構造化された本文:**
-- AI生成の要約
-- 元の内容
-- 抽出されたタスク（該当する場合）
-- 関連キーワード
-- 内部リンク（関連ノートがある場合）
+**Structured content:**
+- AI-generated summary
+- Original content
+- Extracted tasks (if applicable)
+- Related keywords
+- Internal links (when relevant notes exist)
 
-## 💡 効果的な使い方のコツ
+### Daily Note Integration
 
-### 1. タグの活用
+Messages posted to `#memo` are automatically aggregated into daily notes when appropriate.
 
-メッセージにハッシュタグを含めることで、より効果的な分類が可能です。
+**Example daily note (`01_DailyNotes/2025/01-January/2025-01-15.md`):**
+```markdown
+# 2025-01-15
+
+## Summary
+Productive day with project meetings and learning activities.
+
+## Key Activities
+- Project planning session
+- Python async/await study
+- Team standup meeting
+
+## Notes Created Today
+- [[Project Planning Meeting]]
+- [[Python Learning Notes]]
+- [[Team Standup - Sprint Planning]]
+
+## Financial Activity
+- Lunch expense: $15
+- Book purchase: $25
+
+## Task Updates
+- ✅ Complete quarterly report
+- 📝 New: Create requirements document (due: next week)
+```
+
+## 💡 Best Practices
+
+### 1. Effective Tagging
+
+Include hashtags in your messages for better categorization:
 
 ```
-今日の#読書 記録。#プログラミング の本を読んで、#アルゴリズム について新しい発見があった。
-#データ構造 の理解も深まった。明日は #実装 に取り組みたい。
+Today's #reading notes. Learned about #algorithms from this #programming 
+book. The #datastructures chapter was especially helpful. 
+Tomorrow I'll work on #implementation.
 ```
 
-### 2. 音声メモの効果的な活用
+### 2. Voice Memo Scenarios
 
-- **通勤時間**: 移動中のアイデア記録
-- **散歩中**: リラックス状態での発想
-- **会議後**: 即座の振り返り記録
-- **学習後**: 学んだ内容の口頭整理
+- **Commuting:** Record ideas during travel
+- **Walking:** Capture thoughts during walks  
+- **Post-meeting:** Immediate reflection and notes
+- **After learning:** Verbal summary of new concepts
 
-### 3. 定期的なVault整理
+### 3. Context Clarity
+
+Provide background information for better AI analysis:
+
+```
+[Project X Meeting Notes]
+Progress review showed frontend implementation is 1 day behind schedule.
+Issue is API spec changes. Team will discuss solutions tomorrow.
+
+[Learning Notes - Python Async]
+Studied asyncio library usage today.
+Key insight: async/await concepts are crucial. 
+Code examples helped clarify the concepts.
+```
+
+### 4. Regular Maintenance
 
 ```bash
-# 週に一度実行推奨
-/vault_stats              # 統計確認
-/search_notes 重複         # 重複ノートの確認
-/daily_note action:show    # デイリーノートの確認
+# Recommended weekly routine
+/vault_stats              # Check statistics
+/search_notes duplicate   # Find duplicate notes  
+/daily_note               # Review daily note
 ```
 
-### 4. コンテキストの明記
+### 5. Continuous Usage Patterns
 
-AIがより正確に分析できるよう、背景情報を含める：
+- **Morning:** `/daily_note` to check today's activities
+- **Ongoing:** Post thoughts immediately to `#memo`
+- **Evening:** `/vault_stats` to review day's captures
+- **Weekly:** `/expense_report period:weekly` for finance review
 
-```
-【プロジェクトX会議メモ】
-今日の進捗確認で、フロントエンド実装が予定より1日遅れていることが判明。
-原因はAPI仕様の変更への対応。明日チームで解決策を検討する。
+## 🔧 Customization
 
-【学習メモ - Python非同期処理】
-asyncioライブラリの使い方を学習。
-特にasync/awaitの概念が重要。実際のコード例で理解が深まった。
-```
+### Template Adjustments
 
-### 5. 継続的な使用
-
-- **毎朝**: `/daily_note`で今日のノート確認
-- **随時**: 思いついたことを即座にDiscordに投稿
-- **夕方**: `/vault_stats`で一日の記録を確認
-- **週末**: `/expense_report period:weekly`で週次レビュー
-
-## 🔧 カスタマイズ
-
-### テンプレートの調整
-
-Obsidianの`99_Meta/Templates/`フォルダでテンプレートをカスタマイズできます：
+Customize templates in Obsidian's `90_Meta/Templates/` folder:
 
 ```markdown
-# カスタムメモテンプレート
+# Custom Memo Template
 ---
 title: "{{title}}"
 tags: {{tags}}
@@ -364,54 +363,48 @@ priority: "{{priority}}"
 
 # {{title}}
 
-## 📝 概要
+## 📝 Overview
 {{summary}}
 
-## 📋 詳細
+## 📋 Details
 {{content}}
 
-## 🔗 関連リンク
+## 🔗 Related Links
 {{related_links}}
 
-## 📌 アクションアイテム
+## 📌 Action Items
 {{action_items}}
 ```
 
-### チャンネルの追加
+## 🆘 Troubleshooting
 
-新しい用途のチャンネルを追加する場合：
+### Common Issues
 
-1. Discordでチャンネル作成
-2. チャンネルIDを取得
-3. `.env`ファイルに追加
-4. ボット再起動
+**Q: Messages not being processed**
+A: Check channel names (`memo`, `notifications`, `commands`) and bot permissions
 
-## 🆘 困ったときは
+**Q: Voice recognition accuracy is poor**  
+A: Use quiet environment, speak clearly, break into shorter segments
 
-### よくある質問
+**Q: Classification not as expected**
+A: Include more specific context and background information
 
-**Q: メッセージが処理されない**
-A: チャンネル設定とボット権限を確認してください
+**Q: Can't find generated notes**
+A: Use `/search_notes` command or check `/vault_stats` for file locations
 
-**Q: 音声認識の精度が低い**
-A: 静かな環境で明瞭に話し、短時間に分割してください
+### Support
 
-**Q: 分類が期待と違う**
-A: より具体的な内容とコンテキストを含めてください
+- Check [Troubleshooting Guide](../operations/troubleshooting.md)
+- Report issues on [GitHub Issues](https://github.com/kenvexar/mindbridge/issues)
 
-### サポート
+## 📚 Next Steps
 
-- [トラブルシューティング](../operations/troubleshooting.md)を確認
-- [GitHub Issues](https://github.com/kenvexar/mindbridge/issues)で問題を報告
+After mastering basic usage:
 
-## 📚 次のステップ
-
-基本的な使い方をマスターしたら：
-
-1. **[コマンドリファレンス](commands-reference.md)** - 全コマンドを確認
-2. **[高度な機能](advanced-features.md)** - より高度な機能を活用
-3. **[設定オプション](../operations/configuration.md)** - 詳細なカスタマイズ
+1. **[Commands Reference](commands-reference.md)** - Complete command list
+2. **[Installation Guide](installation.md)** - Advanced setup options
+3. **[Development Guide](../developer/development-guide.md)** - Customization and development
 
 ---
 
-このガイドに従って、MindBridgeを効果的に活用してください。質問があれば遠慮なくサポートチャンネルで相談してください。
+Follow this guide to use MindBridge effectively. Post any questions in the support channels.

@@ -27,11 +27,11 @@ from src.utils.mixins import LoggerMixin
 
 
 class RetryableAPIError(Exception):
-    """リトライ可能なAPIエラー"""
+    """リトライ可能な API エラー"""
 
 
 class NonRetryableAPIError(Exception):
-    """リトライ不可能なAPIエラー"""
+    """リトライ不可能な API エラー"""
 
 
 class SpeechProcessor(LoggerMixin):
@@ -53,7 +53,7 @@ class SpeechProcessor(LoggerMixin):
         self.transcription_engines: list[dict[str, Any]] = []
         self._setup_transcription_engines()
 
-        # API利用可能性フラグ
+        # API 利用可能性フラグ
         self.api_available = (
             len(
                 [
@@ -90,7 +90,7 @@ class SpeechProcessor(LoggerMixin):
             )
 
         # ローカル Whisper モデル（簡易フォールバック）
-        # 注意: _transcribe_with_local_whisperメソッドは未実装のため、コメントアウト
+        # 注意: _transcribe_with_local_whisper メソッドは未実装のため、コメントアウト
         # if self._check_local_whisper_availability():
         #     self.transcription_engines.append({
         #         'name': 'local_whisper',
@@ -107,10 +107,10 @@ class SpeechProcessor(LoggerMixin):
             self.logger.warning("文字起こしエンジンが利用できません")
 
     def _check_google_speech_api_availability(self) -> bool:
-        """グーグルSpeech API の利用可能性を確認"""
+        """グーグル Speech API の利用可能性を確認"""
         try:
             settings = get_settings()
-            # APIキーまたは認証情報の確認
+            # API キーまたは認証情報の確認
             if (
                 hasattr(settings, "google_cloud_speech_api_key")
                 and settings.google_cloud_speech_api_key
@@ -206,7 +206,7 @@ class SpeechProcessor(LoggerMixin):
                 format=audio_format.value,
             )
 
-            # API制限の確認
+            # API 制限の確認
             if self.usage_tracker.is_limit_exceeded:
                 return await self._handle_fallback(
                     file_data=file_data,
@@ -219,7 +219,7 @@ class SpeechProcessor(LoggerMixin):
             # 音声の長さを推定（概算）
             estimated_duration = self._estimate_audio_duration(file_data, audio_format)
 
-            # API利用可能性の確認
+            # API 利用可能性の確認
             if not self.api_available:
                 return await self._handle_fallback(
                     file_data=file_data,
@@ -229,7 +229,7 @@ class SpeechProcessor(LoggerMixin):
                     start_time=start_time,
                 )
 
-            # Google Cloud Speech-to-Text APIで文字起こし
+            # Google Cloud Speech-to-Text API で文字起こし
             transcription_result = await self._transcribe_audio(file_data, audio_format)
 
             processing_time = int((datetime.now() - start_time).total_seconds() * 1000)
@@ -275,13 +275,6 @@ class SpeechProcessor(LoggerMixin):
             extension = Path(filename).suffix.lower().lstrip(".")
             detected_format = self.supported_formats.get(extension)
 
-            # 🔧 DEBUG: フォーマット検出結果を詳しくログ出力
-            self.logger.info(
-                f"🎵 DEBUG: _detect_audio_format('{filename}') -> "
-                f"extension='{extension}', format={detected_format}, "
-                f"supported_formats={list(self.supported_formats.keys())}"
-            )
-
             return detected_format
         except Exception as e:
             self.logger.warning(
@@ -300,7 +293,7 @@ class SpeechProcessor(LoggerMixin):
 
             # フォーマットに基づく概算（非常に大まかな推定）
             if audio_format in [AudioFormat.MP3, AudioFormat.M4A]:
-                # 圧縮形式: 1MBあたり約1分程度
+                # 圧縮形式: 1MB あたり約 1 分程度
                 estimated_duration = size_mb * 60
             elif audio_format in [AudioFormat.WAV, AudioFormat.FLAC]:
                 # 非圧縮形式: より短い
@@ -310,7 +303,7 @@ class SpeechProcessor(LoggerMixin):
                 estimated_duration = size_mb * 30
 
             # 現実的な範囲に制限
-            return max(1.0, min(estimated_duration, 600.0))  # 1秒〜10分
+            return max(1.0, min(estimated_duration, 600.0))  # 1 秒〜 10 分
 
         except Exception as e:
             self.logger.warning("Failed to estimate audio duration", error=str(e))
@@ -319,9 +312,9 @@ class SpeechProcessor(LoggerMixin):
     async def _transcribe_audio(
         self, file_data: bytes, audio_format: AudioFormat
     ) -> TranscriptionResult:
-        """Google Cloud Speech-to-Text APIで音声を文字起こし"""
+        """Google Cloud Speech-to-Text API で音声を文字起こし"""
         try:
-            # Google Cloud Speech APIを使用（実際の実装）
+            # Google Cloud Speech API を使用（実際の実装）
             settings = get_settings()
             if (
                 hasattr(settings, "google_cloud_speech_api_key")
@@ -332,7 +325,7 @@ class SpeechProcessor(LoggerMixin):
 
         except (RetryableAPIError, NonRetryableAPIError) as e:
             self.logger.error("API transcription failed after retries", error=str(e))
-            # APIエラーの場合は詳細なエラー情報を含める
+            # API エラーの場合は詳細なエラー情報を含める
             error_msg = self._get_user_friendly_error_message(str(e))
             return TranscriptionResult.create_from_confidence(
                 transcript=f"[{error_msg}]",
@@ -360,16 +353,16 @@ class SpeechProcessor(LoggerMixin):
     async def _transcribe_with_rest_api(
         self, file_data: bytes, audio_format: AudioFormat
     ) -> TranscriptionResult:
-        """REST APIを使用して音声を文字起こし（リトライ機能付き）"""
+        """REST API を使用して音声を文字起こし（リトライ機能付き）"""
         import base64
 
         start_time = datetime.now()
 
         try:
-            # ファイルをBase64エンコード
+            # ファイルを Base64 エンコード
             encoded_audio = base64.b64encode(file_data).decode("utf-8")
 
-            # APIリクエストペイロード
+            # API リクエストペイロード
             request_data = {
                 "config": {
                     "encoding": self._get_encoding_for_format(audio_format),
@@ -395,7 +388,7 @@ class SpeechProcessor(LoggerMixin):
                 ) as session,
                 session.post(url, json=request_data) as response,
             ):
-                # HTTPステータスコードに基づく分岐処理
+                # HTTP ステータスコードに基づく分岐処理
                 if response.status == 200:
                     result = await response.json()
                 elif response.status == 429:  # Rate limit
@@ -516,7 +509,7 @@ class SpeechProcessor(LoggerMixin):
                         io.BytesIO(file_data), format="ogg"
                     )
 
-                    # 🔧 FIX: 16-bit, 48kHz モノラルに正規化（Google Cloud Speech API 対応）
+                    # 🔧 FIX: 16-bit, 48kHz モノラルに正規化（ Google Cloud Speech API 対応）
                     audio_segment = (
                         audio_segment.set_frame_rate(48000)
                         .set_channels(1)
@@ -651,7 +644,7 @@ class SpeechProcessor(LoggerMixin):
             error_message = str(e)
             if "quota" in error_message.lower() or "limit" in error_message.lower():
                 transcript = (
-                    "[API利用制限に達しました。しばらくしてからお試しください。]"
+                    "[API 利用制限に達しました。しばらくしてからお試しください。]"
                 )
             elif (
                 "invalid" in error_message.lower()
@@ -659,7 +652,7 @@ class SpeechProcessor(LoggerMixin):
                 or "sample rate" in error_message.lower()
                 or "bit" in error_message.lower()
             ):
-                transcript = "[音声ファイルの形式がサポートされていません。MP3やWAVファイルをお試しください。]"
+                transcript = "[音声ファイルの形式がサポートされていません。 MP3 や WAV ファイルをお試しください。]"
             else:
                 transcript = f"[音声認識エラー: {error_message[:100]}{'...' if len(error_message) > 100 else ''}]"
 
@@ -686,7 +679,7 @@ class SpeechProcessor(LoggerMixin):
         elif audio_size < 10000:
             transcript = "音声メモのテストを行っています。正常に文字起こしされました。"
         else:
-            transcript = "長めの音声メッセージです。Discord から Obsidian への連携テストが正常に動作しています。"
+            transcript = "長めの音声メッセージです。 Discord から Obsidian への連携テストが正常に動作しています。"
 
         processing_time = int((datetime.now() - start_time).total_seconds() * 1000)
 
@@ -698,7 +691,7 @@ class SpeechProcessor(LoggerMixin):
         )
 
     def _get_speech_encoding_for_format(self, audio_format: AudioFormat):
-        """Google Cloud Speech用のエンコーディング形式を取得"""
+        """Google Cloud Speech 用のエンコーディング形式を取得"""
         from google.cloud import speech
 
         format_mapping = {
@@ -706,7 +699,7 @@ class SpeechProcessor(LoggerMixin):
             AudioFormat.WAV: speech.RecognitionConfig.AudioEncoding.LINEAR16,
             AudioFormat.FLAC: speech.RecognitionConfig.AudioEncoding.FLAC,
             AudioFormat.OGG: speech.RecognitionConfig.AudioEncoding.OGG_OPUS,
-            AudioFormat.M4A: speech.RecognitionConfig.AudioEncoding.MP3,  # M4Aは通常AACだが、MP3として処理
+            AudioFormat.M4A: speech.RecognitionConfig.AudioEncoding.MP3,  # M4A は通常 AAC だが、 MP3 として処理
             AudioFormat.WEBM: speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
         }
 
@@ -728,7 +721,7 @@ class SpeechProcessor(LoggerMixin):
         """処理の遅延をシミュレート"""
         import asyncio
 
-        await asyncio.sleep(delay_seconds)  # 1秒の遅延をシミュレート
+        await asyncio.sleep(delay_seconds)  # 1 秒の遅延をシミュレート
 
     def _get_encoding_for_format(self, audio_format: AudioFormat) -> str:
         """音声フォーマットからエンコーディング名を取得"""
@@ -737,7 +730,7 @@ class SpeechProcessor(LoggerMixin):
             AudioFormat.WAV: "LINEAR16",
             AudioFormat.FLAC: "FLAC",
             AudioFormat.OGG: "OGG_OPUS",
-            AudioFormat.M4A: "MP3",  # M4Aは通常AACだが、MP3として処理
+            AudioFormat.M4A: "MP3",  # M4A は通常 AAC だが、 MP3 として処理
             AudioFormat.WEBM: "WEBM_OPUS",
         }
         return format_mapping.get(audio_format, "LINEAR16")
@@ -763,7 +756,7 @@ class SpeechProcessor(LoggerMixin):
             fallback_transcript = (
                 f"[音声ファイルが保存されました: {saved_path}]\n"
                 f"制限理由: {reason}\n"
-                f"手動で文字起こしを行うか、API制限がリセットされるまでお待ちください。"
+                f"手動で文字起こしを行うか、 API 制限がリセットされるまでお待ちください。"
             )
 
             transcription = TranscriptionResult.create_from_confidence(
@@ -802,7 +795,7 @@ class SpeechProcessor(LoggerMixin):
         try:
             from src.obsidian.models import VaultFolder
 
-            # Obsidian vault内のaudioフォルダに保存
+            # Obsidian vault 内の audio フォルダに保存
             settings = get_settings()
 
             audio_dir = (
@@ -851,7 +844,7 @@ class SpeechProcessor(LoggerMixin):
         )
 
     def get_usage_stats(self) -> dict[str, Any]:
-        """API使用量統計を取得"""
+        """API 使用量統計を取得"""
         return {
             "monthly_usage_minutes": self.usage_tracker.monthly_usage_minutes,
             "monthly_limit_minutes": self.usage_tracker.monthly_limit_minutes,
@@ -872,11 +865,11 @@ class SpeechProcessor(LoggerMixin):
     def _get_user_friendly_error_message(self, error_msg: str) -> str:
         """ユーザーフレンドリーなエラーメッセージに変換"""
         if "API rate limit exceeded" in error_msg or "429" in error_msg:
-            return "今月のAPI利用上限に達しました。来月までお待ちいただくか、手動での文字起こしをお願いします"
+            return "今月の API 利用上限に達しました。来月までお待ちいただくか、手動での文字起こしをお願いします"
         if "Server error" in error_msg or "5" in error_msg[:1]:
-            return "APIサーバーで一時的な問題が発生しています。しばらくしてからもう一度お試しください"
+            return "API サーバーで一時的な問題が発生しています。しばらくしてからもう一度お試しください"
         if "Bad request" in error_msg or "400" in error_msg:
-            return "音声ファイルの形式に問題があります。サポートされている形式（MP3、WAV、FLAC等）をご利用ください"
+            return "音声ファイルの形式に問題があります。サポートされている形式（ MP3 、 WAV 、 FLAC 等）をご利用ください"
         if "timeout" in error_msg.lower():
             return "処理時間が長すぎるため、タイムアウトしました。短い音声ファイルでお試しください"
         return "一時的なエラーが発生しました。しばらくしてからもう一度お試しください"
@@ -897,17 +890,17 @@ class SpeechProcessor(LoggerMixin):
 
             # 長さの検証
             duration_ms = len(audio_segment)
-            if duration_ms < 500:  # 0.5秒未満
+            if duration_ms < 500:  # 0.5 秒未満
                 return {
                     "valid": False,
-                    "error": "音声が短すぎます（0.5秒未満）。文字起こしには最低0.5秒以上の音声が必要です。",
+                    "error": "音声が短すぎます（ 0.5 秒未満）。文字起こしには最低 0.5 秒以上の音声が必要です。",
                     "duration_ms": duration_ms,
                 }
 
-            if duration_ms > 60 * 60 * 1000:  # 1時間以上
+            if duration_ms > 60 * 60 * 1000:  # 1 時間以上
                 return {
                     "valid": False,
-                    "error": "音声が長すぎます（1時間以上）。API制限のため、60分以内の音声をご利用ください。",
+                    "error": "音声が長すぎます（ 1 時間以上）。 API 制限のため、 60 分以内の音声をご利用ください。",
                     "duration_ms": duration_ms,
                 }
 
@@ -945,7 +938,7 @@ class SpeechProcessor(LoggerMixin):
             if frame_rate < 8000:
                 return {
                     "valid": False,
-                    "error": f"サンプルレート（{frame_rate}Hz）が低すぎます。8kHz以上の音声をご利用ください。",
+                    "error": f"サンプルレート（{frame_rate}Hz ）が低すぎます。 8kHz 以上の音声をご利用ください。",
                     "duration_ms": duration_ms,
                     "frame_rate": frame_rate,
                 }
@@ -982,5 +975,4 @@ class SpeechProcessor(LoggerMixin):
     def is_audio_file(self, filename: str) -> bool:
         """ファイルが音声ファイルかどうかを判定"""
         result = self._detect_audio_format(filename) is not None
-        self.logger.info(f"🎵 DEBUG: is_audio_file('{filename}') = {result}")
         return result

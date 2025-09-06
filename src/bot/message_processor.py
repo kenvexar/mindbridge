@@ -207,7 +207,7 @@ class MessageProcessor(LoggerMixin):
         for mention_type, pattern in self.mention_patterns.items():
             matches_raw: list[Any] = pattern.findall(content)
             # matches_raw は list[str] または list[tuple[str, ...]] の可能性がある
-            # ここでは、グループが1つなので list[str] に変換
+            # ここでは、グループが 1 つなので list[str] に変換
             matches = [m[0] if isinstance(m, tuple) else m for m in matches_raw]
             mentions[mention_type] = matches
 
@@ -243,23 +243,8 @@ class MessageProcessor(LoggerMixin):
         """Extract detailed attachment metadata"""
         attachments = []
 
-        # 🔧 DEBUG: 添付ファイル情報を詳しくログ出力
-        if message.attachments:
-            self.logger.info(
-                f"🎵 DEBUG: Found {len(message.attachments)} attachments in message {message.id}"
-            )
-
         for attachment in message.attachments:
-            # 🔧 DEBUG: 各添付ファイルの詳細情報をログ出力
-            self.logger.info(
-                f"🎵 DEBUG: Processing attachment: {attachment.filename} "
-                f"(content_type={attachment.content_type}, size={attachment.size})"
-            )
-
             file_category = self._categorize_file(attachment)
-            self.logger.info(
-                f"🎵 DEBUG: File categorized as: {file_category} for {attachment.filename}"
-            )
 
             attachment_data: AttachmentMetadata = {
                 "id": attachment.id,

@@ -1,22 +1,22 @@
-# 🚀 デプロイメントガイド
+# Deployment Guide
 
-MindBridge の本番環境への安全で効率的なデプロイメント手順を説明します。
+Safe and efficient deployment procedures for MindBridge to production environments.
 
-## 📋 目次
+## Table of Contents
 
-1. [デプロイメント戦略](#デプロイメント戦略)
-2. [Google Cloud Run デプロイメント](#google-cloud-run-デプロイメント)
-3. [Docker デプロイメント](#docker-デプロイメント)
-4. [VPS デプロイメント](#vps-デプロイメント)
-5. [継続的デプロイメント (CI/CD)](#継続的デプロイメント-cicd)
-6. [環境別設定](#環境別設定)
-7. [セキュリティ考慮事項](#セキュリティ考慮事項)
-8. [監視とログ](#監視とログ)
-9. [ロールバック手順](#ロールバック手順)
+1. [Deployment Strategy](#deployment-strategy)
+2. [Google Cloud Run Deployment](#google-cloud-run-deployment)
+3. [Docker Deployment](#docker-deployment)
+4. [VPS Deployment](#vps-deployment)
+5. [Continuous Deployment (CI/CD)](#continuous-deployment-cicd)
+6. [Environment-specific Configuration](#environment-specific-configuration)
+7. [Security Considerations](#security-considerations)
+8. [Monitoring and Logging](#monitoring-and-logging)
+9. [Rollback Procedures](#rollback-procedures)
 
-## 🎯 デプロイメント戦略
+## 🎯 Deployment Strategy
 
-### 環境アーキテクチャ
+### Environment Architecture
 
 ```
 Development → Staging → Production
@@ -25,41 +25,41 @@ Development → Staging → Production
              [Testing]   [Production]
 ```
 
-### デプロイメント原則
+### Deployment Principles
 
-1. **Infrastructure as Code**: 全設定をコード化
-2. **Immutable Deployments**: 不変なデプロイメント
-3. **Blue-Green Deployment**: ダウンタイムなしデプロイ
-4. **Automated Rollback**: 自動ロールバック機能
-5. **Security First**: セキュリティを最優先
+1. **Infrastructure as Code**: All configuration codified
+2. **Immutable Deployments**: Immutable deployment artifacts
+3. **Blue-Green Deployment**: Zero-downtime deployments
+4. **Automated Rollback**: Automatic rollback capabilities
+5. **Security First**: Security as top priority
 
-## ☁️ Google Cloud Run デプロイメント
+## ☁️ Google Cloud Run Deployment
 
-### 前提条件
+### Prerequisites
 
 ```bash
-# Google Cloud CLI のインストールと認証
+# Install and authenticate Google Cloud CLI
 curl https://sdk.cloud.google.com | bash
 exec -l $SHELL
 gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
 ```
 
-### 1. プロジェクト初期設定
+### 1. Project Initial Setup
 
 ```bash
-# プロジェクト変数設定
-export PROJECT_ID="discord-obsidian-bot"
-export REGION="asia-northeast1"
+# Project variables
+export PROJECT_ID="mindbridge-bot-prod"
+export REGION="us-central1"
 export SERVICE_NAME="mindbridge-bot"
 
-# プロジェクト作成（新規の場合）
-gcloud projects create $PROJECT_ID --name="MindBridge"
+# Create project (if new)
+gcloud projects create $PROJECT_ID --name="MindBridge Bot"
 
-# プロジェクト選択
+# Select project
 gcloud config set project $PROJECT_ID
 
-# 必要な API を有効化
+# Enable required APIs
 gcloud services enable \
   run.googleapis.com \
   cloudbuild.googleapis.com \
@@ -69,7 +69,7 @@ gcloud services enable \
   monitoring.googleapis.com
 ```
 
-### 2. Secret Manager 設定
+### 2. Secret Manager Configuration
 
 ```bash
 # Discord Bot Token
@@ -84,180 +84,164 @@ gcloud secrets create gemini-api-key \
 gcloud secrets create discord-guild-id \
   --data-file=<(echo -n "$DISCORD_GUILD_ID")
 
-# Speech API Service Account (オプション)
-gcloud secrets create google-speech-credentials \
-  --data-file=/path/to/service-account-key.json
+# Obsidian Vault Path (if using cloud storage)
+gcloud secrets create obsidian-vault-path \
+  --data-file=<(echo -n "$OBSIDIAN_VAULT_PATH")
 
-# Garmin 認証情報 (オプション)
+# Optional: Garmin credentials
 gcloud secrets create garmin-email \
   --data-file=<(echo -n "$GARMIN_EMAIL")
 gcloud secrets create garmin-password \
   --data-file=<(echo -n "$GARMIN_PASSWORD")
 ```
 
-### 3. IAM 権限設定
-
-```bash
-# Compute Engine デフォルトサービスアカウントを取得
-export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
-export COMPUTE_SA="$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
-
-# Secret Manager アクセス権限
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:$COMPUTE_SA" \
-  --role="roles/secretmanager.secretAccessor"
-
-# Cloud Storage アクセス権限（バックアップ用）
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:$COMPUTE_SA" \
-  --role="roles/storage.objectAdmin"
-
-# Logging 権限
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:$COMPUTE_SA" \
-  --role="roles/logging.logWriter"
-```
-
-### 4. Cloud Build 設定
+### 3. Cloud Build Configuration
 
 `cloudbuild.yaml`:
 ```yaml
 steps:
-  # Build the container image
+  # Build container image
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
-      '-t', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID',
-      '-t', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest',
+      '-t', 'gcr.io/$PROJECT_ID/mindbridge-bot:$COMMIT_SHA',
+      '-t', 'gcr.io/$PROJECT_ID/mindbridge-bot:latest',
       '.'
     ]
 
-  # Push the container image to Container Registry
+  # Push to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID']
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest']
+    args: ['push', 'gcr.io/$PROJECT_ID/mindbridge-bot:$COMMIT_SHA']
 
-  # Deploy container image to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+  # Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'run'
       - 'deploy'
-      - '${_SERVICE_NAME}'
-      - '--image=gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID'
-      - '--region=${_REGION}'
+      - 'mindbridge-bot'
+      - '--image=gcr.io/$PROJECT_ID/mindbridge-bot:$COMMIT_SHA'
+      - '--region=us-central1'
       - '--platform=managed'
       - '--allow-unauthenticated'
+      - '--set-env-vars=ENVIRONMENT=production'
+      - '--set-secrets=DISCORD_BOT_TOKEN=discord-bot-token:latest'
+      - '--set-secrets=GEMINI_API_KEY=gemini-api-key:latest'
+      - '--set-secrets=DISCORD_GUILD_ID=discord-guild-id:latest'
       - '--memory=2Gi'
       - '--cpu=2'
-      - '--min-instances=1'
-      - '--max-instances=10'
-      - '--timeout=300s'
-      - '--concurrency=5'
-      - '--set-env-vars=ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,USE_SECRET_MANAGER=true'
+      - '--max-instances=1'
+      - '--min-instances=0'
+      - '--timeout=3600'
 
-substitutions:
-  _SERVICE_NAME: 'mindbridge'
-  _REGION: 'asia-northeast1'
+images:
+  - 'gcr.io/$PROJECT_ID/mindbridge-bot:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/mindbridge-bot:latest'
 
 options:
   logging: CLOUD_LOGGING_ONLY
 ```
 
-### 5. デプロイ実行
+### 4. Cloud Run Service Configuration
 
 ```bash
-# Cloud Build でのデプロイ
-gcloud builds submit --config cloudbuild.yaml
-
-# または手動でのデプロイ
-docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME:latest .
-docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
-
-gcloud run deploy $SERVICE_NAME \
-  --image gcr.io/$PROJECT_ID/$SERVICE_NAME:latest \
-  --region $REGION \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 2Gi \
-  --cpu 2 \
-  --min-instances 1 \
-  --max-instances 10 \
-  --timeout 300s \
-  --concurrency 5 \
-  --set-env-vars="ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,USE_SECRET_MANAGER=true"
+# Deploy to Cloud Run
+gcloud run deploy mindbridge-bot \
+  --image=gcr.io/$PROJECT_ID/mindbridge-bot:latest \
+  --region=$REGION \
+  --platform=managed \
+  --memory=2Gi \
+  --cpu=2 \
+  --max-instances=1 \
+  --min-instances=0 \
+  --timeout=3600 \
+  --set-env-vars="ENVIRONMENT=production,LOG_LEVEL=INFO" \
+  --set-secrets="DISCORD_BOT_TOKEN=discord-bot-token:latest" \
+  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest" \
+  --set-secrets="DISCORD_GUILD_ID=discord-guild-id:latest" \
+  --allow-unauthenticated
 ```
 
-### 6. Cloud Run 設定の詳細
+### 5. Health Check Setup
 
-`service.yaml`:
-```yaml
-apiVersion: serving.knative.dev/v1
-kind: Service
-metadata:
-  name: mindbridge
-  annotations:
-    run.googleapis.com/ingress: all
-    run.googleapis.com/cpu-throttling: "false"
-spec:
-  template:
-    metadata:
-      annotations:
-        run.googleapis.com/execution-environment: gen2
-        run.googleapis.com/vpc-access-connector: "projects/PROJECT_ID/locations/REGION/connectors/CONNECTOR_NAME"
-    spec:
-      containerConcurrency: 5
-      timeoutSeconds: 300
-      serviceAccountName: SERVICE_ACCOUNT_EMAIL
-      containers:
-      - image: gcr.io/PROJECT_ID/mindbridge:latest
-        ports:
-        - containerPort: 8080
-        env:
-        - name: ENVIRONMENT
-          value: "production"
-        - name: GOOGLE_CLOUD_PROJECT
-          value: "PROJECT_ID"
-        - name: USE_SECRET_MANAGER
-          value: "true"
-        - name: LOG_LEVEL
-          value: "INFO"
-        resources:
-          limits:
-            cpu: "2"
-            memory: "2Gi"
-          requests:
-            cpu: "1"
-            memory: "1Gi"
+The application includes built-in health endpoints. Configure Cloud Run health checks:
+
+```bash
+# Update service with health check configuration
+gcloud run services update mindbridge-bot \
+  --region=$REGION \
+  --port=8080 \
+  --set-env-vars="HEALTH_CHECK_PORT=8080"
 ```
 
-## 🐳 Docker デプロイメント
+## 🐳 Docker Deployment
 
-### Docker Compose 設定
+### Production Dockerfile
 
-`docker-compose.yml`:
+`Dockerfile`:
+```dockerfile
+FROM python:3.13-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN pip install uv
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install Python dependencies
+RUN uv sync --frozen --no-dev
+
+# Copy application code
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash app \
+    && chown -R app:app /app
+USER app
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+# Expose port
+EXPOSE 8080
+
+# Start application
+CMD ["uv", "run", "python", "-m", "src.main"]
+```
+
+### Docker Compose for Production
+
+`docker-compose.prod.yml`:
 ```yaml
 version: '3.8'
 
 services:
-  discord-bot:
+  mindbridge-bot:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mindbridge
+    container_name: mindbridge-bot-prod
     restart: unless-stopped
     environment:
       - ENVIRONMENT=production
       - LOG_LEVEL=INFO
+      - HEALTH_CHECK_PORT=8080
     env_file:
       - .env.production
-    volumes:
-      - ./obsidian_vault:/app/obsidian_vault:rw
-      - ./logs:/app/logs:rw
-      - ./backups:/app/backups:rw
     ports:
       - "8080:8080"
+    volumes:
+      - vault_data:/app/vault:rw
+      - ./logs:/app/logs:rw
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -265,258 +249,152 @@ services:
       retries: 3
       start_period: 40s
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
 
-  # オプション: 監視用サービス
-  monitoring:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-
 volumes:
-  obsidian_vault:
-  logs:
-  backups:
-
-networks:
-  default:
-    driver: bridge
+  vault_data:
+    driver: local
 ```
 
-### Dockerfile の最適化
+## 🖥️ VPS Deployment
 
-```dockerfile
-# マルチステージビルド
-FROM python:3.13-slim as builder
-
-# Build dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install uv
-RUN pip install uv
-
-# Set working directory
-WORKDIR /app
-
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
-
-# Install dependencies
-RUN uv sync --frozen --no-dev
-
-# Production stage
-FROM python:3.13-slim as production
-
-# Runtime dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd -r appuser \
-    && useradd -r -g appuser appuser
-
-# Copy virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
-
-# Set working directory
-WORKDIR /app
-
-# Copy application code
-COPY src/ src/
-COPY README.md .
-
-# Create necessary directories
-RUN mkdir -p logs backups obsidian_vault \
-    && chown -R appuser:appuser /app
-
-# Switch to non-root user
-USER appuser
-
-# Set environment variables
-ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONPATH="/app/src"
-ENV PYTHONUNBUFFERED=1
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-# Expose port
-EXPOSE 8080
-
-# Start command
-CMD ["python", "-m", "src.main"]
-```
-
-### Docker デプロイ手順
+### Server Preparation
 
 ```bash
-# 1. 環境設定
-cp .env.example .env.production
-# .env.production を本番用に編集
-
-# 2. ビルドとデプロイ
-docker-compose -f docker-compose.yml up -d --build
-
-# 3. ログ確認
-docker-compose logs -f discord-bot
-
-# 4. ヘルスチェック
-curl http://localhost:8080/health
-```
-
-## 🖥️ VPS デプロイメント
-
-### システム要件
-
-| 項目 | 最小 | 推奨 |
-|------|------|------|
-| **CPU** | 1 コア | 2 コア以上 |
-| **メモリ** | 1GB | 2GB 以上 |
-| **ストレージ** | 10GB | 20GB 以上 |
-| **OS** | Ubuntu 20.04+ | Ubuntu 22.04 LTS |
-
-### サーバーセットアップ
-
-```bash
-# 1. システム更新
+# Update system
 sudo apt update && sudo apt upgrade -y
 
-# 2. 必要なパッケージのインストール
+# Install dependencies
 sudo apt install -y \
-    python3.13 \
-    python3.13-venv \
-    python3-pip \
-    git \
-    curl \
-    nginx \
-    certbot \
-    python3-certbot-nginx \
-    htop \
-    ufw
+  python3.13 \
+  python3.13-venv \
+  python3-pip \
+  git \
+  curl \
+  nginx \
+  certbot \
+  python3-certbot-nginx
 
-# 3. uv のインストール
+# Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
 
-# 4. アプリケーション用ユーザー作成
-sudo useradd -m -s /bin/bash discord-bot
-sudo usermod -aG sudo discord-bot
+# Create application user
+sudo useradd -m -s /bin/bash mindbridge
+sudo usermod -aG sudo mindbridge
 ```
 
-### アプリケーションデプロイ
+### Application Setup
 
 ```bash
-# 1. アプリケーションユーザーに切り替え
-sudo su - discord-bot
+# Switch to application user
+sudo su - mindbridge
 
-# 2. アプリケーションのクローン
+# Clone repository
 git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 
-# 3. 依存関係のインストール
-uv sync
+# Create production environment
+uv venv .venv
+source .venv/bin/activate
 
-# 4. 環境設定
+# Install dependencies
+uv sync --frozen
+
+# Configure environment
 cp .env.example .env.production
-# .env.production を編集
+# Edit .env.production with production values
 
-# 5. systemd サービス設定
-sudo tee /etc/systemd/system/discord-bot.service > /dev/null <<EOF
+# Create directories
+mkdir -p logs vault backups
+```
+
+### Systemd Service Configuration
+
+`/etc/systemd/system/mindbridge.service`:
+```ini
 [Unit]
-Description=Discord Obsidian Memo Bot
+Description=MindBridge Discord Bot
 After=network.target
+Wants=network.target
 
 [Service]
 Type=simple
-User=discord-bot
-Group=discord-bot
-WorkingDirectory=/home/discord-bot/mindbridge
-Environment=PATH=/home/discord-bot/.local/bin
-EnvironmentFile=/home/discord-bot/mindbridge/.env.production
-ExecStart=/home/discord-bot/.local/bin/uv run python -m src.main
+User=mindbridge
+Group=mindbridge
+WorkingDirectory=/home/mindbridge/mindbridge
+Environment=PATH=/home/mindbridge/mindbridge/.venv/bin
+EnvironmentFile=/home/mindbridge/mindbridge/.env.production
+ExecStart=/home/mindbridge/mindbridge/.venv/bin/python -m src.main
 Restart=always
 RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/mindbridge/mindbridge/logs /home/mindbridge/mindbridge/vault
 
 [Install]
 WantedBy=multi-user.target
-EOF
-
-# 6. サービス有効化と開始
-sudo systemctl daemon-reload
-sudo systemctl enable discord-bot
-sudo systemctl start discord-bot
-
-# 7. 状態確認
-sudo systemctl status discord-bot
 ```
 
-### Nginx Configuration (Health Check)
+Enable and start service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable mindbridge
+sudo systemctl start mindbridge
+sudo systemctl status mindbridge
+```
 
+### Nginx Configuration
+
+`/etc/nginx/sites-available/mindbridge`:
 ```nginx
-# /etc/nginx/sites-available/discord-bot
 server {
     listen 80;
     server_name your-domain.com;
 
-    # Health check endpoint
     location /health {
         proxy_pass http://localhost:8080/health;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Metrics endpoint (optional, secure this properly)
     location /metrics {
         proxy_pass http://localhost:8080/metrics;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-
-        # Restrict access to monitoring systems
-        allow 127.0.0.1;
-        allow 10.0.0.0/8;
-        deny all;
+        
+        # Basic auth for metrics endpoint
+        auth_basic "Metrics";
+        auth_basic_user_file /etc/nginx/.htpasswd;
     }
 
-    # Block all other requests
+    # Redirect all other traffic to HTTPS
     location / {
-        return 404;
+        return 301 https://$server_name$request_uri;
     }
 }
 ```
 
+Enable site and get SSL certificate:
 ```bash
-# Enable Nginx configuration
-sudo ln -s /etc/nginx/sites-available/discord-bot /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/mindbridge /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
-
-# Get SSL certificate
 sudo certbot --nginx -d your-domain.com
-
-# Enable firewall
-sudo ufw allow 'Nginx Full'
-sudo ufw enable
 ```
 
-## 🔄 継続的デプロイメント (CI/CD)
+## 🔄 Continuous Deployment (CI/CD)
 
-### GitHub Actions ワークフロー
+### GitHub Actions Workflow
 
 `.github/workflows/deploy.yml`:
 ```yaml
@@ -524,14 +402,13 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [ main ]
+  workflow_dispatch:
 
 env:
-  PROJECT_ID: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
-  SERVICE_NAME: mindbridge
-  REGION: asia-northeast1
+  PROJECT_ID: mindbridge-bot-prod
+  SERVICE_NAME: mindbridge-bot
+  REGION: us-central1
 
 jobs:
   test:
@@ -545,295 +422,298 @@ jobs:
           python-version: '3.13'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v1
+        run: pip install uv
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --frozen
 
       - name: Run tests
-        run: |
-          uv run pytest --cov=src --cov-report=xml
-
-      - name: Run type checking
-        run: uv run mypy src/
+        run: uv run pytest --cov=src
 
       - name: Run linting
-        run: uv run ruff check src/
+        run: |
+          uv run ruff check src/
+          uv run ruff format --check src/
+
+      - name: Type checking
+        run: uv run mypy src/
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-
+    
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v1
         with:
-          project_id: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
-          service_account_key: ${{ secrets.GOOGLE_CLOUD_KEY }}
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
 
       - name: Configure Docker
         run: gcloud auth configure-docker
 
-      - name: Build and Deploy
+      - name: Build and deploy
         run: |
           gcloud builds submit --config cloudbuild.yaml \
             --substitutions=_SERVICE_NAME=$SERVICE_NAME,_REGION=$REGION
 
-  notify:
-    needs: [test, deploy]
-    runs-on: ubuntu-latest
-    if: always()
-
-    steps:
-      - name: Notify Discord
-        if: needs.deploy.result == 'success'
+      - name: Verify deployment
         run: |
-          curl -H "Content-Type: application/json" \
-               -d '{"content": "✅ Deployment successful! Version: ${{ github.sha }}"}' \
-               ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # Wait for deployment to complete
+          sleep 60
+          
+          # Get service URL
+          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
+            --region=$REGION --format='value(status.url)')
+          
+          # Health check
+          curl -f $SERVICE_URL/health
 
-      - name: Notify Discord on Failure
-        if: needs.deploy.result == 'failure'
-        run: |
-          curl -H "Content-Type: application/json" \
-               -d '{"content": "❌ Deployment failed! Check the logs."}' \
-               ${{ secrets.DISCORD_WEBHOOK_URL }}
+      - name: Notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
 ```
 
-### Deployment Script
+## 🔧 Environment-specific Configuration
 
-`scripts/deploy.sh`:
-```bash
-#!/bin/bash
-set -euo pipefail
+### Production Environment Variables
 
-# 設定
-PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-"discord-obsidian-bot"}
-SERVICE_NAME="mindbridge"
-REGION="asia-northeast1"
-
-echo "🚀 Starting deployment to $PROJECT_ID"
-
-# 1. プリデプロイメントチェック
-echo "🔍 Running pre-deployment checks..."
-uv run pytest
-uv run mypy src/
-uv run ruff check src/
-
-# 2. ビルドとプッシュ
-echo "🏗️ Building and pushing container..."
-docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME:latest .
-docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
-
-# 3. デプロイ
-echo "☁️ Deploying to Cloud Run..."
-gcloud run deploy $SERVICE_NAME \
-  --image gcr.io/$PROJECT_ID/$SERVICE_NAME:latest \
-  --region $REGION \
-  --platform managed \
-  --quiet
-
-# 4. ヘルスチェック
-echo "🏥 Health check..."
-SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region $REGION --format 'value(status.url)')
-curl -f $SERVICE_URL/health
-
-echo "✅ Deployment completed successfully!"
-echo "🌐 Service URL: $SERVICE_URL"
-```
-
-## 🔧 環境別設定
-
-### Development
-
+`.env.production`:
 ```env
-ENVIRONMENT=development
-LOG_LEVEL=DEBUG
-ENABLE_MOCK_MODE=true
-OBSIDIAN_VAULT_PATH=./test_vault
-```
-
-### Staging
-
-```env
-ENVIRONMENT=staging
-LOG_LEVEL=INFO
-USE_SECRET_MANAGER=true
-GOOGLE_CLOUD_PROJECT=discord-bot-staging
-```
-
-### Production
-
-```env
+# Environment
 ENVIRONMENT=production
 LOG_LEVEL=INFO
+LOG_FORMAT=json
+
+# Discord Configuration
+DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
+
+# AI Configuration
+GEMINI_API_KEY=${GEMINI_API_KEY}
+
+# Obsidian Configuration
+OBSIDIAN_VAULT_PATH=${OBSIDIAN_VAULT_PATH}
+
+# Performance Settings
+AI_CACHE_SIZE_MB=200
+AI_CACHE_HOURS=24
+ENABLE_VECTOR_SEARCH=true
+
+# Security Settings
 USE_SECRET_MANAGER=true
-GOOGLE_CLOUD_PROJECT=discord-bot-production
-ENABLE_MONITORING=true
-AUTO_BACKUP_ENABLED=true
+ENABLE_ACCESS_LOGGING=true
+SECURITY_LOG_PATH=/app/logs/security.log
+
+# Health Check
+HEALTH_CHECK_PORT=8080
+ENABLE_HEALTH_ENDPOINTS=true
+
+# Monitoring
+ENABLE_METRICS=true
+METRICS_PORT=8080
 ```
 
-## 🔒 セキュリティ考慮事項
+### Staging Configuration
 
-### 1. 秘密情報管理
+`.env.staging`:
+```env
+# Environment
+ENVIRONMENT=staging
+LOG_LEVEL=DEBUG
+LOG_FORMAT=json
 
-```bash
-# Secret Manager の使用
-gcloud secrets create my-secret --data-file=secret.txt
+# Use staging-specific resources
+DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN_STAGING}
+DISCORD_GUILD_ID=${DISCORD_GUILD_ID_STAGING}
+GEMINI_API_KEY=${GEMINI_API_KEY_STAGING}
 
-# 環境変数での直接指定を避ける
-# ❌ Bad
-DISCORD_BOT_TOKEN=MTAx...
-
-# ✅ Good
-USE_SECRET_MANAGER=true
-GOOGLE_CLOUD_PROJECT=my-project
+# Reduced resource limits for staging
+AI_CACHE_SIZE_MB=50
+MAX_CONCURRENT_REQUESTS=2
 ```
 
-### 2. ネットワークセキュリティ
+## 🔐 Security Considerations
 
-```bash
-# VPC Connector の設定（オプション）
-gcloud compute networks vpc-access connectors create my-connector \
-  --network default \
-  --region asia-northeast1 \
-  --range 10.8.0.0/28
+### Secret Management
 
-# Cloud Run での VPC 使用
-gcloud run services update $SERVICE_NAME \
-  --vpc-connector my-connector \
-  --region $REGION
-```
+1. **Never commit secrets to repository**
+2. **Use environment-specific secret stores**
+3. **Rotate secrets regularly**
+4. **Implement principle of least privilege**
 
-### 3. アクセス制御
+### Network Security
 
 ```yaml
-# Cloud Run での IAM ポリシー
-bindings:
-- members:
-  - serviceAccount:bot-service-account@project.iam.gserviceaccount.com
-  role: roles/run.invoker
+# Cloud Run security configuration
+security_policy:
+  ingress: INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER
+  egress:
+    - allow_all_outbound: false
+    - allowed_destinations:
+      - "discordapp.com:443"
+      - "generativelanguage.googleapis.com:443"
+      - "speech.googleapis.com:443"
 ```
 
-## 📊 監視とログ
+### Container Security
 
-### Cloud Logging 設定
+```dockerfile
+# Security hardening in Dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r appuser \
+    && useradd -r -g appuser appuser
+
+USER appuser
+```
+
+## 📊 Monitoring and Logging
+
+### Health Check Implementation
+
+The application includes built-in health endpoints:
+- `/health` - Basic health check
+- `/ready` - Readiness check
+- `/metrics` - Prometheus metrics
+
+### Logging Configuration
+
+```python
+# Production logging configuration
+LOGGING_CONFIG = {
+    "version": 1,
+    "formatters": {
+        "json": {
+            "class": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime) s %(name) s %(levelname) s %(message) s"
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+            "level": "INFO"
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "/app/logs/app.log",
+            "formatter": "json",
+            "maxBytes": 10485760,  # 10MB
+            "backupCount": 5
+        }
+    },
+    "root": {
+        "level": "INFO",
+        "handlers": ["console", "file"]
+    }
+}
+```
+
+### Monitoring Setup
 
 ```bash
-# ログベースメトリクスの作成
-gcloud logging metrics create discord_bot_errors \
-  --description="Discord bot error count" \
-  --log-filter='resource.type="cloud_run_revision" AND severity>=ERROR'
-
-# アラートポリシーの作成
-gcloud alpha monitoring policies create --policy-from-file=alert-policy.yaml
+# Set up monitoring alerts in Google Cloud
+gcloud alpha monitoring policies create --policy-from-file=monitoring-policy.yaml
 ```
 
-`alert-policy.yaml`:
+`monitoring-policy.yaml`:
 ```yaml
-displayName: "MindBridge Bot Error Alert"
+displayName: "MindBridge Bot Monitoring"
 conditions:
-  - displayName: "Error rate too high"
+  - displayName: "High Error Rate"
     conditionThreshold:
-      filter: 'metric.type="logging.googleapis.com/user/discord_bot_errors"'
+      filter: 'resource.type="cloud_run_revision" AND resource.label.service_name="mindbridge-bot"'
       comparison: COMPARISON_GREATER_THAN
-      thresholdValue: 5
+      thresholdValue: 0.1
       duration: 300s
 notificationChannels:
   - projects/PROJECT_ID/notificationChannels/CHANNEL_ID
 ```
 
-### ヘルスチェック
+## 🔄 Rollback Procedures
 
-```python
-# src/monitoring/health_server.py
-from fastapi import FastAPI
-import json
+### Automatic Rollback
 
-app = FastAPI()
-
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": "1.0.0"
-    }
-
-@app.get("/metrics")
-async def metrics():
-    # Prometheus 形式のメトリクス
-    return Response(
-        content=generate_metrics(),
-        media_type="text/plain"
-    )
+Cloud Build configuration with automatic rollback:
+```yaml
+# Add to cloudbuild.yaml
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      # Health check after deployment
+      SERVICE_URL=$(gcloud run services describe mindbridge-bot \
+        --region=us-central1 --format='value(status.url)')
+      
+      # Wait for service to be ready
+      sleep 60
+      
+      # Health check with retries
+      for i in {1..5}; do
+        if curl -f $SERVICE_URL/health; then
+          echo "Health check passed"
+          exit 0
+        fi
+        echo "Health check failed, attempt $i/5"
+        sleep 30
+      done
+      
+      # Rollback to previous revision
+      echo "Rolling back to previous revision"
+      gcloud run services update-traffic mindbridge-bot \
+        --region=us-central1 --to-revisions=LATEST=0,mindbridge-bot-prev=100
+      exit 1
 ```
 
-## 🔄 ロールバック手順
-
-### 自動ロールバック
+### Manual Rollback
 
 ```bash
-# 前のバージョンに自動ロールバック
-gcloud run services update-traffic $SERVICE_NAME \
-  --to-revisions=PREVIOUS_REVISION=100 \
-  --region $REGION
+# List revisions
+gcloud run revisions list --service=mindbridge-bot --region=us-central1
+
+# Rollback to specific revision
+gcloud run services update-traffic mindbridge-bot \
+  --region=us-central1 \
+  --to-revisions=mindbridge-bot-00002-xyz=100
+
+# Verify rollback
+SERVICE_URL=$(gcloud run services describe mindbridge-bot \
+  --region=us-central1 --format='value(status.url)')
+curl $SERVICE_URL/health
 ```
 
-### 手動ロールバック
+### Emergency Procedures
+
+1. **Immediate Stop**: Stop the service if critical issues occur
+2. **Rollback**: Revert to last known good version
+3. **Investigation**: Analyze logs and metrics
+4. **Fix and Redeploy**: Address issues and redeploy
 
 ```bash
-# 1. 利用可能なリビジョン確認
-gcloud run revisions list --service $SERVICE_NAME --region $REGION
+# Emergency stop
+gcloud run services update mindbridge-bot \
+  --region=us-central1 \
+  --min-instances=0 \
+  --max-instances=0
 
-# 2. 特定リビジョンにロールバック
-gcloud run services update-traffic $SERVICE_NAME \
-  --to-revisions=REVISION_NAME=100 \
-  --region $REGION
-
-# 3. 動作確認
-curl -f $SERVICE_URL/health
+# Emergency rollback
+gcloud run services update-traffic mindbridge-bot \
+  --region=us-central1 \
+  --to-revisions=mindbridge-bot-stable=100
 ```
-
-### 緊急停止手順
-
-```bash
-# サービスの完全停止
-gcloud run services delete $SERVICE_NAME --region $REGION
-
-# または最小インスタンス数を 0 に設定
-gcloud run services update $SERVICE_NAME \
-  --min-instances 0 \
-  --max-instances 0 \
-  --region $REGION
-```
-
-## ✅ デプロイメントチェックリスト
-
-### プリデプロイメント
-- [ ] 全テストが通過
-- [ ] 型チェックが通過
-- [ ] リンティングが通過
-- [ ] 環境変数の設定確認
-- [ ] シークレットの設定確認
-- [ ] バックアップの取得
-
-### ポストデプロイメント
-- [ ] ヘルスチェックが通過
-- [ ] ログエラーがない
-- [ ] 基本機能の動作確認
-- [ ] パフォーマンス確認
-- [ ] 監視アラートの設定確認
-
-### ロールバック準備
-- [ ] 前バージョンのリビジョン確認
-- [ ] ロールバック手順の確認
-- [ ] 緊急連絡先の確認
 
 ---
 
-このデプロイメントガイドに従って、安全で確実な本番環境デプロイメントを実行してください。問題が発生した場合は、トラブルシューティングガイドも併せて参照してください。
+This deployment guide ensures reliable, secure, and maintainable production deployments of MindBridge. Follow these procedures for consistent and successful deployments.

@@ -1,47 +1,29 @@
-# 📦 詳細インストール手順
+# Installation Guide
 
-MindBridge の完全なインストールと設定方法を説明します。全機能を活用したい場合はこちらのガイドに従ってください。
+Complete installation and setup guide for MindBridge.
 
-> 💡 **クイックスタートをお探しの方へ**: 5 分で動かしたい場合は [EASY_SETUP.md](../EASY_SETUP.md) をご覧ください。
+> 💡 **Quick start needed?** See [Quick Start](quick-start.md) for a 5-minute setup.
 
-## 📋 目次
+## Prerequisites
 
-1. [システム要件](#システム要件)
-2. [事前準備](#事前準備)
-3. [本体インストール](#本体インストール)
-4. [Discord 設定](#discord-設定)
-5. [API 設定](#api-設定)
-6. [チャンネル設定](#チャンネル設定)
-7. [Obsidian 設定](#obsidian-設定)
-8. [オプション機能](#オプション機能)
-9. [動作確認](#動作確認)
-10. [トラブルシューティング](#トラブルシューティング)
+### System Requirements
+- **OS**: macOS 10.15+, Ubuntu 20.04+, Windows 10+ (WSL2 recommended)
+- **Python**: 3.13+ (project developed on 3.13)
+- **Memory**: Minimum 512MB, recommended 1GB+
+- **Storage**: Minimum 1GB, recommended 5GB+ (including Obsidian vault)
+- **Network**: Internet connection required
 
-## 💻 システム要件
+### Required Software
 
-### 必須要件
-- **OS**: macOS 10.15+, Ubuntu 20.04+, Windows 10+ (WSL2 推奨)
-- **Python**: 3.13 以上（プロジェクトは 3.13 で開発）
-- **メモリ**: 最小 512MB 、推奨 1GB 以上
-- **ディスク**: 最小 1GB 、推奨 5GB 以上（ Obsidian ボルト含む）
-- **ネットワーク**: インターネット接続必須
+**1. Python 3.13**
 
-### 推奨環境
-- **CPU**: 2 コア以上
-- **メモリ**: 2GB 以上
-- **SSD**: 推奨（高速なファイル I/O ）
-
-## 🔧 事前準備
-
-### 1. Python 3.13 のインストール
-
-**macOS (Homebrew)**
+macOS (Homebrew):
 ```bash
 brew install python@3.13
 python3.13 --version
 ```
 
-**Ubuntu/Debian**
+Ubuntu/Debian:
 ```bash
 sudo apt update
 sudo apt install software-properties-common
@@ -49,517 +31,354 @@ sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt install python3.13 python3.13-venv python3.13-pip
 ```
 
-**Windows (WSL2 推奨)**
-```bash
-# WSL2 Ubuntu 環境で上記 Ubuntu 手順を実行
-```
-
-### 2. uv パッケージマネージャーのインストール
+**2. uv package manager**
 
 ```bash
-# Unix 系 OS (macOS/Linux) - 推奨
+# Unix systems (macOS/Linux) - recommended
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 手動インストール（ pip 経由）
+# Manual installation via pip
 pip install uv
 
 # Windows (PowerShell)
 irm https://astral.sh/uv/install.ps1 | iex
 
-# インストール確認
+# Verify installation
 uv --version
 ```
 
-### 3. Git のインストール
+## Installation
+
+### 1. Get the Code
 
 ```bash
-# macOS
-brew install git
-
-# Ubuntu
-sudo apt install git
-
-# Windows
-# Git for Windows をダウンロード・インストール
-```
-
-## 📥 本体インストール
-
-### 1. リポジトリの取得
-
-```bash
-# GitHub からクローン
+# Clone repository
 git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 
-# プロジェクト構造確認
+# Verify project structure
 ls -la
 ```
 
-### 2. 依存関係のインストール
+### 2. Install Dependencies
 
 ```bash
-# 本番用依存関係のインストール
+# Install production dependencies
 uv sync
 
-# 開発用依存関係も含める場合（開発者向け）
+# For developers (include dev dependencies)
 uv sync --dev
 
-# インストール済みパッケージ確認
+# Verify installation
 uv pip list
 ```
 
-### 3. 環境設定ファイルの準備
+### 3. Configuration Setup
 
 ```bash
-# サンプル設定をコピー
+# Copy example configuration
 cp .env.example .env
 
-# 設定ファイル確認
-cat .env.example
+# Edit configuration file
+nano .env  # or your preferred editor
 ```
 
-## 🤖 Discord 設定
+## Discord Setup
 
-### 1. Discord Bot の作成
+### 1. Create Discord Bot
 
-1. [Discord Developer Portal](https://discord.com/developers/applications) にアクセス
-2. "New Application" をクリック
-3. アプリケーション名を入力（例: "My Knowledge Bot"）
-4. 作成後、アプリケーション ID をメモ
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click "New Application"
+3. Enter application name (e.g., "MindBridge Bot")
+4. Note the Application ID
 
-### 2. Bot の設定
+### 2. Configure Bot
 
-1. 左メニューから "Bot" を選択
-2. "Add Bot" をクリック
-3. Bot 設定を行う：
-   - **Public Bot**: オフ（個人利用のため）
-   - **Requires OAuth2 Code Grant**: オフ
-   - **Message Content Intent**: オン（必須）
-   - **Server Members Intent**: オン（推奨）
-   - **Presence Intent**: オフ
+1. Select "Bot" from left menu
+2. Click "Add Bot"
+3. Configure bot settings:
+   - **Public Bot**: Off (for personal use)
+   - **Requires OAuth2 Code Grant**: Off
+   - **Message Content Intent**: On (required)
+   - **Server Members Intent**: On (recommended)
+   - **Presence Intent**: Off
 
-### 3. Bot トークンの取得
+### 3. Get Bot Token
 
-1. "Token" セクションで "Copy" をクリック
-2. トークンを安全な場所に保存
-3. `.env` ファイルの `DISCORD_BOT_TOKEN` に設定
+1. In "Token" section, click "Copy"
+2. Save token securely
+3. Add to `.env` file as `DISCORD_BOT_TOKEN`
 
-### 4. Bot 権限の設定
+### 4. Set Bot Permissions
 
-1. 左メニューから "OAuth2" → "URL Generator" を選択
-2. **Scopes** を選択：
+1. Go to "OAuth2" → "URL Generator"
+2. Select **Scopes**:
    - `bot`
    - `applications.commands`
 
-3. **Bot Permissions** を選択：
-   - **Text Permissions**:
-     - Send Messages
-     - Send Messages in Threads
-     - Embed Links
-     - Attach Files
-     - Read Message History
-     - Add Reactions
-   - **Voice Permissions**:
-     - Connect
-     - Speak
-   - **General Permissions**:
-     - Use Slash Commands
+3. Select **Bot Permissions**:
+   - **Text Permissions**: Send Messages, Send Messages in Threads, Embed Links, Attach Files, Read Message History, Add Reactions
+   - **Voice Permissions**: Connect, Speak
+   - **General Permissions**: Use Slash Commands
 
-### 5. Bot をサーバーに招待
+### 5. Invite Bot to Server
 
-1. 生成された URL をコピー
-2. URL にアクセスして Bot を招待
-3. 適切なサーバーを選択
-4. 権限を確認して認証
+1. Copy generated URL
+2. Access URL to invite bot
+3. Select appropriate server
+4. Confirm permissions
 
-## 🔑 API 設定
+## API Configuration
 
 ### 1. Google Gemini API
 
-**API キーの取得:**
-1. [Google AI Studio](https://aistudio.google.com/) にアクセス
-2. Google アカウントでログイン
-3. "Get API key" をクリック
-4. "Create API key in new project" を選択
-5. API キーをコピーして `.env` の `GEMINI_API_KEY` に設定
+1. Visit [Google AI Studio](https://aistudio.google.com/)
+2. Login with Google account
+3. Click "Get API key"
+4. Select "Create API key in new project"
+5. Copy API key to `.env` as `GEMINI_API_KEY`
 
-**使用量制限の確認:**
-- 無料版: 1 日 1500 リクエスト、 1 分 15 リクエスト
-- 有料版が必要な場合は [Google Cloud Console](https://console.cloud.google.com/) で設定
+**Usage Limits:**
+- Free tier: 1,500 requests/day, 15 requests/minute
+- For higher limits, configure billing in [Google Cloud Console](https://console.cloud.google.com/)
 
-### 2. Google Cloud Speech-to-Text API （オプション）
+### 2. Google Cloud Speech-to-Text (Optional)
 
-**サービスアカウントの作成:**
-1. [Google Cloud Console](https://console.cloud.google.com/) にアクセス
-2. プロジェクトを作成または選択
-3. "APIs & Services" → "Credentials"
-4. "Create Credentials" → "Service Account"
-5. サービスアカウント名を入力
-6. 役割を選択: "Cloud Speech Client"
-7. JSON キーをダウンロード
+**Create Service Account:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create or select project
+3. Navigate to "APIs & Services" → "Credentials"
+4. Click "Create Credentials" → "Service Account"
+5. Enter service account name
+6. Assign role: "Cloud Speech Client"
+7. Download JSON key
 
-**設定:**
+**Configure:**
 ```bash
-# サービスアカウントキーの配置
+# Place service account key
 mkdir -p ~/.config/gcloud/
 cp ~/Downloads/service-account-key.json ~/.config/gcloud/speech-key.json
 
-# 環境変数設定
+# Set environment variable
 echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/speech-key.json" >> .env
 ```
 
-### 3. Garmin Connect （オプション）
+## Discord Channels Setup
 
-```env
-# Garmin Connect 認証情報
-GARMIN_EMAIL=your_email@example.com
-GARMIN_USERNAME=your_username
-GARMIN_PASSWORD=your_password
+Create these 3 channels in your Discord server:
+
+```
+📝 memo           ← Main input channel (text, voice, files)
+🔔 notifications  ← System notifications  
+🤖 commands       ← Bot commands
 ```
 
-## 📺 チャンネル設定
+**Important**: Channel names must be exact (`memo`, `notifications`, `commands`) for auto-detection.
 
-### 🆕 シンプル化されたチャンネル構成
+### Get Server ID
 
-Discord サーバーで以下の **3 つのチャンネルのみ** 作成します：
+1. Enable Developer Mode in Discord: Settings → Advanced → Developer Mode
+2. Right-click server name → "Copy ID"
+3. Add to `.env` as `DISCORD_GUILD_ID`
 
-**📝 MEMO SYSTEM （必須）:**
-```
-#memo           - 🆕 統合入力チャンネル（すべてのコンテンツタイプ対応）
-```
+## Obsidian Setup
 
-**⚙️ SYSTEM （必須）:**
-```
-#notifications  - ボット通知
-#commands       - ボットコマンド
-```
+### 1. Prepare Obsidian Vault
 
-**🎯 AI 自動分類システム**
-
-`#memo` チャンネルに投稿されたすべてのコンテンツ（テキスト・音声・ファイル）は AI により自動分類され、 Obsidian の適切なフォルダに保存されます：
-
-- **💰 20_Finance** → 「 1500 ランチ」「¥3000 本」などの支出情報
-- **✅ 02_Tasks** → 「 TODO: 資料作成」「期限: 明日まで」などのタスク
-- **🏃 21_Health** → 「体重 70kg 」「ランニング 5km 」などの健康データ
-- **📚 10_Knowledge** → 「 Python 学習」「読書メモ」などの学習記録
-- **🎙️ Voice Memos** → 音声ファイルの自動文字起こし → 内容に応じた分類
-- **📁 80_Attachments** → ファイル共有の適切なフォルダ分類
-- **📥 00_Inbox** → 未分類・その他の一般的なメモ
-
-> **🆕 大幅な簡素化**: 従来の複雑な多チャンネル構成（ 17 個以上）から、 3 チャンネルの AI 自動分類システムに移行しました。
-
-### 🆕 自動チャンネル検出
-
-**チャンネル ID の取得は不要です！** ボットは以下のチャンネル名で自動検出します：
-
-- `memo` - メイン入力チャンネル
-- `notifications` - システム通知
-- `commands` - ボットコマンド
-
-> 💡 **ポイント**: 正確なチャンネル名（ memo 、 notifications 、 commands ）で作成すれば、ボットが自動的に見つけて接続します。
-
-### 2. サーバー ID の取得
-
-1. Discord で開発者モードを有効化：設定 → 詳細設定 → 開発者モード をオン
-2. Discord サーバー名を右クリック → "ID をコピー"
-3. `.env` の `DISCORD_GUILD_ID` に設定
-
-## 📚 Obsidian 設定
-
-### 1. Obsidian ボルトの準備
-
-**新規ボルトの作成:**
+**Create new vault:**
 ```bash
-# ボルトディレクトリ作成
+# Create vault directory
 mkdir -p ~/Documents/ObsidianVault
 cd ~/Documents/ObsidianVault
 
-# AI 自動分類に対応したフォルダ構造作成（新構成・使用頻度順）
+# Create folder structure optimized for AI classification
 mkdir -p {00_Inbox,01_DailyNotes,02_Tasks,03_Ideas}
 mkdir -p {10_Knowledge,11_Projects,12_Resources}
 mkdir -p {20_Finance,21_Health}
 mkdir -p {30_Archive,80_Attachments,90_Meta/Templates}
+
+# Set vault path in .env
+echo "OBSIDIAN_VAULT_PATH=$HOME/Documents/ObsidianVault" >> .env
 ```
 
-**既存ボルトを使用する場合:**
+**Use existing vault:**
 ```bash
-# 既存ボルトパスを確認
+# Verify existing vault path
 ls -la /path/to/your/existing/vault
 
-# .env ファイルにパス設定
+# Set in .env
 echo "OBSIDIAN_VAULT_PATH=/path/to/your/existing/vault" >> .env
 ```
 
-### 2. テンプレートファイルの作成
+### 2. Configure Obsidian
 
-**基本テンプレート:**
-```bash
-# デイリーノートテンプレート
-cat > ~/Documents/ObsidianVault/99_Meta/Templates/daily_note.md << 'EOF'
-# {{date}}
+**Recommended plugins:**
+1. Open vault in Obsidian
+2. Settings → Community Plugins → Turn off Safe Mode
+3. Install recommended plugins:
+   - **Calendar** - Daily note navigation
+   - **Templater** - Advanced templating
+   - **Dataview** - Data visualization
+   - **Tag Wrangler** - Tag organization
 
-## 📝 Today's Summary
-{{summary}}
+## Environment Variables
 
-## 🎯 Key Activities
-{{activities}}
-
-## 💭 Ideas & Insights
-{{ideas}}
-
-## ✅ Tasks Completed
-{{completed_tasks}}
-
-## 📊 AI Processing Metrics
-- Messages processed: {{message_count}}
-- AI requests: {{ai_requests}}
-- Files created: {{files_created}}
-- Categories detected: {{categories_used}}
-
-## 🔄 Next Actions
-{{next_actions}}
-
----
-Created: {{timestamp}}
-Tags: #daily-note #ai-processed
-EOF
-```
-
-### 3. Obsidian 設定
-
-**プラグイン推奨設定:**
-1. Obsidian でボルトを開く
-2. 設定 → コミュニティプラグイン → セーフモードをオフ
-3. 推奨プラグインをインストール：
-   - **Calendar** - 日次レビュー用
-   - **Templater** - 高度なテンプレート処理
-   - **Dataview** - AI 分類データの可視化
-   - **Tag Wrangler** - AI タグの整理
-
-## 🔧 オプション機能
-
-### 1. 音声処理の有効化
+Complete `.env` configuration:
 
 ```env
-# Speech-to-Text 設定
+# Required
+DISCORD_BOT_TOKEN=your_discord_bot_token
+DISCORD_GUILD_ID=your_guild_id  
+GEMINI_API_KEY=your_gemini_api_key
+OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
+
+# Optional: Speech-to-Text
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
-SPEECH_API_MONTHLY_LIMIT_MINUTES=60
-```
 
-> 💡 **音声メモの使い方**: `#memo` チャンネルに音声ファイルをアップロードすると、自動的に文字起こしされて Voice Memos フォルダに分類されます。
-
-### 2. 健康データ統合
-
-```env
-# Garmin Connect 設定
+# Optional: Garmin Connect
 GARMIN_EMAIL=your_email@example.com
 GARMIN_USERNAME=your_username
 GARMIN_PASSWORD=your_password
-GARMIN_CACHE_HOURS=24.0
-```
 
-> 💡 **健康データの処理**: Garmin のデータは自動取得され、健康関連のメッセージと同様に AI が Health フォルダに分類します。
-
-### 3. 高度な AI 機能
-
-```env
-# ベクトル検索の有効化
-ENABLE_VECTOR_SEARCH=true
-
-# AI キャッシュ設定
-AI_CACHE_SIZE_MB=100
-AI_CACHE_HOURS=24
-
-# AI 分類の調整
-AI_CLASSIFICATION_CONFIDENCE_THRESHOLD=0.7
-```
-
-### 4. セキュリティ設定
-
-```env
-# Google Cloud Secret Manager 使用
-USE_SECRET_MANAGER=false  # ローカル環境では通常 false
-GOOGLE_CLOUD_PROJECT=your-project-id
-
-# アクセスログ
+# Optional: Security
+USE_SECRET_MANAGER=false  # Usually false for local setup
 ENABLE_ACCESS_LOGGING=true
-SECURITY_LOG_PATH=/path/to/security/logs
 ```
 
-## ✅ 動作確認
+## Testing Installation
 
-### 1. 設定の検証
+### 1. Verify Configuration
 
 ```bash
-# 環境変数の確認
+# Check environment variables
 cat .env | grep -E "(DISCORD_|GEMINI_|OBSIDIAN_)"
 
-# Python 環境の確認
+# Verify Python environment
 uv run python --version
 uv run python -c "import discord; print('discord.py version:', discord.__version__)"
 uv run python -c "import google.generativeai as genai; print('Gemini API available')"
 ```
 
-### 2. テスト実行
+### 2. Run Tests
 
 ```bash
-# 全テストの実行
+# Run all tests
 uv run pytest
 
-# 基本機能テスト
+# Run basic configuration tests
 uv run pytest tests/unit/test_config.py -v
 
-# 統合テスト
+# Run integration tests
 uv run pytest tests/integration/ -v
 ```
 
-### 3. Bot 起動とテスト
+### 3. Start Bot
 
 ```bash
-# Bot を起動
+# Start bot
 uv run python -m src.main
 
-# 起動ログでチャンネル検出を確認:
+# Verify startup logs show channel detection:
 # "Found memo channel: 123456789"
 # "Found notifications channel: 987654321"
 # "Found commands channel: 456789123"
-
-# 別ターミナルで動作確認
-# Discord で以下のコマンドを実行:
-# /ping
-# /status
-# /help
 ```
 
-### 4. 機能別テスト
+### 4. Test Functionality
 
-**🆕 統合メモ機能:**
-1. `#memo` チャンネルにテキストメッセージ投稿 → AI が内容を分析して適切なフォルダに分類
-2. `#memo` チャンネルに音声ファイルアップロード → 自動文字起こし + AI 分類
-3. `#memo` チャンネルにファイル添付 → AI が内容を分析してファイル分類
-4. Obsidian ボルトで適切なフォルダに保存されることを確認
+**Basic functionality:**
+1. Post text message to `#memo` → Check AI categorization
+2. Upload audio file to `#memo` → Verify transcription
+3. Test commands in `#commands`:
+   - `/ping`
+   - `/status`
+   - `/help`
 
-**AI 分類テスト:**
-- 「 1500 円 ランチ代」→ 20_Finance フォルダ
-- 「 TODO: 明日資料作成」→ 02_Tasks フォルダ
-- 「今日のジョギング 3km 」→ 21_Health フォルダ
-- 「 Python の勉強メモ」→ 10_Knowledge フォルダ
+**AI Classification test:**
+- "Lunch $15" → 20_Finance folder
+- "TODO: finish report" → 02_Tasks folder
+- "Workout 3km" → 21_Health folder
+- "Python learning notes" → 10_Knowledge folder
 
-**コマンド機能:**
-1. `/vault_stats` で統計情報を確認
-2. `/search_notes keyword` で検索機能を確認
-3. `/ai_stats` で AI 処理状況を確認
+## Troubleshooting
 
-## 🔧 トラブルシューティング
+### Common Issues
 
-### よくある問題
-
-**1. Bot が起動しない**
+**Bot won't start:**
 ```bash
-# Python バージョン確認
-python --version  # 3.13 以上必要
+# Check Python version
+python --version  # Must be 3.13+
 
-# 依存関係の再インストール
+# Reinstall dependencies
 uv sync --reinstall
 
-# ログの確認
+# Check logs
 tail -f logs/bot.log
 
-# 詳細デバッグ
+# Debug mode
 LOG_LEVEL=DEBUG uv run python -m src.main
 ```
 
-**2. Discord 認証エラー**
+**Discord authentication errors:**
 ```bash
-# トークンの確認
+# Verify token
 echo $DISCORD_BOT_TOKEN
 
-# Bot 権限の確認
-# Discord Developer Portal で以下の権限を確認:
-# - Message Content Intent: ON （必須）
-# - Send Messages, Read Message History
+# Check bot permissions in Discord Developer Portal:
+# - Message Content Intent: ON (required)
+# - Send Messages, Read Message History permissions
 ```
 
-**3. Obsidian ファイル作成エラー**
+**Obsidian file creation errors:**
 ```bash
-# パスと権限の確認
+# Check path and permissions
 ls -la $OBSIDIAN_VAULT_PATH
 chmod 755 $OBSIDIAN_VAULT_PATH
 
-# AI 分類フォルダの確認
+# Verify folder structure
 tree $OBSIDIAN_VAULT_PATH
-# 20_Finance, 02_Tasks, 21_Health, 10_Knowledge フォルダが存在することを確認
 ```
 
-**4. API 制限エラー**
+**API rate limits:**
 ```bash
-# Gemini API 使用量確認
-# Discord で `/ai_stats` コマンド実行
-# 無料版制限: 1 日 1500 リクエスト、 1 分 15 リクエスト
+# Check Gemini API usage
+# Discord: /ai_stats command
+# Free tier limits: 1,500/day, 15/minute
 
-# Speech API 確認
-# Google Cloud Console で使用量確認
-# 無料版制限: 月 60 分
+# Check Speech API usage in Google Cloud Console
+# Free tier: 60 minutes/month
 ```
 
-### ボットがチャンネルを見つけられない
+### Channel Detection Issues
 
-**症状:** ボットがチャンネルを認識しない
+**Problem**: Bot can't find channels
 
-**解決方法:**
-1. チャンネル名が正確か確認（`memo`, `notifications`, `commands`）
-2. ボットにチャンネル表示権限があるか確認
-3. `DISCORD_GUILD_ID` が正しいか確認
-4. 起動ログで "Found memo channel" メッセージを確認
+**Solutions:**
+1. Verify exact channel names (`memo`, `notifications`, `commands`)
+2. Check bot has channel view permissions
+3. Verify `DISCORD_GUILD_ID` is correct
+4. Check startup logs for "Found memo channel" messages
 
-### ボットがメッセージに反応しない
+### No Response to Messages
 
-**症状:** `#memo` チャンネルにメッセージを投稿しても何も起こらない
+**Problem**: Bot doesn't respond to `#memo` posts
 
-**解決方法:**
-1. ボットがオンラインか確認
-2. ボットに Message Content Intent が有効か確認
-3. `#notifications` チャンネルでエラーメッセージを確認
-4. AI 分類処理中は数秒待つ
+**Solutions:**
+1. Verify bot is online
+2. Check Message Content Intent is enabled
+3. Check `#notifications` for error messages
+4. Allow few seconds for AI processing
 
-### セットアップ状況の確認
+## Next Steps
 
-ボット起動時のログで Discord チャンネル検出状況を確認：
-```
-INFO: Discord bot starting...
-INFO: Found memo channel: 123456789
-INFO: Found notifications channel: 987654321
-INFO: Found commands channel: 456789123
-INFO: AI classification system ready
-```
+After installation:
+1. **[Quick Start Guide](quick-start.md)** - Get started quickly
+2. **[Basic Usage](basic-usage.md)** - Day-to-day usage
+3. **[Commands Reference](commands-reference.md)** - Available commands
 
-### デバッグモード
+## Support
 
-```bash
-# 詳細ログでの起動
-LOG_LEVEL=DEBUG uv run python -m src.main
-
-# 特定モジュールのデバッグ
-PYTHONPATH=src python -c "from src.config.settings import get_settings; print(get_settings())"
-```
-
-### サポート
-
-問題が解決しない場合：
-1. [GitHub Issues](https://github.com/kenvexar/mindbridge/issues) で問題を報告
-2. ログファイルとエラーメッセージを添付
-3. Discord の開発者モードで取得した ID 情報を含める
-
-## 📚 次のステップ
-
-インストールが完了したら：
-1. **[簡単セットアップガイド](../EASY_SETUP.md)** - 5 分でのクイックスタート
-2. **[開発者向けドキュメント](../CLAUDE.md)** - 技術的な詳細とアーキテクチャ
-3. **AI 分類の確認** - 各種コンテンツを `#memo` に投稿してフォルダ分類をテスト
-
-> 💡 **おすすめ**: まずは `#memo` チャンネルに「 1500 円 ランチ代」「 TODO: 明日資料作成」「今日のジョギング 3km 」などを投稿して AI 分類を体験してみてください！
-
----
-
-🆕 **簡素化されたインストールガイド**: 3 つのチャンネルと AI 自動分類で、従来の複雑な設定が大幅に簡単になりました。問題があれば GitHub Issues でお知らせください。
+For issues:
+1. **[GitHub Issues](https://github.com/kenvexar/mindbridge/issues)** - Bug reports and feature requests
+2. **[Troubleshooting Guide](../operations/troubleshooting.md)** - Common solutions
+3. Include log files and error messages in reports
