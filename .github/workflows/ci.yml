@@ -92,7 +92,7 @@ jobs:
         uv run pytest tests/ -v --tb=short --cov=src/ --cov-report=xml || echo "Some tests may have failed, but that's expected in development"
 
     - name: Upload coverage
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         file: ./coverage.xml
         fail_ci_if_error: false
