@@ -1,0 +1,101 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: mindbridge
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        # Resource allocation
+        run.googleapis.com/memory: 1Gi
+        run.googleapis.com/cpu: "1"
+        run.googleapis.com/execution-environment: gen2
+
+        # Autoscaling
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "3"
+
+        # Health checks
+        run.googleapis.com/startup-probe-initial-delay-seconds: "60"
+        run.googleapis.com/startup-probe-timeout-seconds: "10"
+
+        # Service account
+        run.googleapis.com/service-account: mindbridge-service@mindbridge-469901.iam.gserviceaccount.com
+    spec:
+      containerConcurrency: 1000
+      timeoutSeconds: 300
+      serviceAccountName: mindbridge-service@mindbridge-469901.iam.gserviceaccount.com
+      containers:
+      - name: mindbridge
+        image: gcr.io/mindbridge-469901/mindbridge:latest
+        ports:
+        - containerPort: 8080
+          name: http1
+        env:
+        - name: DISCORD_GUILD_ID
+          valueFrom:
+            secretKeyRef:
+              name: discord-guild-id
+              key: latest
+        - name: OBSIDIAN_VAULT_PATH
+          value: "/app/vault"
+        - name: GOOGLE_CLOUD_PROJECT
+          value: "mindbridge-469901"
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DISCORD_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: discord-bot-token
+              key: latest
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gemini-api-key
+              key: latest
+        - name: GARMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: garmin-username
+              key: latest
+        - name: GARMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: garmin-password
+              key: latest
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-token
+              key: latest
+        - name: OBSIDIAN_BACKUP_REPO
+          valueFrom:
+            secretKeyRef:
+              name: obsidian-backup-repo
+              key: latest
+        - name: OBSIDIAN_BACKUP_BRANCH
+          value: "main"
+        - name: GIT_USER_NAME
+          value: "MindBridge Bot"
+        - name: GIT_USER_EMAIL
+          value: "mindbridge-bot@example.com"
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 10
+          failureThreshold: 3
+  traffic:
+  - percent: 100
+    latestRevision: true
