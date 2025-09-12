@@ -1,0 +1,30 @@
+
+services:
+  personal-mindbridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: personal-mindbridge
+    env_file:
+      - .env.docker
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./vault:/app/vault  # Personal Obsidian vault
+      - ./logs:/app/logs    # Personal logs
+      - ./backups:/app/backups  # Personal backups
+      - ./.cache:/app/.cache    # Personal cache
+      - ./.config:/app/.config  # Personal config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - personal-mindbridge-network
+
+networks:
+  personal-mindbridge-network:
+    driver: bridge

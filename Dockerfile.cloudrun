@@ -1,0 +1,40 @@
+# Cloud Run 用 Dockerfile
+FROM python:3.13-slim
+
+# システムパッケージの更新と Git のインストール
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 作業ディレクトリの設定
+WORKDIR /app
+
+# uv のインストール
+RUN pip install uv
+
+# 依存関係ファイルのコピー
+COPY pyproject.toml uv.lock ./
+
+# 依存関係のインストール
+RUN uv sync --frozen
+
+# アプリケーションコードのコピー
+COPY src/ ./src/
+
+# Vault ディレクトリの作成
+RUN mkdir -p /app/vault
+
+# Git の初期設定（デフォルト値）
+RUN git config --global init.defaultBranch main
+RUN git config --global user.name "MindBridge Bot"
+RUN git config --global user.email "mindbridge@example.com"
+
+# Git credential helper の設定（環境変数を使用）
+RUN git config --global credential.helper store
+
+# ヘルスチェック用ポートの公開
+EXPOSE 8080
+
+# 起動コマンド
+CMD ["uv", "run", "python", "-m", "src.main"]

@@ -1,0 +1,78 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"  # cooldown で制御するため daily に戻す
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3  # AI/ML 系は変化が激しいので短めに設定
+      semver-major-days: 7  # メジャー更新は慎重に
+      semver-minor-days: 3  # マイナー更新は標準
+      semver-patch-days: 1  # パッチ更新は短めに
+      exclude:
+        # セキュリティ重要パッケージは cooldown 適用外
+        - "cryptography"
+        - "requests"
+        - "urllib3"
+    reviewers:
+      - "@kenvexar"
+    assignees:
+      - "@kenvexar"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      non-security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+        # セキュリティ更新は即座、その他は週次でまとめて処理
+    ignore:
+      # 開発ツールの細かいパッチ更新は手動管理（ cooldown で十分制御）
+      - dependency-name: "pre-commit"
+        update-types: ["version-update:semver-patch"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "@kenvexar"
+    assignees:
+      - "@kenvexar"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "@kenvexar"
+    assignees:
+      - "@kenvexar"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"
