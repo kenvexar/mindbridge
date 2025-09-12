@@ -102,12 +102,12 @@ setup_service_account() {
         if [[ "$JSON_ONLY" != "json-only" ]]; then
             log_info "Speech サービスアカウントが存在しません。作成中..."
         fi
-        
+
         if [[ "$JSON_ONLY" == "json-only" ]]; then
             gcloud iam service-accounts create "$SA_NAME" \
                 --display-name="MindBridge Speech Service Account" \
                 --description="Service account for speech-to-text operations" >/dev/null 2>&1
-            
+
             # 権限付与
             gcloud projects add-iam-policy-binding "$PROJECT_ID" \
                 --member="serviceAccount:$SA_EMAIL" \
@@ -224,7 +224,7 @@ cleanup() {
     if [[ "$JSON_ONLY" != "json-only" ]]; then
         log_step "一時ファイルを清理中..."
     fi
-    
+
     if [[ -f "$KEY_FILE" ]]; then
         rm -f "$KEY_FILE"
         if [[ "$JSON_ONLY" != "json-only" ]]; then

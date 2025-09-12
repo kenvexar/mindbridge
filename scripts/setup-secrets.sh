@@ -60,13 +60,13 @@ prompt_secret() {
     # Check if secret already exists
     if gcloud secrets describe "$secret_name" --project="$PROJECT_ID" &>/dev/null; then
         echo -e "${YELLOW}Secret '$secret_name' already exists${NC}"
-        
+
         # Check for batch skip option
         if [[ "$SKIP_EXISTING" == "--skip-existing" ]]; then
             log "Skipping $secret_name (--skip-existing specified)"
             return 0
         fi
-        
+
         echo -n "Do you want to update it? (y/n): "
         read -r update_response
 
@@ -116,7 +116,7 @@ main() {
     echo "Debug: Arguments passed: $*"
     echo "Debug: SKIP_EXISTING='$SKIP_EXISTING'"
     echo "Debug: WITH_OPTIONAL='$WITH_OPTIONAL'"
-    
+
     local mode_desc="Interactive"
     if [[ "$SKIP_EXISTING" == "--skip-existing" ]]; then
         mode_desc="Skip existing secrets"
@@ -124,7 +124,7 @@ main() {
     if [[ "$WITH_OPTIONAL" == "--with-optional" ]]; then
         mode_desc="$mode_desc + Optional features enabled"
     fi
-    
+
     if [[ "$SKIP_EXISTING" == "--skip-existing" ]]; then
         echo -e "${YELLOW}Mode: $mode_desc${NC}"
     else
@@ -155,7 +155,7 @@ main() {
 
     if [[ "$garmin_username_exists" == "true" && "$garmin_password_exists" == "true" ]]; then
         echo -e "${YELLOW}Garmin Connect 認証情報は既に設定済みです${NC}"
-        
+
         # Check for batch skip option
         if [[ "$SKIP_EXISTING" == "--skip-existing" ]]; then
             log "Garmin Connect 設定をスキップしました (--skip-existing specified)"
@@ -204,7 +204,7 @@ main() {
 
     if [[ "$speech_credentials_exist" == "true" ]]; then
         echo -e "${YELLOW}Google Cloud Speech-to-Text 認証情報は既に設定済みです${NC}"
-        
+
         # Check for batch skip option
         if [[ "$SKIP_EXISTING" == "--skip-existing" ]]; then
             log "Speech-to-Text 設定をスキップしました (--skip-existing specified)"
@@ -247,20 +247,20 @@ main() {
                 if [[ -f "$SCRIPT_DIR/generate-speech-credentials.sh" ]]; then
                     # Execute with timeout and capture output using json-only mode
                     log "Executing speech credentials generation script..."
-                    
+
                     # Cross-platform timeout implementation
                     speech_generation_with_timeout() {
                         local timeout_duration=60
                         "$SCRIPT_DIR/generate-speech-credentials.sh" "$PROJECT_ID" "json-only" > /tmp/speech_output.txt 2>/dev/null &
                         local pid=$!
-                        
+
                         # Wait for process with timeout
                         local count=0
                         while kill -0 $pid 2>/dev/null && [ $count -lt $timeout_duration ]; do
                             sleep 1
                             ((count++))
                         done
-                        
+
                         if kill -0 $pid 2>/dev/null; then
                             # Process still running, kill it
                             kill -TERM $pid 2>/dev/null
@@ -273,11 +273,11 @@ main() {
                             return $?
                         fi
                     }
-                    
+
                     if speech_generation_with_timeout; then
                         # Extract JSON from script output (everything between markers)
                         speech_json=$(sed -n '/--- JSON 開始 ---/,/--- JSON 終了 ---/p' /tmp/speech_output.txt | sed '1d;$d')
-                        
+
                         # Debug: Show what we captured
                         if [[ -s /tmp/speech_output.txt ]]; then
                             log "Script output captured (first 5 lines):"
@@ -285,13 +285,13 @@ main() {
                         else
                             warn "No output captured from generation script"
                         fi
-                        
+
                         # Validate JSON is not empty
                         if [[ -z "$speech_json" || "$speech_json" == *"error"* ]]; then
                             warn "Failed to extract valid JSON from generation script"
                             speech_json=""
                         fi
-                        
+
                         rm -f /tmp/speech_output.txt
                     else
                         warn "Speech credentials generation timed out or failed"
