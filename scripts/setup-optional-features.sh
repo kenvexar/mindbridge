@@ -205,7 +205,7 @@ setup_calendar_api() {
     echo -e "${CYAN}Google Calendar OAuth 認証情報を自動生成しますか？${NC}"
     echo "1. Auto-generate OAuth credentials (recommended)"
     echo "2. Manually enter credentials.json"
-    
+
     # OAuth 同意画面が未設定の場合は警告を表示
     if [[ -z "$OAUTH_CONSENT_STATUS" || "$OAUTH_CONSENT_STATUS" == *"ERROR"* ]]; then
         echo ""
@@ -214,25 +214,25 @@ setup_calendar_api() {
         echo "1. Google Cloud Console → APIs & Services → OAuth consent screen"
         echo "2. User Type: External を選択して設定を完了"
     fi
-    
+
     echo -n "Choose option (1/2): "
     read -r oauth_choice
 
     if [[ "$oauth_choice" == "1" ]]; then
         log_info "OAuth クライアント ID を自動生成中..."
-        
+
         # Cloud Run の URL を取得（存在する場合）
         CLOUD_RUN_URL=""
         if gcloud run services describe mindbridge --region=us-central1 --format="value(status.url)" 2>/dev/null; then
             CLOUD_RUN_URL=$(gcloud run services describe mindbridge --region=us-central1 --format="value(status.url)" 2>/dev/null)
         fi
-        
+
         # リダイレクト URI を準備
         REDIRECT_URIS="http://localhost:8080/oauth/callback"
         if [[ -n "$CLOUD_RUN_URL" ]]; then
             REDIRECT_URIS="$REDIRECT_URIS,$CLOUD_RUN_URL/oauth/callback"
         fi
-        
+
         # OAuth 設定ファイルを一時的に作成
         OAUTH_CONFIG="/tmp/oauth-config-$$.json"
         cat > "$OAUTH_CONFIG" <<EOF
@@ -248,11 +248,11 @@ EOF
 
         # gcloud を使用して OAuth クライアントを作成（タイムアウト対応）
         log_info "OAuth クライアント ID を作成中..."
-        
+
         # タイムアウトとエラーハンドリングを追加
         OAUTH_CREATE_SUCCESS=false
         CLIENT_RESULT=""
-        
+
         # 30 秒タイムアウトで OAuth クライアント作成を試行
         if timeout 30s bash -c "
             CLIENT_RESULT_TEMP=\$(gcloud beta identity oauth-clients create --config-from-file='$OAUTH_CONFIG' --format='value(name)' 2>&1)
@@ -260,13 +260,13 @@ EOF
         " 2>/dev/null; then
             CLIENT_RESULT=$(cat /tmp/oauth_result_$$ 2>/dev/null || echo "")
             rm -f /tmp/oauth_result_$$
-            
+
             # 成功判定（ projects/で始まる場合は成功）
             if [[ "$CLIENT_RESULT" == projects/* ]]; then
                 CLIENT_ID=$(echo "$CLIENT_RESULT" | cut -d'/' -f4)
                 log_success "OAuth クライアント ID が作成されました: $CLIENT_ID"
                 OAUTH_CREATE_SUCCESS=true
-                
+
                 # クライアントシークレットを取得（タイムアウト付き）
                 CLIENT_SECRET=""
                 if timeout 15s bash -c "
@@ -276,12 +276,12 @@ EOF
                     CLIENT_SECRET=$(cat /tmp/oauth_secret_$$ 2>/dev/null || echo "")
                     rm -f /tmp/oauth_secret_$$
                 fi
-                
+
                 if [[ -z "$CLIENT_SECRET" ]]; then
                     log_warning "クライアントシークレットの取得に失敗しました"
                     CLIENT_SECRET="<MANUAL_SETUP_REQUIRED>"
                 fi
-                
+
                 # credentials.json 形式で生成
                 CALENDAR_CREDENTIALS=$(cat <<EOF
 {
@@ -307,17 +307,17 @@ EOF
             rm -f /tmp/oauth_result_$$
             log_warning "OAuth クライアント作成がタイムアウトまたは失敗しました: $CLIENT_RESULT"
         fi
-        
+
         # 設定ファイルをクリーンアップ
         rm -f "$OAUTH_CONFIG"
-        
+
         # 自動生成に失敗した場合は手動設定にフォールバック
         if [[ "$OAUTH_CREATE_SUCCESS" != "true" ]]; then
             log_warning "自動生成に失敗しました。手動設定に切り替えます..."
             oauth_choice="2"
         fi
     fi
-    
+
     if [[ "$oauth_choice" == "2" ]]; then
         echo ""
         echo -e "${CYAN}Google Calendar API OAuth 設定手順:${NC}"

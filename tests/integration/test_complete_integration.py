@@ -182,17 +182,16 @@ class TestCompleteMessageProcessingFlow:
 
                         # メッセージハンドラーの初期化をモックのスコープ内に移動
                         from src.ai.mock_processor import MockAIProcessor
-                        from src.obsidian import ObsidianFileManager
+                        from src.ai.note_analyzer import AdvancedNoteAnalyzer
                         from src.obsidian.daily_integration import DailyNoteIntegration
                         from src.obsidian.template_system import TemplateEngine
-                        from src.ai.note_analyzer import AdvancedNoteAnalyzer
-                        
+
                         mock_ai_processor = MockAIProcessor()
                         mock_obsidian_manager = mock_obsidian_instance
                         mock_daily_integration = Mock(spec=DailyNoteIntegration)
                         mock_template_engine = Mock(spec=TemplateEngine)
                         mock_note_analyzer = Mock(spec=AdvancedNoteAnalyzer)
-                        
+
                         handler = MessageHandler(
                             ai_processor=mock_ai_processor,
                             obsidian_manager=mock_obsidian_manager,
@@ -205,15 +204,15 @@ class TestCompleteMessageProcessingFlow:
 
                         # note_creation_handler をモック
                         with patch.object(
-                            handler, 
-                            '_handle_obsidian_note_creation',
-                            new_callable=AsyncMock
+                            handler,
+                            "_handle_obsidian_note_creation",
+                            new_callable=AsyncMock,
                         ) as mock_note_creation:
                             mock_note_creation.return_value = {
-                                "note_path": "test.md", 
-                                "status": "created"
+                                "note_path": "test.md",
+                                "status": "created",
                             }
-                            
+
                             # メッセージ処理の実行
                             result = await handler.process_message(
                                 cast(discord.Message, test_message)
@@ -225,11 +224,15 @@ class TestCompleteMessageProcessingFlow:
                             assert result.get("message_id") is not None
                             assert result.get("processed_content") is not None
                             # Note: "note" key is not currently included in message_data
-                            assert result.get("metadata") is not None  # Check for actual available data
+                            assert (
+                                result.get("metadata") is not None
+                            )  # Check for actual available data
 
                             # AI 処理の呼び出し確認は統合テストでは必須ではない
                             # (モック環境では実際の AI 呼び出しは発生しない場合がある)
-                            print(f"✓ Mock AI process_text called: {mock_process_text.call_count} times")
+                            print(
+                                f"✓ Mock AI process_text called: {mock_process_text.call_count} times"
+                            )
 
                         # 統合テストでは実際の Obsidian 統合機能が動作することを確認
                         # (具体的なメソッド呼び出しよりも結果の正常性を重視)
@@ -254,17 +257,17 @@ class TestCompleteMessageProcessingFlow:
 
         # MessageHandler with required dependencies
         from src.ai.mock_processor import MockAIProcessor
+        from src.ai.note_analyzer import AdvancedNoteAnalyzer
         from src.obsidian import ObsidianFileManager
         from src.obsidian.daily_integration import DailyNoteIntegration
         from src.obsidian.template_system import TemplateEngine
-        from src.ai.note_analyzer import AdvancedNoteAnalyzer
-        
+
         mock_ai_processor = MockAIProcessor()
         mock_obsidian_manager = Mock(spec=ObsidianFileManager)
         mock_daily_integration = Mock(spec=DailyNoteIntegration)
         mock_template_engine = Mock(spec=TemplateEngine)
         mock_note_analyzer = Mock(spec=AdvancedNoteAnalyzer)
-        
+
         handler = MessageHandler(
             ai_processor=mock_ai_processor,
             obsidian_manager=mock_obsidian_manager,
@@ -278,29 +281,34 @@ class TestCompleteMessageProcessingFlow:
         test_message = MockMessage("テストメッセージ", author_id=123)
 
         # AI エラーをシミュレート（ MockAIProcessor の process_text メソッドに直接エラーを設定）
-        with patch.object(handler.ai_processor, 'process_text', side_effect=Exception("API quota exceeded")) as mock_process_text:
-
+        with patch.object(
+            handler.ai_processor,
+            "process_text",
+            side_effect=Exception("API quota exceeded"),
+        ):
             # note_creation_handler をモック
             with patch.object(
-                handler, 
-                '_handle_obsidian_note_creation',
-                new_callable=AsyncMock
+                handler, "_handle_obsidian_note_creation", new_callable=AsyncMock
             ) as mock_note_creation:
                 mock_note_creation.return_value = {
-                    "note_path": "test.md", 
-                    "status": "created"
+                    "note_path": "test.md",
+                    "status": "created",
                 }
-                
-                # エラーハンドリングのテスト
-                result = await handler.process_message(cast(discord.Message, test_message))
 
-                # フォールバック処理の確認
+                # エラーハンドリングのテスト
+                result = await handler.process_message(
+                    cast(discord.Message, test_message)
+                )
+
+                # フォールバック処理の確認（AI エラーでも graceful に処理継続）
                 assert result is not None
                 assert result.get("status") == "success"
                 assert result.get("message_id") is not None
                 assert result.get("processed_content") is not None
                 # Note: "note" key is not included in current message_data structure
-                assert result.get("metadata") is not None  # Check for actual available data
+                assert (
+                    result.get("metadata") is not None
+                )  # Check for actual available data
 
         print("✓ API 制限エラーハンドリングが正常に動作")
 
@@ -461,24 +469,23 @@ class TestFullSystemIntegration:
 
             # DiscordBot の初期化（ mock モード）
             from src.ai.mock_processor import MockAIProcessor
-            from src.obsidian.core.vault_manager import VaultManager
+            from src.ai.note_analyzer import AdvancedNoteAnalyzer
             from src.obsidian.daily_integration import DailyNoteIntegration
             from src.obsidian.template_system import TemplateEngine
-            from src.ai.note_analyzer import AdvancedNoteAnalyzer
-            
+
             mock_ai_processor = MockAIProcessor()
             mock_vault_manager = Mock()
             mock_daily_integration = Mock(spec=DailyNoteIntegration)
             mock_template_engine = Mock(spec=TemplateEngine)
             mock_note_analyzer = Mock(spec=AdvancedNoteAnalyzer)
-            
+
             bot = DiscordBot(
                 ai_processor=mock_ai_processor,
                 vault_manager=mock_vault_manager,
                 note_template="Test template",
                 daily_integration=mock_daily_integration,
                 template_engine=mock_template_engine,
-                note_analyzer=mock_note_analyzer
+                note_analyzer=mock_note_analyzer,
             )
 
             assert bot is not None

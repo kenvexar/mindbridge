@@ -9,8 +9,7 @@ Enhanced YAML Frontmatter Generator のテストケース
 - Obsidian 特化機能
 """
 
-import pytest
-from datetime import datetime, date
+from datetime import date, datetime
 from unittest.mock import Mock
 
 from src.obsidian.template_system.yaml_generator import YAMLFrontmatterGenerator
@@ -32,16 +31,16 @@ class TestEnhancedYAMLFrontmatterGenerator:
         ai_result.confidence = 0.95
         ai_result.importance = "high"
         ai_result.tags = ["learning", "python", "ai"]
-        
+
         content = "これは機械学習に関する詳細な説明です。 Python のライブラリを使用して、データ分析を行います。"
         context = {
             "source": "Discord",
             "channel_name": "memo",
             "message_id": "123456789",
             "is_voice_memo": True,
-            "audio_duration": 120
+            "audio_duration": 120,
         }
-        
+
         result = self.generator.create_comprehensive_frontmatter(
             title="機械学習の基礎",
             content_type="knowledge",
@@ -49,13 +48,13 @@ class TestEnhancedYAMLFrontmatterGenerator:
             content=content,
             context=context,
             priority="high",
-            learning_stage="advanced"
+            learning_stage="advanced",
         )
-        
+
         # 基本構造の確認
         assert result.startswith("---")
         assert result.endswith("---")
-        
+
         # 重要なフィールドの存在確認
         assert "title: 機械学習の基礎" in result
         assert "type: knowledge" in result
@@ -73,7 +72,7 @@ class TestEnhancedYAMLFrontmatterGenerator:
 
     def test_content_type_specific_metadata(self):
         """コンテンツタイプ別メタデータ生成のテスト"""
-        
+
         # タスクタイプのテスト
         task_result = self.generator.create_comprehensive_frontmatter(
             title="プロジェクト完了",
@@ -115,9 +114,9 @@ class TestEnhancedYAMLFrontmatterGenerator:
             "featured": "yes",  # 文字列から論理値に変換される
             "tags": "learning, ai, python",  # 文字列から配列に変換される
         }
-        
+
         result = self.generator.generate_frontmatter(frontmatter_data)
-        
+
         assert "word_count: 1500" in result  # 整数として出力
         assert "reading_time: 7.5" in result  # 浮動小数点として出力
         assert "amount: 25000" in result  # 浮動小数点として出力
@@ -135,23 +134,23 @@ class TestEnhancedYAMLFrontmatterGenerator:
         ai_result.category.category.value = "projects"
         ai_result.tags = ["project", "work", "important"]
         ai_result.confidence = 0.88
-        
+
         content = "この[[重要なドキュメント]]は[[プロジェクト管理]]に関連しています。[[タスク一覧]]も参照してください。"
-        
+
         result = self.generator.create_obsidian_enhanced_frontmatter(
             title="プロジェクト概要",
             content=content,
             ai_result=ai_result,
             generate_permalink=True,
-            auto_publish=True
+            auto_publish=True,
         )
-        
+
         # Wikilink の抽出確認
         assert "links:" in result
         assert "- 重要なドキュメント" in result
         assert "- プロジェクト管理" in result
         assert "- タスク一覧" in result
-        
+
         # Obsidian 特有の設定確認
         assert "permalink: /プロジェクト概要" in result or "permalink:" in result
         assert "publish: true" in result
@@ -169,13 +168,13 @@ class TestEnhancedYAMLFrontmatterGenerator:
         ai_result.sentiment = "positive"
         ai_result.entities = ["Python", "機械学習", "API"]
         ai_result.tags = ["innovation", "technology", "startup"]
-        
+
         result = self.generator.create_comprehensive_frontmatter(
             title="新しいアプリのアイデア",
             ai_result=ai_result,
-            content="革新的な AI アプリケーションを開発する計画です。"
+            content="革新的な AI アプリケーションを開発する計画です。",
         )
-        
+
         # AI メタデータの確認
         assert "category: ideas" in result
         assert "summary: 革新的なアプリケーションのアイデア" in result
@@ -207,20 +206,22 @@ class TestEnhancedYAMLFrontmatterGenerator:
             "status": "draft",
             "word_count": 150,
         }
-        
+
         result = self.generator.generate_frontmatter(frontmatter_data)
-        lines = result.split('\n')
-        
+        lines = result.split("\n")
+
         # 基本情報が最初に来ることを確認（実際の順序に合わせて調整）
         title_index = next(i for i, line in enumerate(lines) if "title:" in line)
         created_index = next(i for i, line in enumerate(lines) if "created:" in line)
         type_index = next(i for i, line in enumerate(lines) if "type:" in line)
-        
+
         # 実際のフィールド順序: title, created, type の順番
         assert title_index < created_index < type_index
-        
+
         # AI 関連情報が適切な位置にあることを確認
-        ai_conf_index = next(i for i, line in enumerate(lines) if "ai_confidence:" in line)
+        ai_conf_index = next(
+            i for i, line in enumerate(lines) if "ai_confidence:" in line
+        )
         assert ai_conf_index > type_index  # type より後に来る
 
     def test_multilingual_content_handling(self):
@@ -231,9 +232,9 @@ class TestEnhancedYAMLFrontmatterGenerator:
             "tags": ["日本語", "English", "多言語"],
             "notes": "Special characters: ♡ ★ ◆ → ← ↓ ↑",
         }
-        
+
         result = self.generator.generate_frontmatter(frontmatter_data)
-        
+
         # 多言語文字が適切に処理されることを確認
         assert "多言語テスト Multi-language Test" in result
         assert "日本語と English が混在" in result
@@ -247,7 +248,7 @@ class TestEnhancedYAMLFrontmatterGenerator:
         # 空のデータ
         empty_result = self.generator.generate_frontmatter({})
         assert empty_result == ""
-        
+
         # None 値を含むデータ
         none_data = {
             "title": "テスト",
@@ -260,7 +261,7 @@ class TestEnhancedYAMLFrontmatterGenerator:
         assert "title: テスト" in result
         assert "description:" not in result  # None 値は除外される
         assert "empty_string:" not in result  # 空文字列は除外される
-        
+
         # 特殊な値のテスト
         special_data = {
             "title": "特殊値テスト",
@@ -280,30 +281,32 @@ class TestEnhancedYAMLFrontmatterGenerator:
     def test_performance_with_large_data(self):
         """大きなデータでのパフォーマンステスト"""
         # 大量のフィールドを含むデータ
-        large_data = {
-            f"field_{i}": f"value_{i}"
-            for i in range(100)
-        }
-        large_data.update({
-            "title": "大量データテスト",
-            "tags": [f"tag_{i}" for i in range(50)],
-            "content": "非常に長い" * 1000,  # 長いコンテンツ
-        })
-        
+        large_data = {f"field_{i}": f"value_{i}" for i in range(100)}
+        large_data.update(
+            {
+                "title": "大量データテスト",
+                "tags": [f"tag_{i}" for i in range(50)],
+                "content": "非常に長い" * 1000,  # 長いコンテンツ
+            }
+        )
+
         # エラーなく処理されることを確認
         result = self.generator.generate_frontmatter(large_data)
         assert result.startswith("---")
         assert result.endswith("---")
         assert "title: 大量データテスト" in result
-        assert len(result.split('\n')) > 100  # 大量のフィールドが含まれる
+        assert len(result.split("\n")) > 100  # 大量のフィールドが含まれる
 
     def test_daily_note_frontmatter(self):
         """デイリーノート用フロントマターのテスト"""
         test_date = date(2024, 12, 8)
         result = self.generator.create_daily_note_frontmatter(test_date)
-        
+
         # タイトルは引用符で囲まれる可能性があるため、両方をチェック
-        assert 'title: "Daily Note - 2024-12-08"' in result or "title: Daily Note - 2024-12-08" in result
+        assert (
+            'title: "Daily Note - 2024-12-08"' in result
+            or "title: Daily Note - 2024-12-08" in result
+        )
         assert "type: daily" in result
         assert "date: 2024-12-08" in result
         assert "template_used: daily_template" in result
@@ -317,18 +320,17 @@ class TestEnhancedYAMLFrontmatterGenerator:
             "created": "%Y 年%m 月%d 日 %H 時%M 分",
             "custom_field": "カスタム: {value}",
         }
-        
+
         frontmatter_data = {
             "title": "カスタムテンプレートテスト",
             "created": datetime(2024, 12, 8, 15, 30, 0),
             "custom_field": "テスト値",
         }
-        
+
         result = self.generator.generate_frontmatter(
-            frontmatter_data, 
-            custom_template=custom_template
+            frontmatter_data, custom_template=custom_template
         )
-        
+
         # 実際の出力に合わせてテスト（実際の出力形式に一致）
         assert "2024 年12 月08 日 15 時30 分" in result
         assert 'custom_field: "カスタム: テスト値"' in result
