@@ -45,4 +45,3 @@
 - ローカルは `cp .env.example .env` の上、必要キーを設定
 
 補足: 詳細は `docs/developer/development-guide.md` と `README.md` を参照してください。
-

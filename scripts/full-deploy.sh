@@ -163,7 +163,7 @@ run_deployment_steps() {
     # Step 2: 必須シークレット設定
     show_progress 2 $total_steps "必須シークレットを設定中..."
     echo "必要な認証情報を入力してください："
-    
+
     # Build arguments for setup-secrets.sh
     local secrets_args=("$PROJECT_ID")
     if [[ "$WITH_OPTIONAL" = true ]]; then
@@ -172,7 +172,7 @@ run_deployment_steps() {
     if [[ "$SKIP_EXISTING" = true ]]; then
         secrets_args+=("--skip-existing")
     fi
-    
+
     if ! "$SCRIPT_DIR/setup-secrets.sh" "${secrets_args[@]}"; then
         log_error "シークレット設定に失敗しました"
         exit 1
