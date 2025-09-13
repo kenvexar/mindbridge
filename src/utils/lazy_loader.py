@@ -233,7 +233,7 @@ class AsyncLazyLoader[T]:
 class LazyComponentManager:
     """遅延読み込みコンポーネントマネージャー."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize component manager."""
         self._components: dict[str, LazyLoader[Any]] = {}
         self._async_components: dict[str, AsyncLazyLoader[Any]] = {}
@@ -353,7 +353,9 @@ class LazyComponentManager:
         logger.info("Lazy component manager cleaned up")
 
 
-def lazy_property(cache_duration: float | None = None, thread_safe: bool = True):
+def lazy_property(
+    cache_duration: float | None = None, thread_safe: bool = True
+) -> Callable[[Callable[[Any], T]], property]:
     """
     遅延読み込みプロパティデコレータ.
 
@@ -362,11 +364,11 @@ def lazy_property(cache_duration: float | None = None, thread_safe: bool = True)
         thread_safe: スレッドセーフ
     """
 
-    def decorator(func):
+    def decorator(func: Callable[[Any], T]) -> property:
         attr_name = f"_lazy_{func.__name__}"
 
         @wraps(func)
-        def wrapper(self):
+        def wrapper(self: Any) -> T:
             if not hasattr(self, attr_name):
                 setattr(
                     self,

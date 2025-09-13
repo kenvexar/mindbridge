@@ -49,10 +49,7 @@ gcloud billing projects link $PROJECT_ID --billing-account=$BILLING_ACCOUNT
 
 ```bash
 # 必須シークレットの設定（対話式）
-./scripts/setup-secrets.sh <PROJECT_ID>
-
-# 音声認識を使う場合（認証情報 JSON を自動生成し Secret 登録）
-./scripts/generate-speech-credentials.sh <PROJECT_ID>
+./scripts/manage.sh secrets <PROJECT_ID> --with-optional
 ```
 
 ### 4. デプロイ実行
@@ -63,10 +60,12 @@ git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 
 # 完全自動デプロイ（推奨）
-./scripts/full-deploy.sh <PROJECT_ID> --with-optional
+./scripts/manage.sh full-deploy <PROJECT_ID> --with-optional
 
 # もしくは分割実行
-./scripts/deploy.sh <PROJECT_ID>
+./scripts/manage.sh env <PROJECT_ID>
+./scripts/manage.sh secrets <PROJECT_ID>
+./scripts/manage.sh deploy <PROJECT_ID>
 ```
 
 ### 5. 費用監視設定
@@ -89,7 +88,7 @@ timeout: '300'           # 5 分タイムアウト
 
 ### Secret Manager 設定
 
-`scripts/setup-secrets.sh` により以下が作成・更新されます：
+`scripts/manage.sh secrets` により以下が作成・更新されます：
 
 - `discord-bot-token`
 - `discord-guild-id`
@@ -187,7 +186,7 @@ gcloud builds list --limit=10
 ```bash
 # コード変更後
 git add . && git commit -m "feat: new feature"
-./scripts/deploy.sh <PROJECT_ID>
+./scripts/manage.sh deploy <PROJECT_ID>
 ```
 
 ### 定期メンテナンス

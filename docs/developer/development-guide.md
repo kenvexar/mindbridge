@@ -57,7 +57,15 @@ jq --version              # JSON 処理
 git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 uv sync --dev
-cp .env.example .env.development
+cp .env.example .env   # または ./scripts/manage.sh init で対話生成
+```
+
+#### オプション依存（必要時のみ）
+
+Google のレガシー API クライアント（`google-api-python-client` など）が必要な場合のみ以下を追加:
+
+```bash
+uv sync --extra google-api
 ```
 
 ### VS Code 設定
@@ -103,7 +111,7 @@ cp .env.example .env.development
 
 ### 開発設定
 
-`.env.development`:
+開発用 `.env` の例:
 ```env
 # 開発環境
 ENVIRONMENT=development
@@ -631,16 +639,16 @@ async def debug_ai_analysis(content: str) -> ProcessingResult:
 ### Docker デバッグ
 
 ```bash
-# Debug in Docker container
-./scripts/docker-local-test.sh
+# 起動
+docker compose up -d
 
-# Access container for debugging
+# コンテナへ入る（デバッグ）
 docker compose exec mindbridge-bot /bin/bash
 
-# View container logs
+# ログを見る
 docker compose logs -f mindbridge-bot
 
-# Debug with volume mounts for live code changes
+# ライブコード反映（任意）
 docker compose -f docker-compose.debug.yml up
 ```
 

@@ -41,6 +41,7 @@ docker compose up -d
 ## テスト方針
 - フレームワーク: pytest（`pyproject.toml` に設定）
 - 位置と命名: `tests/unit/test_*.py`、`tests/integration/test_*.py`
+- 実行範囲: CI は `unit`/`integration` のみ（`tests/manual/` は収集対象外。必要時に個別実行）
 - 目標: 重要ロジックはテスト同伴、カバレッジ目安 80%+
 - 外部依存はモック優先（手動検証は `tests/manual/`）
 
@@ -54,7 +55,7 @@ docker compose up -d
 
 ## セキュリティと設定
 - 秘密情報は `.env*` に記載し Git へコミットしない（`gitleaks` 等で検知）
-- GCP 本番は Secret Manager を利用（`scripts/setup-secrets.sh` を参照）
+- GCP 本番は Secret Manager を利用（`scripts/manage.sh secrets` を参照）
 - ローカルは `cp .env.example .env` の上、必要キーを設定
 
 関連: `docs/developer/development-guide.md`, `README.md`, `DEPLOYMENT.md`

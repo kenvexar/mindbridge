@@ -9,11 +9,11 @@ MindBridge をローカル環境でテストする方法を説明します。
 ### 1. モック環境の設定
 
 ```bash
-# モック用設定ファイルをコピー
-cp .env.development .env
+# `.env` を生成（対話式）
+./scripts/manage.sh init
 ```
 
-`.env.development`は既にモック設定になっています：
+生成された `.env` は最低限の個人用設定です。モックで試す場合は以下を追記/変更してください：
 
 ```env
 # モック環境設定（ API 不要）
@@ -36,6 +36,19 @@ uv sync
 
 # モックボット起動
 uv run python -m src.main
+
+---
+
+## 🧪 Manual Tests クイックリンク
+
+以下は収集対象外（CI では実行されません）。必要時に個別に起動してください。
+
+- 音声クイックテスト: `uv run python tests/manual/quick_voice_test.py`
+- シンプル処理テスト: `uv run python tests/manual/simple_test.py`
+- 実音声テスト: `uv run python tests/manual/test_real_voice.py`
+- 音声メモ総合: `uv run python tests/manual/test_voice_memo.py`
+- Garmin 統合: `uv run python tests/manual/test_garmin_integration.py`
+- CLI 動作検証: `bash tests/manual/test_manage.sh`
 ```
 
 ### 3. モックテストの動作確認

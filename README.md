@@ -49,8 +49,8 @@ MindBridge は知識管理システムです。 Discord サーバーでメッセ
 
 ```
 uv sync --dev
-./scripts/local-setup.sh
-./scripts/local-run.sh
+./scripts/manage.sh init   # 対話で .env を生成
+uv run python -m src.main      # もしくは ./scripts/manage.sh run
 ```
 
 詳細: docs/user/quick-start.md
@@ -64,11 +64,11 @@ uv sync --dev
 git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 
-# 完全自動デプロイ（音声認識・健康データ統合含む）
-./scripts/full-deploy.sh YOUR_PROJECT_ID --with-optional
+# 完全自動デプロイ（推奨）
+./scripts/manage.sh full-deploy YOUR_PROJECT_ID --with-optional
 
 # 基本機能のみデプロイ
-./scripts/full-deploy.sh YOUR_PROJECT_ID
+./scripts/manage.sh full-deploy YOUR_PROJECT_ID
 ```
 
 **特徴**：
@@ -88,11 +88,9 @@ uv sync
 cp .env.example .env
 # API キーで .env ファイルを編集
 
-# ボットを開始
+# ボットを開始 / デバッグ
 uv run python -m src.main
-
-# デバッグモード付き
-uv run python -m src.main --debug
+uv run python -m src.main --debug  # 任意
 ```
 
 ### 使用方法
@@ -128,6 +126,16 @@ uv run pre-commit run --all-files
 # コンテナ
 docker compose up -d
 ```
+
+#### Manual Tests（任意実行）
+
+CI 対象外の手動テストは必要時に個別実行してください：
+
+- 音声テスト（簡易）: `uv run python tests/manual/quick_voice_test.py`
+- 実音声テスト: `uv run python tests/manual/test_real_voice.py`
+- 音声メモ総合: `uv run python tests/manual/test_voice_memo.py`
+- Garmin 統合: `uv run python tests/manual/test_garmin_integration.py`
+- CLI 動作検証: `bash tests/manual/test_manage.sh`
 
 より詳細な運用ルールは [リポジトリ運用ガイドライン](docs/developer/repository-guidelines.md) を参照してください。
 

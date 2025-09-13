@@ -30,7 +30,7 @@ MindBridge をシンプルに運用する手順。
 クイック実行コマンド（参考）：
 
 ```bash
-./scripts/full-deploy.sh YOUR_PROJECT_ID --with-optional
+./scripts/manage.sh full-deploy YOUR_PROJECT_ID --with-optional
 ```
 
 ### 基本原則
@@ -65,10 +65,7 @@ OBSIDIAN_VAULT_PATH=/app/vault
 ### 2. 起動
 
 ```bash
-# 自動テストスクリプトで起動
-./scripts/docker-local-test.sh
-
-# または手動で起動
+# Docker Compose で起動
 docker compose up -d
 ```
 
