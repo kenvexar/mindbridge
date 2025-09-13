@@ -1,6 +1,5 @@
 """
-Google Calendar サービスアカウント認証クライアント
-個人利用向けのシンプルな実装
+Google Calendar サービスアカウント認証クライアント（シンプル実装）
 """
 
 import os

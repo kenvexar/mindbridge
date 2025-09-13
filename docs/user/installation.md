@@ -2,7 +2,7 @@
 
 MindBridge の完全インストール・セットアップガイド。
 
-> 💡 **クイックスタートが必要？** 5 分セットアップは [クイックスタート](quick-start.md) を参照してください。
+> 💡 **最短手順** は [クイックスタート](quick-start.md) を参照してください。
 
 ## 前提条件
 
@@ -124,7 +124,7 @@ Discord サーバーに以下の 3 つのチャンネルを作成:
 🤖 commands       ← Bot コマンド
 ```
 
-**重要**: チャンネル名は正確に (`memo`、`notifications`、`commands`) 自動検出のためです。詳細な設定は [簡単セットアップガイド](easy-setup.md) を参照してください。
+**重要**: チャンネル名は正確に (`memo`、`notifications`、`commands`) 自動検出のためです。手順は [クイックスタート](quick-start.md) を参照してください。
 
 ### サーバー ID の取得
 
@@ -323,7 +323,7 @@ tree $OBSIDIAN_VAULT_PATH
 ## 次のステップ
 
 インストール後:
-1. **[クイックスタートガイド](quick-start.md)** - 素早く始める
+1. **[クイックスタート](quick-start.md)** - 素早く始める
 2. **[基本的な使用方法](basic-usage.md)** - 日常的な使用方法
 3. **[コマンドリファレンス](commands-reference.md)** - 利用可能なコマンド
 

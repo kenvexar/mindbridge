@@ -94,15 +94,8 @@ GARMIN_CACHE_HOURS=24
 MOCK_GARMIN_ENABLED=false  # 本番: false, 開発: true
 ```
 
-### 必要な依存関係
-```toml
-# pyproject.toml
-[dependencies]
-garminconnect = "^0.2.17"    # Garmin Connect API
-aiofiles = "^23.2.0"         # 非同期ファイル操作
-structlog = "^23.2.0"        # ログ出力
-tenacity = "^8.2.3"          # リトライ処理
-```
+### 依存関係
+依存関係はリポジトリの `pyproject.toml` に定義されています。バージョンはそちらを参照してください。
 
 ## 使用方法
 

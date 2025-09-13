@@ -23,19 +23,15 @@ MindBridge をシンプルに運用する手順。
 
 ### ⭐ Google Cloud Run （新推奨）
 
-**完全自動デプロイ**で最も簡単：
+最も簡単な本番運用。まずは以下のガイドを参照：
+
+- Cloud Run 詳細手順: `docs/operations/cloud-run.md`
+
+クイック実行コマンド（参考）：
 
 ```bash
-# 自動デプロイスクリプトを実行
 ./scripts/full-deploy.sh YOUR_PROJECT_ID --with-optional
 ```
-
-**特徴**：
-- ✅ 無料枠内で運用可能
-- ✅ 自動スケーリング
-- ✅ GitHub 同期による永続化
-- ✅ Speech-to-Text 自動セットアップ
-- ✅ Garmin Connect 簡単設定
 
 ### 基本原則
 
