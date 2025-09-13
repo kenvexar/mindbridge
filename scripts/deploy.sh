@@ -9,6 +9,7 @@ set -euo pipefail
 PROJECT_ID=${1:-$(gcloud config get-value project)}
 REGION=${2:-us-central1}
 SERVICE_NAME="mindbridge"
+IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/mindbridge/mindbridge"
 
 # Colors for output
 RED='\033[0;31m'
@@ -62,11 +63,28 @@ enable_apis() {
     gcloud services enable \
         run.googleapis.com \
         cloudbuild.googleapis.com \
-        containerregistry.googleapis.com \
+        artifactregistry.googleapis.com \
         secretmanager.googleapis.com \
         --project="$PROJECT_ID"
 
     log "APIs enabled ✓"
+}
+
+# Ensure Artifact Registry repository exists
+ensure_artifact_registry_repo() {
+    log "Ensuring Artifact Registry repository exists..."
+    if ! gcloud artifacts repositories describe mindbridge \
+        --location="$REGION" \
+        --project="$PROJECT_ID" >/dev/null 2>&1; then
+        gcloud artifacts repositories create mindbridge \
+            --repository-format=docker \
+            --location="$REGION" \
+            --description="MindBridge container images" \
+            --project="$PROJECT_ID"
+        log "Artifact Registry repository 'mindbridge' created ✓"
+    else
+        log "Artifact Registry repository 'mindbridge' already exists ✓"
+    fi
 }
 
 # Create secrets if they don't exist
@@ -214,6 +232,7 @@ main() {
 
     check_prerequisites
     enable_apis
+    ensure_artifact_registry_repo
     create_secrets
     create_service_account
     deploy_with_cloud_build

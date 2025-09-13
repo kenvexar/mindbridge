@@ -55,7 +55,7 @@ class ObsidianFileManager(LoggerMixin):
         self.local_data_manager = None
         if enable_local_data:
             try:
-                from src.local_data_manager import LocalDataManager
+                from src.obsidian.local_data_manager import LocalDataManager
 
                 self.local_data_manager = LocalDataManager(self.vault_path)
             except ImportError:

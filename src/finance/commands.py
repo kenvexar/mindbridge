@@ -9,12 +9,12 @@ from discord.ext import commands as discord_commands
 from structlog import get_logger
 
 from src.bot.channel_config import ChannelConfig
-from src.budget_manager import BudgetManager
-from src.expense_manager import ExpenseManager
+from src.finance.budget_manager import BudgetManager
+from src.finance.expense_manager import ExpenseManager
 from src.finance.models import BudgetCategory, SubscriptionFrequency
+from src.finance.report_generator import FinanceReportGenerator
+from src.finance.subscription_manager import SubscriptionManager
 from src.obsidian import ObsidianFileManager
-from src.report_generator import FinanceReportGenerator
-from src.subscription_manager import SubscriptionManager
 
 logger = get_logger(__name__)
 

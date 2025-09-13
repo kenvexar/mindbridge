@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y \
 # 作業ディレクトリの設定
 WORKDIR /app
 
-# uv のインストール
-RUN pip install uv
+# uv のインストール（公式バイナリ）
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 # 依存関係ファイルのコピー
 COPY pyproject.toml uv.lock ./

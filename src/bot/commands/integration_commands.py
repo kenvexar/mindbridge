@@ -102,6 +102,14 @@ class IntegrationCommands(commands.Cog):
 
     async def _setup_default_integrations(self):
         """デフォルト外部連携を設定"""
+        # mypy: integration_manager は _ensure_initialized 内で初期化済みだが、
+        # 本メソッド単体では Optional なので明示的にガード
+        if self.integration_manager is None:
+            logger.warning(
+                "IntegrationManager 未初期化のためデフォルト連携登録をスキップ"
+            )
+            return
+
         # 設定から外部連携情報を読み込み（将来的に設定ファイル化）
         default_integrations = {
             "garmin": {

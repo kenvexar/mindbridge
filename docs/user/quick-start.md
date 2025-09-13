@@ -16,13 +16,11 @@ uv sync --dev
 ./scripts/local-setup.sh
 ```
 
-または最小構成を `.env` に記載（`.env.minimal.example` 参照）:
+または `.env.example` をコピーして必須項目を記入:
 
 ```
-DISCORD_BOT_TOKEN=...
-GEMINI_API_KEY=...
-OBSIDIAN_VAULT_PATH=/path/to/vault
-ENVIRONMENT=personal
+cp .env.example .env
+# 必須: DISCORD_BOT_TOKEN / GEMINI_API_KEY / OBSIDIAN_VAULT_PATH
 ```
 
 ## 3. 起動

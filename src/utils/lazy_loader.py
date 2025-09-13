@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from typing import Any, TypeVar
 
-from utils.logger import get_logger
+from src.utils.logger import get_logger
 
 logger = get_logger("lazy_loader")
 

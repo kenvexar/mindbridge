@@ -1,6 +1,6 @@
 # MindBridge Cloud Run デプロイメントガイド
 
-Google Cloud Run を使用して MindBridge を無料枠中心で運用するための詳細ガイドです。自動デプロイスクリプトにより最短 5 分でデプロイ可能、GitHub 同期による Obsidian Vault データの永続化にも対応します。
+Google Cloud Run を使用して MindBridge を無料枠中心で運用するための詳細ガイドです。自動デプロイスクリプトにより最短 5 分でデプロイ可能、GitHub 同期による Obsidian Vault データの永続化にも対応します。イメージは Artifact Registry に保存します。
 
 ## 🚀 クイックデプロイ（推奨）
 
@@ -54,7 +54,7 @@ gcloud billing projects link YOUR_PROJECT_ID --billing-account YOUR_BILLING_ACCO
 ### Step 1: API 有効化
 ```bash
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
-  secretmanager.googleapis.com storage.googleapis.com
+  secretmanager.googleapis.com storage.googleapis.com artifactregistry.googleapis.com
 ```
 
 ### Step 2: Secret Manager 設定
@@ -80,7 +80,15 @@ for s in discord-bot-token gemini-api-key github-token obsidian-backup-repo; do
 done
 ```
 
-### Step 4: デプロイ
+### Step 4: Artifact Registry リポジトリの作成
+```bash
+gcloud artifacts repositories create mindbridge \
+  --repository-format=docker \
+  --location=us-central1
+gcloud auth configure-docker us-central1-docker.pkg.dev
+```
+
+### Step 5: デプロイ
 ```bash
 cd /path/to/mindbridge
 gcloud builds submit --config deploy/cloudbuild.yaml
@@ -119,3 +127,8 @@ ENVIRONMENT=production
 - Cloud Run: `min-instances=0` でアイドル時コストゼロ
 - 予算アラートを設定して使い過ぎ防止
 - 定期バックアップとログ確認を習慣化
+
+補足: `cloud-run.yaml` は `autoscaling.knative.dev/minScale: "0"`、`containerConcurrency: 10` に統一しています。Cloud Build のデプロイフラグとも整合します。
+
+## Artifact Registry のイメージ参照例
+`us-central1-docker.pkg.dev/YOUR_PROJECT_ID/mindbridge/mindbridge:latest`

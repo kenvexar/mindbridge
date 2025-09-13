@@ -12,7 +12,7 @@ from discord.ext import commands
 from src.bot.channel_config import ChannelConfig
 from src.bot.handlers import MessageHandler
 from src.bot.metrics import APIUsageMonitor, SystemMetrics
-from src.config.settings import get_settings
+from src.config import get_settings
 from src.utils.mixins import LoggerMixin
 
 

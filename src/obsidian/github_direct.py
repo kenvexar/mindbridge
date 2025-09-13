@@ -8,7 +8,7 @@ from typing import Any
 
 import structlog
 
-from src.config.settings import get_settings
+from src.config import get_settings
 
 
 class GitHubDirectClient:

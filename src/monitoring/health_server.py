@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from typing import Any
 
+from src import __version__
 from src.utils import get_logger
 
 
@@ -36,7 +37,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
             "service": "mindbridge",
-            "version": "0.1.0",
+            "version": __version__,
         }
         self._send_response(200, health_data)
 
@@ -76,18 +77,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self._send_response(503, {"error": "bot_not_available"})
             return
 
+        # Build metrics based on actual bot attributes
+        guild_count = 0
+        if hasattr(self.bot_instance, "bot") and self.bot_instance.bot:
+            try:
+                guild_count = len(self.bot_instance.bot.guilds)  # type: ignore[attr-defined]
+            except Exception:
+                guild_count = 0
+
+        start_time = getattr(self.bot_instance, "start_time", None)
+
         metrics = {
             "timestamp": datetime.now().isoformat(),
             "uptime_seconds": (
-                datetime.now() - self.bot_instance._start_time
-            ).total_seconds(),
+                (datetime.now() - start_time).total_seconds() if start_time else 0
+            ),
             "bot_status": {
                 "connected": self.bot_instance.is_ready,
-                "guild_count": (
-                    len(self.bot_instance.client.guilds)
-                    if hasattr(self.bot_instance.client, "guilds")
-                    else 0
-                ),
+                "guild_count": guild_count,
             },
         }
 
