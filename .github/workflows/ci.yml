@@ -19,6 +19,8 @@ jobs:
       # pytest 収集時の import エラー（No module named 'src'）を防ぐため
       # ワークスペース直下を明示的に PYTHONPATH に追加
       PYTHONPATH: "."
+      # CIでは Ruff のキャッシュを無効化（安定・高速化のため）
+      RUFF_NO_CACHE: "1"
       DISCORD_BOT_TOKEN: "test_token"
       DISCORD_GUILD_ID: "123456789"
       GEMINI_API_KEY: "test_api_key"
@@ -65,8 +67,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev --frozen
 
-      - name: Run pre-commit (push stage)
-        run: uv run pre-commit run --hook-stage push --all-files
+      - name: Run pre-commit (pre-push stage)
+        run: uv run pre-commit run --hook-stage pre-push --all-files
 
       - name: Create test vault directory
         run: mkdir -p /tmp/test_vault
