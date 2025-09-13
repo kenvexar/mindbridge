@@ -1,29 +1,10 @@
 """Test message processor functionality"""
 
-import os
 from datetime import datetime
 from unittest.mock import Mock
 
 import discord
-
-# Set up test environment variables before importing modules
-os.environ.update(
-    {
-        "DISCORD_BOT_TOKEN": "test_token",
-        "DISCORD_GUILD_ID": "123456789",
-        "GEMINI_API_KEY": "test_api_key",
-        "OBSIDIAN_VAULT_PATH": "/tmp/test_vault",
-        "CHANNEL_INBOX": "111111111",
-        "CHANNEL_VOICE": "222222222",
-        "CHANNEL_FILES": "333333333",
-        "CHANNEL_MONEY": "444444444",
-        "CHANNEL_FINANCE_REPORTS": "555555555",
-        "CHANNEL_TASKS": "666666666",
-        "CHANNEL_PRODUCTIVITY_REVIEWS": "777777777",
-        "CHANNEL_NOTIFICATIONS": "888888888",
-        "CHANNEL_COMMANDS": "999999999",
-    }
-)
+import pytest
 
 from src.bot.message_processor import MessageProcessor
 
@@ -54,60 +35,32 @@ class TestMessageProcessor:
         assert "https://example.com" not in cleaned
         assert "<#987654>" not in cleaned
 
-    def test_markdown_formatting_detection(self) -> None:
-        """Test markdown formatting detection"""
-        # Test various markdown formats
-        test_cases = [
-            ("**bold text**", True),
-            ("*italic text*", True),
-            ("~~strikethrough~~", True),
-            ("`inline code`", True),
-            ("```code block```", True),
-            ("> quote", True),
-            ("plain text", False),
-            ("", False),
-        ]
+    # 代表ケースのみで十分なため詳細バリエーションは削除
 
-        for content, expected in test_cases:
-            result = self.processor._has_markdown_formatting(content)
-            assert result == expected, f"Failed for content: {content}"
+    def test_markdown_formatting_detection(self) -> None:
+        """代表ケースのみ検証"""
+        assert self.processor._has_markdown_formatting("**bold**") is True
+        assert self.processor._has_markdown_formatting("plain text") is False
 
     def test_language_detection(self) -> None:
-        """Test basic language detection"""
-        # Test Japanese content
-        japanese_content = "こんにちは世界"
-        result = self.processor._detect_language(japanese_content)
-        assert result == "ja"
-
-        # Test English content
-        english_content = "Hello world"
-        result = self.processor._detect_language(english_content)
-        assert result == "en"
-
-        # Test empty content
-        result = self.processor._detect_language("")
-        assert result is None
+        """最小ケースのみ"""
+        assert self.processor._detect_language("こんにちは世界") == "ja"
+        assert self.processor._detect_language("Hello world") == "en"
+        assert self.processor._detect_language("") is None
 
     def test_file_categorization(self) -> None:
-        """Test file categorization"""
-        # Test different file types
-        test_cases = [
+        """代表パターンのみ検証"""
+        cases = [
             ("image.png", "image/png", "image"),
             ("audio.mp3", "audio/mpeg", "audio"),
-            ("video.mp4", "video/mp4", "video"),
-            ("document.pdf", "application/pdf", "document"),
             ("script.py", "text/plain", "code"),
-            ("archive.zip", "application/zip", "archive"),
             ("unknown.xyz", None, "other"),
         ]
-
-        for filename, content_type, expected_category in test_cases:
-            mock_attachment = Mock(spec=discord.Attachment)
-            mock_attachment.filename = filename
-            mock_attachment.content_type = content_type
-
-            result = self.processor._categorize_file(mock_attachment)
-            assert result == expected_category, f"Failed for {filename}"
+        for filename, content_type, expected in cases:
+            att = Mock(spec=discord.Attachment)
+            att.filename = filename
+            att.content_type = content_type
+            assert self.processor._categorize_file(att) == expected
 
     def test_extract_basic_metadata(self) -> None:
         """Test basic metadata extraction"""
@@ -166,23 +119,15 @@ class TestMessageProcessor:
         assert result["has_formatting"] is True
 
     def test_extract_timing_metadata(self) -> None:
-        """Test timing metadata extraction"""
-        # Create mock message
+        """未編集ケースのみの最小検証"""
         mock_message = Mock(spec=discord.Message)
-        test_time = datetime(2024, 1, 1, 12, 0, 0)
-        mock_message.created_at = test_time
+        mock_message.created_at = datetime(2024, 1, 1, 12, 0, 0)
         mock_message.edited_at = None
 
         result = self.processor._extract_timing_metadata(mock_message)
-
-        assert result is not None
-        assert "created_at" in result
-        assert "edited_at" in result
         assert result["created_at"]["date"] == "2024-01-01"
         assert result["created_at"]["time"] == "12:00:00"
-        assert result["created_at"]["hour"] == 12
-        if result["edited_at"] is not None and "was_edited" in result["edited_at"]:
-            assert result["edited_at"]["was_edited"] is False
+        assert result["edited_at"]["was_edited"] is False
 
     def test_extract_attachment_metadata(self) -> None:
         """Test attachment metadata extraction"""

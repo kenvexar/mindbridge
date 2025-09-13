@@ -10,10 +10,10 @@ git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 
 # 完全自動デプロイ（音声認識・健康データ統合含む）
-./scripts/full-deploy.sh YOUR_PROJECT_ID --with-optional
+./scripts/manage.sh full-deploy YOUR_PROJECT_ID --with-optional
 
 # 基本機能のみデプロイ
-./scripts/full-deploy.sh YOUR_PROJECT_ID
+./scripts/manage.sh full-deploy YOUR_PROJECT_ID
 ```
 
 主な特徴：
@@ -97,8 +97,6 @@ gcloud builds submit --config deploy/cloudbuild.yaml
 ## ローカル/Docker 検証
 ```bash
 cp .env.docker.example .env.docker
-./scripts/docker-local-test.sh
-# または
 docker compose up -d
 ```
 

@@ -13,7 +13,7 @@ uv sync --dev
 対話式セットアップ:
 
 ```
-./scripts/local-setup.sh
+./scripts/manage.sh init
 ```
 
 または `.env.example` をコピーして必須項目を記入:
@@ -26,7 +26,7 @@ cp .env.example .env
 ## 3. 起動
 
 ```
-./scripts/local-run.sh
+uv run python -m src.main
 # もしくは
 make run
 ```

@@ -1,6 +1,6 @@
-# MindBridge デプロイスクリプト
+# MindBridge デプロイ/運用 CLI
 
-MindBridge を Google Cloud Run に自動デプロイするためのスクリプト集です。
+MindBridge を Google Cloud Run に自動デプロイ/運用するための統合 CLI です。
 
 ## 🚀 クイックスタート
 
@@ -8,67 +8,37 @@ MindBridge を Google Cloud Run に自動デプロイするためのスクリプ
 
 ```bash
 # 基本機能のみ
-./scripts/full-deploy.sh your-project-id
+./scripts/manage.sh full-deploy your-project-id
 
 # オプション機能も含める
-./scripts/full-deploy.sh your-project-id --with-optional
+./scripts/manage.sh full-deploy your-project-id --with-optional
 ```
 
 このコマンド一つで環境セットアップからデプロイまで全て自動実行されます。
 
-## 📋 個別スクリプト
+## 📋 統合 CLI（mindbridge）
 
-### 環境セットアップ
+単一エントリは `scripts/manage.sh` です（以下コマンドはすべてこれ経由）。
 
-```bash
-./scripts/setup-environment.sh <PROJECT_ID>
-```
+主なサブコマンド:
+- `env <PROJECT_ID>`: Google Cloud 環境セットアップ
+- `secrets <PROJECT_ID> [--with-optional] [--skip-existing]`: シークレット設定（Garmin/Speech 自動生成対応）
+- `optional <PROJECT_ID>`: Calendar/Webhook/Timezone 設定
+- `deploy <PROJECT_ID> [REGION]`: Cloud Run デプロイ
+- `full-deploy <PROJECT_ID> [FLAGS]`: 一括実行（env → secrets → optional → deploy）
+- `ar-clean <PROJECT_ID> [...]`: Artifact Registry クリーンアップ
+- `init`: `.env` 初期生成（ローカル）
+- `run`: ローカル起動（`.env` 必須）
 
-- Google Cloud プロジェクト設定
-- 必要な API の有効化
-- サービスアカウント作成
-- Cloud Run 環境準備
-
-### シークレット設定
-
-```bash
-./scripts/setup-secrets.sh <PROJECT_ID>
-```
-
-必須シークレット:
-- `discord-bot-token` - Discord Bot Token
-- `discord-guild-id` - Discord サーバー ID
-- `gemini-api-key` - Google Gemini API Key
-- `github-token` - GitHub Personal Access Token
-- `obsidian-backup-repo` - GitHub リポジトリ URL
-
-オプションシークレット:
-- `garmin-username` - Garmin Connect ユーザー名/メール
-- `garmin-password` - Garmin Connect パスワード
-- `google-cloud-speech-credentials` - Speech-to-Text JSON 認証情報（自動生成可能）
-
-### オプション機能設定
-
-```bash
-./scripts/setup-optional-features.sh <PROJECT_ID>
-```
-
-オプション機能:
-- 🎤 **音声メモ機能** - Google Cloud Speech-to-Text （自動認証情報生成）
-- 💪 **健康データ統合** - Garmin Connect （ python-garminconnect 、 OAuth 不要）
-- 📅 **カレンダー統合** - Google Calendar API
-- 🔔 **Webhook 通知** - Slack/Discord Webhook
-- ⚙️ **管理者設定** - 管理者ユーザー、タイムゾーン
-
-**新機能ハイライト**:
+**主な機能**:
 - ✨ Speech-to-Text 認証情報の自動生成機能
 - ✨ Garmin Connect 簡単設定（ OAuth 不要、ユーザー名/パスワード方式）
 - ✨ エラー処理とリトライ機能による高い安定性
 
-### デプロイ実行
+### デプロイ実行（個別）
 
 ```bash
-./scripts/deploy.sh <PROJECT_ID>
+./scripts/manage.sh deploy <PROJECT_ID> [REGION]
 ```
 
 - Cloud Build によるデプロイ
@@ -105,17 +75,16 @@ gcloud auth login
 1. プライベートリポジトリ作成（ Obsidian vault backup 用）
 2. Personal Access Token 作成（`repo` スコープ）
 
-## 📁 スクリプト一覧
+## 📁 コマンド一覧（`manage.sh`）
 
-| スクリプト | 用途 | 必須 | 新機能 |
-|-----------|------|------|-------|
-| `full-deploy.sh` | **完全自動デプロイ** | ⭐ **推奨** | ✨ 統合済み |
-| `setup-environment.sh` | Google Cloud 環境セットアップ | ✅ 必須 | ✨ サービスアカウント修正 |
-| `setup-secrets.sh` | 必須シークレット設定 | ✅ 必須 | ✨ Garmin 対応 |
-| `setup-optional-features.sh` | オプション機能設定 | 🔧 任意 | ✨ 改良済み |
-| `deploy.sh` | Cloud Run デプロイ実行 | ✅ 必須 | - |
-| `generate-speech-credentials.sh` | **Speech 認証情報生成** | 🎤 音声機能用 | ✨ **新規** |
-| `docker-local-test.sh` | ローカル Docker テスト | 🧪 開発用 | - |
+- `env <PROJECT_ID>`: Google Cloud 環境セットアップ
+- `secrets <PROJECT_ID> [--with-optional] [--skip-existing]`: シークレット設定
+- `optional <PROJECT_ID>`: Calendar/Webhook/Timezone 設定
+- `deploy <PROJECT_ID> [REGION]`: Cloud Run デプロイ
+- `full-deploy <PROJECT_ID> [FLAGS]`: 一括実行（env → secrets → optional → deploy）
+- `ar-clean <PROJECT_ID> [...]`: Artifact Registry クリーンアップ
+- `init`: `.env` 初期生成（ローカル）
+- `run`: ローカル起動（`.env` 必須）
 
 ## 🎯 デプロイ後の確認
 

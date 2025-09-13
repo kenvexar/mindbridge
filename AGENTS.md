@@ -41,7 +41,7 @@
 
 ## セキュリティと設定
 - 秘密情報は `.env*` に記載し Git へコミットしない（`gitleaks` により検知）
-- GCP 本番は Secret Manager を利用（`scripts/setup-secrets.sh` 参照）
+- GCP 本番は Secret Manager を利用（`scripts/manage.sh secrets` 参照）
 - ローカルは `cp .env.example .env` の上、必要キーを設定
 
 補足: 詳細は `docs/developer/development-guide.md` と `README.md` を参照してください。

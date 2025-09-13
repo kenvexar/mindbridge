@@ -198,6 +198,9 @@ test_data/
 # Test and runtime directories
 .test_cache/
 backups/
+
+# Agent runtime (Codex CLI / Serena)
+.serena/
 .config/discord-obsidian-bot/
 vault_backups/
 audio_cache/

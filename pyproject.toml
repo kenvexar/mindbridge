@@ -29,10 +29,6 @@ dependencies = [
     "beautifulsoup4>=4.12.3",
     "requests>=2.32.0",
     "cryptography>=45.0.7",
-    "google-api-python-client>=2.181.0",
-    "google-auth>=2.40.3",
-    "google-auth-oauthlib>=1.2.2",
-    "google-auth-httplib2>=0.2.0",
 ]
 
 
@@ -55,7 +51,8 @@ ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# CI では unit / integration のみ検出。manual は明示実行に限定
+testpaths = ["tests/unit", "tests/integration"]
 asyncio_mode = "auto"
 pythonpath = ["src"]
 
@@ -73,4 +70,15 @@ dev = [
     "types-requests",
     "types-beautifulsoup4",
     "pre-commit>=4.3.0",
+]
+
+[project.optional-dependencies]
+# Google のレガシー API クライアント群は通常不要。
+# 必要な場合のみ以下を追加インストールしてください:
+#   uv sync --extra google-api
+google-api = [
+    "google-api-python-client>=2.181.0",
+    "google-auth>=2.40.3",
+    "google-auth-oauthlib>=1.2.2",
+    "google-auth-httplib2>=0.2.0",
 ]

@@ -1,39 +1,15 @@
 version: 2
 updates:
-  # GitHub Actions のみ Dependabot で管理
-  - package-ecosystem: "github-actions"
+  - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: weekly
+      day: monday
       time: "09:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "@kenvexar"
-    assignees:
-      - "@kenvexar"
-    commit-message:
-      prefix: "ci"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "github-actions"
 
-  # Dockerfile は引き続き Dependabot で更新
-  - package-ecosystem: "docker"
+  - package-ecosystem: docker
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: weekly
+      day: monday
       time: "09:00"
-    open-pull-requests-limit: 3
-    reviewers:
-      - "@kenvexar"
-    assignees:
-      - "@kenvexar"
-    commit-message:
-      prefix: "docker"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "docker"
