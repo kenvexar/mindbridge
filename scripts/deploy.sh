@@ -109,13 +109,19 @@ create_service_account() {
 deploy_with_cloud_build() {
     log "Cloud Build でデプロイ開始..."
 
-    # cloudbuild.yaml 存在確認
-    if [[ ! -f "cloudbuild.yaml" ]]; then
-        error "cloudbuild.yaml が見つかりません。プロジェクトルートで実行してください。"
+    # cloudbuild.yaml の場所を解決（deploy/ 優先 → ルート）
+    local CB_CONFIG=""
+    if [[ -f "deploy/cloudbuild.yaml" ]]; then
+        CB_CONFIG="deploy/cloudbuild.yaml"
+    elif [[ -f "cloudbuild.yaml" ]]; then
+        CB_CONFIG="cloudbuild.yaml"
+    else
+        error "cloudbuild.yaml が見つかりません。deploy/ またはプロジェクトルートを確認してください。"
     fi
 
     # Cloud Build でデプロイ
-    local BUILD_ID=$(gcloud builds submit --config cloudbuild.yaml --format="value(id)")
+    local BUILD_ID
+    BUILD_ID=$(gcloud builds submit --config "$CB_CONFIG" --format="value(id)")
 
     if [[ $? -eq 0 ]]; then
         log "Cloud Build デプロイ完了 ✓ (Build ID: $BUILD_ID)"
@@ -130,8 +136,22 @@ deploy_service() {
 
     log "Deploying to Cloud Run..."
 
-    # Replace placeholder in cloud-run.yaml
-    sed "s/PROJECT_ID/$PROJECT_ID/g" cloud-run.yaml > /tmp/cloud-run-deploy.yaml
+    # cloud-run.yaml の場所を解決（deploy/ 優先 → ルート）
+    local CR_CONFIG=""
+    if [[ -f "deploy/cloud-run.yaml" ]]; then
+        CR_CONFIG="deploy/cloud-run.yaml"
+    elif [[ -f "cloud-run.yaml" ]]; then
+        CR_CONFIG="cloud-run.yaml"
+    else
+        error "cloud-run.yaml が見つかりません。deploy/ またはプロジェクトルートを確認してください。"
+    fi
+
+    # Replace placeholder in resolved yaml (後方互換: PROJECT_ID が無い場合はそのまま)
+    if grep -q "PROJECT_ID" "$CR_CONFIG"; then
+        sed "s/PROJECT_ID/$PROJECT_ID/g" "$CR_CONFIG" > /tmp/cloud-run-deploy.yaml
+    else
+        cp "$CR_CONFIG" /tmp/cloud-run-deploy.yaml
+    fi
 
     # Deploy the service
     gcloud run services replace /tmp/cloud-run-deploy.yaml \

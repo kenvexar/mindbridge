@@ -28,6 +28,7 @@ os.environ.update(
 )
 
 from src.ai.models import AIProcessingResult
+from src.obsidian.file_manager import ObsidianFileManager
 from src.obsidian.models import (
     FolderMapping,
     NoteFilename,
@@ -35,7 +36,6 @@ from src.obsidian.models import (
     ObsidianNote,
     VaultFolder,
 )
-from src.obsidian.refactored_file_manager import ObsidianFileManager
 from src.obsidian.template_system import TemplateEngine
 
 

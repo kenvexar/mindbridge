@@ -83,7 +83,7 @@ done
 ### Step 4: デプロイ
 ```bash
 cd /path/to/mindbridge
-gcloud builds submit --config cloudbuild.yaml
+gcloud builds submit --config deploy/cloudbuild.yaml
 ```
 
 ## ローカル/Docker 検証

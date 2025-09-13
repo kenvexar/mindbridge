@@ -6,8 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from src.obsidian.file_manager import ObsidianFileManager
 from src.obsidian.models import ObsidianNote
-from src.obsidian.refactored_file_manager import ObsidianFileManager
 from src.utils.mixins import LoggerMixin
 
 

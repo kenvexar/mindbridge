@@ -78,7 +78,7 @@ Cloud Console の「請求」→「予算とアラート」から予算を作成
 ### Cloud Run 設定 (無料枠最適化)
 
 ```yaml
-# cloudbuild.yaml の主要設定
+# deploy/cloudbuild.yaml の主要設定
 memory: '512Mi'          # 無料枠内のメモリ
 cpu: '1'                 # 無料枠内の CPU
 concurrency: '10'        # 同時リクエスト数制限

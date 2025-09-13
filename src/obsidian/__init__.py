@@ -3,6 +3,7 @@ Obsidian vault management module
 """
 
 from src.obsidian.daily_integration import DailyNoteIntegration
+from src.obsidian.file_manager import ObsidianFileManager
 from src.obsidian.metadata import MetadataManager
 from src.obsidian.models import (
     FileOperation,
@@ -12,7 +13,6 @@ from src.obsidian.models import (
     VaultStats,
 )
 from src.obsidian.organizer import VaultOrganizer
-from src.obsidian.refactored_file_manager import ObsidianFileManager
 from src.obsidian.template_system import TemplateEngine
 
 # 古いテンプレートシステムは非推奨、 TemplateEngine を使用

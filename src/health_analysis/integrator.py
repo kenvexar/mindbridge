@@ -10,7 +10,7 @@ from typing import Any
 
 from src.garmin.models import HealthData
 from src.health_analysis.models import ActivityCorrelation
-from src.obsidian.refactored_file_manager import ObsidianFileManager
+from src.obsidian.file_manager import ObsidianFileManager
 from src.utils.mixins import LoggerMixin
 
 
