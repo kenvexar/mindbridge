@@ -607,15 +607,15 @@ class TaskCommands:
         await interaction.response.defer()
 
         try:
-            # Import report generator
-            try:
-                from tasks.report_generator import TaskReportGenerator
-            except ImportError:
-                from src.tasks.report_generator import TaskReportGenerator
+            # Import report generator (absolute import)
+            from src.tasks.report_generator import TaskReportGenerator
 
             # Generate comprehensive task statistics
             report_generator = TaskReportGenerator(
-                self.task_manager, self.schedule_manager, self.file_manager
+                self.file_manager,
+                self.task_manager,
+                self.schedule_manager,
+                gemini_client=None,
             )
 
             stats_report = await report_generator.generate_task_stats()

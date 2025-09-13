@@ -208,14 +208,14 @@ setup_cloud_run() {
     local DEFAULT_SA="$PROJECT_ID@appspot.gserviceaccount.com"
 
     # Artifact Registry リポジトリ作成（必要に応じて）
-    if ! gcloud artifacts repositories describe mindbridge-repo \
+    if ! gcloud artifacts repositories describe mindbridge \
         --location="$REGION" &>/dev/null; then
 
         log_info "Artifact Registry リポジトリを作成中..."
-        gcloud artifacts repositories create mindbridge-repo \
+        gcloud artifacts repositories create mindbridge \
             --repository-format=docker \
             --location="$REGION" \
-            --description="MindBridge Docker images repository"
+            --description="MindBridge container images"
     fi
 
     log_success "Cloud Run 環境設定完了"

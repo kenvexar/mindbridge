@@ -1,27 +1,46 @@
-# Google Cloud Build 設定 (無料枠最適化)
+# Google Cloud Build 設定 (Artifact Registry / 無料枠最適化)
 steps:
+  # Artifact Registry API とリポジトリを準備
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Prepare Artifact Registry'
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        gcloud services enable artifactregistry.googleapis.com
+        # 既存チェック → なければ作成
+        if ! gcloud artifacts repositories describe mindbridge \
+          --location=us-central1 >/dev/null 2>&1; then
+          gcloud artifacts repositories create mindbridge \
+            --repository-format=docker \
+            --location=us-central1 \
+            --description="MindBridge container images"
+        fi
+        gcloud auth configure-docker us-central1-docker.pkg.dev -q
+
   # Docker イメージをビルド（ Cloud Run 用 Dockerfile 使用）
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
       '-f', 'Dockerfile.cloudrun',
-      '-t', 'gcr.io/$PROJECT_ID/mindbridge:$COMMIT_SHA',
-      '-t', 'gcr.io/$PROJECT_ID/mindbridge:latest',
+      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:$COMMIT_SHA',
+      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:latest',
       '.'
     ]
 
-  # イメージを Container Registry にプッシュ
+  # イメージを Artifact Registry にプッシュ
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/mindbridge:$COMMIT_SHA']
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:$COMMIT_SHA']
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/mindbridge:latest']
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:latest']
 
   # Cloud Run にデプロイ (無料枠設定)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args: [
       'run', 'deploy', 'mindbridge',
-      '--image', 'gcr.io/$PROJECT_ID/mindbridge:$COMMIT_SHA',
+      '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:$COMMIT_SHA',
       '--region', 'us-central1',  # 無料枠対象リージョン
       '--platform', 'managed',
       '--allow-unauthenticated',
@@ -40,9 +59,9 @@ timeout: '600s'  # 10 分
 
 # ビルドオプション: 無料枠最適化
 options:
-  machineType: 'E2_HIGHCPU_8'  # 無料枠対象マシン
-  diskSizeGb: '10'  # 最小ディスクサイズ
-  logging: 'CLOUD_LOGGING_ONLY'
+  machineType: 'E2_STANDARD_8'  # バランス重視（無料枠のビルド分で十分）
+  diskSizeGb: '10'              # 最小ディスクサイズ
+  logging: 'CLOUD_LOGGING_ONLY' # Cloud Logging のみに送信
 
 # 環境変数 (Secret Manager から取得)
 availableSecrets:

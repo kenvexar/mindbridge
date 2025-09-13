@@ -38,7 +38,8 @@ sudo apt install python3.13 python3.13-venv python3.13-pip
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # pip 経由での手動インストール
-pip install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# macOS の場合（Homebrew）: brew install uv
 
 # Windows (PowerShell)
 irm https://astral.sh/uv/install.ps1 | iex

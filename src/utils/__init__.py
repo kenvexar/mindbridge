@@ -1,6 +1,6 @@
 """Utility modules for MindBridge"""
 
-from src.utils.logger import (
+from .logger import (
     get_logger,
     log_api_usage,
     log_function_call,

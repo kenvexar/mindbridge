@@ -21,7 +21,7 @@ from src.ai.models import (
     SummaryResult,
     TagResult,
 )
-from src.config.settings import get_settings
+from src.config import get_settings
 from src.utils.mixins import LoggerMixin
 
 
@@ -114,8 +114,8 @@ class GeminiClient(LoggerMixin):
         """Gemini API クライアントの初期化"""
         if not GENAI_AVAILABLE:
             raise ImportError(
-                "google-genai is not installed. "
-                "Please install it with: pip install google-genai"
+                "google-genai が見つかりません。"
+                " 推奨: `uv add google-genai` または `uv pip install google-genai` (pip でも可: `pip install google-genai`)"
             )
 
         try:

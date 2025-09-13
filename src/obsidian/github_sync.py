@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.config.settings import get_settings
+from src.config import get_settings
 from src.utils.mixins import LoggerMixin
 
 

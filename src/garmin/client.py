@@ -21,7 +21,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.config.settings import get_settings
+from src.config import get_settings
 from src.garmin.cache import GarminDataCache
 from src.garmin.models import (
     ActivityData,

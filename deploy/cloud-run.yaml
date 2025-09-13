@@ -13,23 +13,24 @@ spec:
         run.googleapis.com/cpu: "1"
         run.googleapis.com/execution-environment: gen2
 
-        # Autoscaling
-        autoscaling.knative.dev/minScale: "1"
+        # Autoscaling (コスト最適化)
+        autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "3"
 
         # Health checks
         run.googleapis.com/startup-probe-initial-delay-seconds: "60"
         run.googleapis.com/startup-probe-timeout-seconds: "10"
 
-        # Service account
-        run.googleapis.com/service-account: mindbridge-service@mindbridge-469901.iam.gserviceaccount.com
+        # Service account (PROJECT_ID を後工程で置換)
+        run.googleapis.com/service-account: mindbridge-service@PROJECT_ID.iam.gserviceaccount.com
     spec:
-      containerConcurrency: 1000
+      containerConcurrency: 10
       timeoutSeconds: 300
-      serviceAccountName: mindbridge-service@mindbridge-469901.iam.gserviceaccount.com
+      serviceAccountName: mindbridge-service@PROJECT_ID.iam.gserviceaccount.com
       containers:
       - name: mindbridge
-        image: gcr.io/mindbridge-469901/mindbridge:latest
+        # デプロイ時に latest を SHA へ更新（Artifact Registry）
+        image: us-central1-docker.pkg.dev/PROJECT_ID/mindbridge/mindbridge:latest
         ports:
         - containerPort: 8080
           name: http1
@@ -42,7 +43,7 @@ spec:
         - name: OBSIDIAN_VAULT_PATH
           value: "/app/vault"
         - name: GOOGLE_CLOUD_PROJECT
-          value: "mindbridge-469901"
+          value: "PROJECT_ID"
         - name: ENVIRONMENT
           value: "production"
         - name: DISCORD_BOT_TOKEN
@@ -84,10 +85,10 @@ spec:
         resources:
           requests:
             cpu: 1000m
-            memory: 1Gi
+            memory: 512Mi
           limits:
-            cpu: 2000m
-            memory: 2Gi
+            cpu: 1000m
+            memory: 1Gi
         livenessProbe:
           httpGet:
             path: /health

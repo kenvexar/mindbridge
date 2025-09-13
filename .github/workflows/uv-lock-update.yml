@@ -1,0 +1,48 @@
+name: Update uv.lock
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-uv-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Update lockfile
+        run: |
+          uv lock --upgrade
+          uv sync --dev
+
+      - name: Run smoke tests
+        run: |
+          uv run pytest -q || echo "Tests failed; still proposing lockfile update for review"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'deps: weekly uv.lock update'
+          title: 'deps: weekly uv.lock update'
+          body: |
+            Automated weekly update of uv.lock.
+            - Ran `uv lock --upgrade` and `uv sync --dev`.
+            - Included a smoke test run; failures (if any) are noted in logs.
+          branch: chore/uv-lock-update
+          labels: dependencies, uv

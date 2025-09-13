@@ -4,29 +4,15 @@ Main entry point for MindBridge
 
 import asyncio
 import sys
-from pathlib import Path
 
-# Add src to Python path
-sys.path.insert(0, str(Path(__file__).parent))
-
-try:
-    from config import get_secure_settings, get_settings
-    from security.access_logger import (
-        SecurityEventType,
-        get_access_logger,
-        log_security_event,
-    )
-    from utils import get_logger, setup_logging
-except ImportError:
-    # Fallback for when running as module
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from src.config import get_secure_settings, get_settings
-    from src.security.access_logger import (
-        SecurityEventType,
-        get_access_logger,
-        log_security_event,
-    )
-    from src.utils import get_logger, setup_logging
+from src import __version__
+from src.config import get_secure_settings, get_settings
+from src.security.access_logger import (
+    SecurityEventType,
+    get_access_logger,
+    log_security_event,
+)
+from src.utils import get_logger, setup_logging
 
 
 async def main() -> None:
@@ -35,7 +21,7 @@ async def main() -> None:
     setup_logging()
     logger = get_logger("main")
 
-    logger.info("Starting MindBridge", version="0.1.0")
+    logger.info("Starting MindBridge", version=__version__)
 
     try:
         # Initialize security systems
@@ -50,7 +36,7 @@ async def main() -> None:
                 SecurityEventType.LOGIN_ATTEMPT,
                 action="Bot startup",
                 success=True,
-                details={"version": "0.1.0", "mode": settings_instance.environment},
+                details={"version": __version__, "mode": settings_instance.environment},
             )
             logger.info("Access logging enabled")
 
@@ -89,7 +75,7 @@ async def main() -> None:
         # Initialize GitHub sync for Cloud Run persistence
         github_sync = None
         try:
-            from obsidian.github_sync import GitHubObsidianSync
+            from src.obsidian.github_sync import GitHubObsidianSync
 
             github_sync = GitHubObsidianSync()
             if github_sync.is_configured:
@@ -122,26 +108,19 @@ async def main() -> None:
 
         # Initialize health analysis components with lazy loading
         logger.info("Initializing health analysis scheduler...")
-        try:
-            from utils.lazy_loader import get_component_manager
-        except ImportError:
-            from src.utils.lazy_loader import get_component_manager
+        from src.utils.lazy_loader import get_component_manager
 
         component_manager = get_component_manager()
 
         # Register components for lazy loading
         def create_ai_processor():
-            try:
-                from ai.processor import AIProcessor
-            except ImportError:
-                from src.ai.processor import AIProcessor
+            from src.ai.processor import AIProcessor
+
             return AIProcessor()
 
         def create_garmin_client():
-            try:
-                from garmin import GarminClient
-            except ImportError:
-                from src.garmin import GarminClient
+            from src.garmin import GarminClient
+
             return GarminClient()
 
         # Register components
@@ -159,24 +138,15 @@ async def main() -> None:
         garmin_client = component_manager.get_component("garmin_client")
         ai_processor = component_manager.get_component("ai_processor")
 
-        try:
-            from health_analysis.analyzer import HealthDataAnalyzer
-            from health_analysis.integrator import HealthActivityIntegrator
-            from health_analysis.scheduler import HealthAnalysisScheduler
-            from obsidian.daily_integration import DailyNoteIntegration
-        except ImportError:
-            from src.health_analysis.analyzer import HealthDataAnalyzer
-            from src.health_analysis.integrator import HealthActivityIntegrator
-            from src.health_analysis.scheduler import HealthAnalysisScheduler
-            from src.obsidian.daily_integration import DailyNoteIntegration
+        from src.health_analysis.analyzer import HealthDataAnalyzer
+        from src.health_analysis.integrator import HealthActivityIntegrator
+        from src.health_analysis.scheduler import HealthAnalysisScheduler
+        from src.obsidian.daily_integration import DailyNoteIntegration
 
         analyzer = HealthDataAnalyzer(ai_processor=ai_processor)
 
         # Initialize file manager for integrator
-        try:
-            from obsidian.file_manager import ObsidianFileManager
-        except ImportError:
-            from src.obsidian.file_manager import ObsidianFileManager
+        from src.obsidian.file_manager import ObsidianFileManager
 
         file_manager = ObsidianFileManager()
         integrator = HealthActivityIntegrator(file_manager=file_manager)
@@ -192,14 +162,9 @@ async def main() -> None:
         logger.info("Health analysis scheduler initialized successfully")
 
         # Initialize additional components needed for MessageHandler
-        try:
-            from ai.note_analyzer import AdvancedNoteAnalyzer
-            from audio import SpeechProcessor
-            from obsidian.template_system import TemplateEngine
-        except ImportError:
-            from src.ai.note_analyzer import AdvancedNoteAnalyzer
-            from src.audio import SpeechProcessor
-            from src.obsidian.template_system import TemplateEngine
+        from src.ai.note_analyzer import AdvancedNoteAnalyzer
+        from src.audio import SpeechProcessor
+        from src.obsidian.template_system import TemplateEngine
 
         # Create additional dependencies
         template_engine = TemplateEngine(
@@ -214,10 +179,7 @@ async def main() -> None:
         note_template = "# {title}\n\n{content}\n\n---\nCreated: {timestamp}"
 
         # Initialize and start Discord bot
-        try:
-            from bot import DiscordBot
-        except ImportError:
-            from src.bot import DiscordBot
+        from src.bot import DiscordBot
 
         bot = DiscordBot(
             ai_processor=ai_processor,
@@ -231,10 +193,7 @@ async def main() -> None:
 
         # Start health check server for Cloud Run with port conflict handling
         health_server = None
-        try:
-            from monitoring import HealthServer
-        except ImportError:
-            from src.monitoring import HealthServer
+        from src.monitoring import HealthServer
 
         try:
             health_server = HealthServer(bot_instance=bot, port=8080)

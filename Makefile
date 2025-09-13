@@ -23,3 +23,9 @@ pre-commit:
 
 clean:
 	rm -rf .venv .mypy_cache .ruff_cache .pytest_cache
+
+.PHONY: cleanup-ar
+
+# Artifact Registry の古いイメージをクリーンアップ（DRY-RUN）
+cleanup-ar:
+	./scripts/cleanup-artifact-registry.sh $(PROJECT_ID) $(REGION) mindbridge mindbridge 10 30

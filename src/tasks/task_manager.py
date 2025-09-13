@@ -9,7 +9,7 @@ from typing import Any
 import aiofiles
 from structlog import get_logger
 
-from src.config.settings import get_settings
+from src.config import get_settings
 from src.obsidian import ObsidianFileManager
 from src.obsidian.models import VaultFolder
 from src.tasks.models import Task, TaskPriority, TaskStatus

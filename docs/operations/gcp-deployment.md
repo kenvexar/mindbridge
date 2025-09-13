@@ -7,7 +7,7 @@ MindBridge を Google Cloud Platform で**月額約 8 円**で運用するため
 | サービス | 無料枠 | 月額費用 |
 |---------|-------|----------|
 | Cloud Run | 200 万リクエスト/月 | **$0** |
-| Container Registry | 0.5GB | **$0** |
+| Artifact Registry | 0.5GB | **$0** |
 | Cloud Build | 120 分/日 | **$0** |
 | Secret Manager | 6 シークレット | **$0.06** |
 | Gemini API | 1,500 回/日 | **$0** |

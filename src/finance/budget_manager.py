@@ -9,7 +9,7 @@ from typing import Any
 import aiofiles
 from structlog import get_logger
 
-from src.config.settings import get_settings
+from src.config import get_settings
 from src.finance.expense_manager import ExpenseManager
 from src.finance.models import Budget, BudgetCategory
 from src.obsidian import ObsidianFileManager

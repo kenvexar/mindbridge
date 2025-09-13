@@ -21,7 +21,7 @@ class TaskReportGenerator:
         file_manager: ObsidianFileManager,
         task_manager: TaskManager,
         schedule_manager: ScheduleManager,
-        gemini_client: GeminiClient,
+        gemini_client: GeminiClient | None = None,
     ):
         self.file_manager = file_manager
         self.task_manager = task_manager
@@ -43,13 +43,15 @@ class TaskReportGenerator:
         report = await self._create_weekly_report_content(start_date, end_date, summary)
 
         # Add AI insights if requested
-        if include_ai_insights:
+        if include_ai_insights and self.gemini_client:
             try:
                 insights = await self._generate_ai_insights(summary)
                 report += f"\n\n## AI分析・提案\n\n{insights}"
             except Exception as e:
                 logger.error("Failed to generate AI insights", error=str(e))
                 report += "\n\n## AI分析・提案\n\nAI分析の生成に失敗しました。"
+        elif include_ai_insights and not self.gemini_client:
+            report += "\n\n## AI分析・提案\n\nGemini クライアント未設定のためスキップしました。"
 
         # Save report to Obsidian
         await self._save_weekly_report(start_date, report)
@@ -75,13 +77,15 @@ class TaskReportGenerator:
         report = await self._create_monthly_report_content(year, month, summary)
 
         # Add AI insights if requested
-        if include_ai_insights:
+        if include_ai_insights and self.gemini_client:
             try:
                 insights = await self._generate_ai_insights(summary)
                 report += f"\n\n## AI分析・提案\n\n{insights}"
             except Exception as e:
                 logger.error("Failed to generate AI insights", error=str(e))
                 report += "\n\n## AI分析・提案\n\nAI分析の生成に失敗しました。"
+        elif include_ai_insights and not self.gemini_client:
+            report += "\n\n## AI分析・提案\n\nGemini クライアント未設定のためスキップしました。"
 
         # Save report to Obsidian
         await self._save_monthly_report(year, month, report)
@@ -390,6 +394,8 @@ class TaskReportGenerator:
 
     async def _generate_ai_insights(self, summary: TaskSummary) -> str:
         """Generate AI insights for the task data."""
+        if not self.gemini_client:
+            return "Gemini クライアント未設定のためスキップしました。"
         prompt = f"""
 以下の生産性データを分析し、日本語で洞察と改善提案を提供してください：
 

@@ -11,7 +11,7 @@ from typing import Any
 from discord.ext import commands, tasks
 
 from src.bot.notification_system import NotificationCategory, NotificationLevel
-from src.config.settings import get_settings
+from src.config import get_settings
 from src.obsidian.github_sync import GitHubObsidianSync
 from src.utils.mixins import LoggerMixin
 
