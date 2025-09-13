@@ -174,9 +174,9 @@ async def main() -> None:
 
         # Initialize file manager for integrator
         try:
-            from obsidian.refactored_file_manager import ObsidianFileManager
+            from obsidian.file_manager import ObsidianFileManager
         except ImportError:
-            from src.obsidian.refactored_file_manager import ObsidianFileManager
+            from src.obsidian.file_manager import ObsidianFileManager
 
         file_manager = ObsidianFileManager()
         integrator = HealthActivityIntegrator(file_manager=file_manager)

@@ -260,7 +260,7 @@ class StatsCommands(commands.Cog, CommandMixin):
             from src.finance.budget_manager import BudgetManager
             from src.finance.expense_manager import ExpenseManager
             from src.finance.subscription_manager import SubscriptionManager
-            from src.obsidian.refactored_file_manager import ObsidianFileManager
+            from src.obsidian.file_manager import ObsidianFileManager
 
             settings = get_settings()
             file_manager = ObsidianFileManager(settings.obsidian_vault_path)
@@ -346,7 +346,7 @@ class StatsCommands(commands.Cog, CommandMixin):
             from datetime import date
 
             from src.config import get_settings
-            from src.obsidian.refactored_file_manager import ObsidianFileManager
+            from src.obsidian.file_manager import ObsidianFileManager
             from src.tasks.models import TaskStatus
             from src.tasks.task_manager import TaskManager
 

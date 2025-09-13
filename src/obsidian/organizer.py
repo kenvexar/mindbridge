@@ -6,13 +6,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from src.obsidian.file_manager import ObsidianFileManager
 from src.obsidian.models import (
     FolderMapping,
     NoteStatus,
     ObsidianNote,
     VaultFolder,
 )
-from src.obsidian.refactored_file_manager import ObsidianFileManager
 from src.utils.mixins import LoggerMixin
 
 # 旧テンプレートシステムは削除済み

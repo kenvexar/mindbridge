@@ -28,7 +28,7 @@ os.environ.update(
 )
 
 from src.obsidian.daily_integration import DailyNoteIntegration
-from src.obsidian.refactored_file_manager import ObsidianFileManager
+from src.obsidian.file_manager import ObsidianFileManager
 
 
 @pytest.mark.asyncio

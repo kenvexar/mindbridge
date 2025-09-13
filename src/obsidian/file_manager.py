@@ -1,4 +1,4 @@
-"""Refactored Obsidian file manager using modular components."""
+"""Obsidian file manager using modular components."""
 
 import re
 from datetime import datetime
