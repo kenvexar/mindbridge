@@ -54,7 +54,8 @@ class ReferenceMetadata(TypedDict):
 
 class TimingMetadata(TypedDict):
     created_at: dict[str, Any]
-    edited_at: dict[str, Any] | None
+    # 常に辞書を返す（未編集時は {"was_edited": False}）
+    edited_at: dict[str, Any]
     age_seconds: int
 
 
