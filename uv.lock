@@ -784,10 +784,6 @@ dependencies = [
     { name = "cryptography" },
     { name = "discord-py" },
     { name = "garminconnect" },
-    { name = "google-api-python-client" },
-    { name = "google-auth" },
-    { name = "google-auth-httplib2" },
-    { name = "google-auth-oauthlib" },
     { name = "google-cloud-secret-manager" },
     { name = "google-cloud-speech" },
     { name = "google-genai" },
@@ -803,6 +799,14 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "structlog" },
     { name = "tenacity" },
+]
+
+[package.optional-dependencies]
+google-api = [
+    { name = "google-api-python-client" },
+    { name = "google-auth" },
+    { name = "google-auth-httplib2" },
+    { name = "google-auth-oauthlib" },
 ]
 
 [package.dev-dependencies]
@@ -830,10 +834,10 @@ requires-dist = [
     { name = "cryptography", specifier = ">=45.0.7" },
     { name = "discord-py", specifier = ">=2.5.2" },
     { name = "garminconnect", specifier = ">=0.2.28" },
-    { name = "google-api-python-client", specifier = ">=2.181.0" },
-    { name = "google-auth", specifier = ">=2.40.3" },
-    { name = "google-auth-httplib2", specifier = ">=0.2.0" },
-    { name = "google-auth-oauthlib", specifier = ">=1.2.2" },
+    { name = "google-api-python-client", marker = "extra == 'google-api'", specifier = ">=2.181.0" },
+    { name = "google-auth", marker = "extra == 'google-api'", specifier = ">=2.40.3" },
+    { name = "google-auth-httplib2", marker = "extra == 'google-api'", specifier = ">=0.2.0" },
+    { name = "google-auth-oauthlib", marker = "extra == 'google-api'", specifier = ">=1.2.2" },
     { name = "google-cloud-secret-manager", specifier = ">=2.20.0" },
     { name = "google-cloud-speech", specifier = ">=2.21.0" },
     { name = "google-genai", specifier = ">=0.2.0" },
@@ -850,6 +854,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=24.4.0" },
     { name = "tenacity", specifier = ">=9.1.2" },
 ]
+provides-extras = ["google-api"]
 
 [package.metadata.requires-dev]
 dev = [

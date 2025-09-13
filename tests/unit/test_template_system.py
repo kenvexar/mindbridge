@@ -5,7 +5,6 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-import aiofiles
 import pytest
 
 # Set up test environment variables before importing modules
@@ -209,7 +208,12 @@ Date: {{date_format(current_date, "%Y-%m-%d")}}
         ("context", "asserts"),
         [
             (
-                {"ai_processed": True, "ai_summary": "AI summary here", "has_attachments": False, "attachment_count": 0},
+                {
+                    "ai_processed": True,
+                    "ai_summary": "AI summary here",
+                    "has_attachments": False,
+                    "attachment_count": 0,
+                },
                 {"has_ai": True, "has_attach": False, "count": 0},
             ),
             (
@@ -245,8 +249,6 @@ Found {{attachment_count}} attachments.
 
     # 各種繰り返し/関数の詳細検証は簡略化のため削除
 
-    
-
     # 旧 API のパーサ検証は簡略化のため削除
 
     # ノート生成の E2E は統合テストで担保するためここでは削除
@@ -265,11 +267,11 @@ Found {{attachment_count}} attachments.
         ("template_body", "placeholders"),
         [
             (
-                "{{include \"include_test\"}}",
+                '{{include "include_test"}}',
                 ["<!-- Include: include_test -->"],
             ),
             (
-                "{{include \"one\"}}\n{{include \"two\"}}",
+                '{{include "one"}}\n{{include "two"}}',
                 ["<!-- Include: one -->", "<!-- Include: two -->"],
             ),
         ],

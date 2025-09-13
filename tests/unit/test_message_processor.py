@@ -4,7 +4,6 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import discord
-import pytest
 
 from src.bot.message_processor import MessageProcessor
 
