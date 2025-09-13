@@ -12,20 +12,31 @@ set -Eeuo pipefail
 #   ./scripts/manage.sh ar-clean <PROJECT_ID> [REGION] [REPO] [IMAGE] [KEEP] [OLDER_DAYS] [--no-dry-run]
 #   ./scripts/manage.sh run            # ローカル実行（.env 必須）
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # ===== 共通ユーティリティ（common.sh を内蔵） =====
 if [[ -t 1 ]]; then
-  BOLD='\033[1m'; RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; CYAN='\033[0;36m'; PURPLE='\033[0;35m'; NC='\033[0m'
+  RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 else
-  BOLD=''; RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; PURPLE=''; NC=''
+  RED=''; GREEN=''; YELLOW=''; CYAN=''; NC=''
 fi
-log()        { echo -e "${GREEN}[INFO]${NC} $*"; }
-warn()       { echo -e "${YELLOW}[WARN]${NC} $*"; }
-log_step()   { echo -e "${CYAN}[STEP]${NC} $*"; }
-log_success(){ echo -e "${GREEN}[SUCCESS]${NC} $*"; }
-log_error()  { echo -e "${RED}[ERROR]${NC} $*" 1>&2; }
-die()        { log_error "$@"; exit 1; }
+
+log__base() {
+  # $1: colored tag, remaining: message tokens
+  local tag=$1; shift || true
+  if (($#)); then
+    printf "%b " "$tag"
+    printf "%s" "$1"; shift || true
+    while (($#)); do printf " %s" "$1"; shift; done
+    printf "\n"
+  else
+    printf "%b\n" "$tag"
+  fi
+}
+log()         { log__base "${GREEN}[INFO]${NC}" "$@"; }
+warn()        { log__base "${YELLOW}[WARN]${NC}" "$@"; }
+log_step()    { log__base "${CYAN}[STEP]${NC}" "$@"; }
+log_success() { log__base "${GREEN}[SUCCESS]${NC}" "$@"; }
+log_error()   { log__base "${RED}[ERROR]${NC}" "$@" >&2; }
+die()         { log_error "$@"; exit 1; }
 
 require_cmd(){
   local missing=()
@@ -33,8 +44,12 @@ require_cmd(){
   (( ${#missing[@]} )) && die "必要なコマンドが見つかりません: ${missing[*]}"
 }
 
-ensure_repo_root(){ if ROOT_DIR=$(git rev-parse --show-toplevel 2>/dev/null); then cd "$ROOT_DIR" || die "リポジトリルートへ移動できません"; fi; }
-ensure_gcloud_auth(){ require_cmd gcloud; gcloud auth list --filter=status:ACTIVE --format='value(account)' | head -1 >/dev/null 2>&1 || die "gcloud 未認証。'gcloud auth login' を実行してください"; }
+ensure_repo_root(){
+  local root_dir
+  root_dir=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+  cd "$root_dir" || die "リポジトリルートへ移動できません"
+}
+ensure_gcloud_auth(){ require_cmd gcloud; gcloud auth list --filter=status:ACTIVE --format='value(account)' | head -n 1 >/dev/null 2>&1 || die "gcloud 未認証。'gcloud auth login' を実行してください"; }
 ensure_project_id(){
   if [[ -z "${PROJECT_ID:-}" ]]; then PROJECT_ID=$(gcloud config get-value project 2>/dev/null || true); fi
   [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID が未設定です。引数または 'gcloud config set project' で指定してください"
@@ -86,7 +101,8 @@ cmd_env(){
   gcloud services enable run.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com speech.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com --quiet
 
   log_step "サービスアカウント作成/権限付与"
-  local SA_MAIN=mindbridge-service SA_MAIN_EMAIL="${SA_MAIN}@${PROJECT_ID}.iam.gserviceaccount.com"
+  local SA_MAIN="mindbridge-service"
+  local SA_MAIN_EMAIL="${SA_MAIN}@${PROJECT_ID}.iam.gserviceaccount.com"
   gcloud iam service-accounts describe "$SA_MAIN_EMAIL" &>/dev/null || \
     gcloud iam service-accounts create "$SA_MAIN" --display-name="MindBridge Main Service Account"
   for role in roles/secretmanager.secretAccessor roles/logging.logWriter roles/monitoring.metricWriter roles/cloudtrace.agent; do
@@ -99,7 +115,7 @@ cmd_env(){
     gcloud artifacts repositories create mindbridge --repository-format=docker --location="$REGION" --description="MindBridge container images"
 
   log_success "環境セットアップ完了"
-  echo -e "次のステップ: ${YELLOW}./scripts/manage.sh secrets $PROJECT_ID${NC} でシークレットを設定"
+  printf "%s\n" "次のステップ: ${YELLOW}./scripts/manage.sh secrets $PROJECT_ID${NC} でシークレットを設定"
 }
 
 # ===== secrets（旧 setup-secrets.sh + Speech 自動生成） =====
@@ -124,7 +140,9 @@ prompt_secret(){
 }
 
 generate_speech_credentials(){
-  local SA_NAME=mindbridge-speech SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" KEY_FILE="/tmp/mb-speech-$$.json"
+  local SA_NAME="mindbridge-speech"
+  local SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+  local KEY_FILE="/tmp/mb-speech-$$.json"
   gcloud services enable speech.googleapis.com --quiet
   gcloud iam service-accounts describe "$SA_EMAIL" &>/dev/null || \
     gcloud iam service-accounts create "$SA_NAME" --display-name="MindBridge Speech Service Account"
@@ -181,9 +199,9 @@ cmd_optional(){
   ensure_gcloud_auth; ensure_project_id
 
   log_step "Google Calendar OAuth credentials（手動または既存を貼り付け）"
-  echo -e "${YELLOW}ブラウザで作成した credentials.json を貼り付け（Enterのみでスキップ）:${NC}"
-  echo -e "手順: Console → APIs & Services → Credentials → OAuth client ID (Web)"
-  echo -e "Redirect URIs: http://localhost:8080/oauth/callback, <Cloud Run URL>/oauth/callback"
+  printf "%b\n" "${YELLOW}ブラウザで作成した credentials.json を貼り付け（Enterのみでスキップ）:${NC}"
+  printf "%s\n" "手順: Console → APIs & Services → Credentials → OAuth client ID (Web)"
+  printf "%s\n" "Redirect URIs: http://localhost:8080/oauth/callback, <Cloud Run URL>/oauth/callback"
   read -r -p "貼り付け開始（Enter でスキップ）: " __dummy || true
   CAL_JSON=$(cat || true)
   if [[ -n "$CAL_JSON" ]]; then
@@ -261,7 +279,7 @@ cmd_deploy(){
 
   log_step "Health Check"
   local URL; URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')
-  [[ -n "$URL" ]] && echo "URL: $URL" && curl -fsS "$URL/health" >/dev/null 2>&1 && log_success "Health OK" || warn "Health 未確認"
+  [[ -n "$URL" ]] && printf "%s\n" "URL: $URL" && curl -fsS "$URL/health" >/dev/null 2>&1 && log_success "Health OK" || warn "Health 未確認"
 }
 
 # ===== full-deploy（orchestrate） =====
@@ -282,27 +300,27 @@ cmd_ar_clean(){
   local DRY_RUN=true; [[ " $* " == *" --no-dry-run "* ]] && DRY_RUN=false
   [[ -z "$PROJECT_ID" ]] && die "Usage: mindbridge ar-clean <PROJECT_ID> [REGION] [REPO] [IMAGE] [KEEP] [OLDER_DAYS] [--no-dry-run]"
   local AR_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE}"
-  echo "[INFO] 対象: ${AR_PATH} KEEP=${KEEP} OLDER_THAN=${OLDER_DAYS}d DRY_RUN=${DRY_RUN}"
+  printf "%s\n" "[INFO] 対象: ${AR_PATH} KEEP=${KEEP} OLDER_THAN=${OLDER_DAYS}d DRY_RUN=${DRY_RUN}"
   local IMAGES_JSON; IMAGES_JSON=$(gcloud artifacts docker images list "$AR_PATH" --include-tags --format=json || echo '[]')
   local COUNT; COUNT=$(echo "$IMAGES_JSON" | jq 'length')
-  (( COUNT == 0 )) && { echo "[INFO] 対象なし"; return 0; }
+  (( COUNT == 0 )) && { printf "%s\n" "[INFO] 対象なし"; return 0; }
   local DELETABLE_DIGESTS; DELETABLE_DIGESTS=$(echo "$IMAGES_JSON" | jq -r --argjson keep "$KEEP" --argjson older "$OLDER_DAYS" '
     map({digest, created: (.createTime | fromdateiso8601)}) as $imgs
     | ($imgs | sort_by(.created) | reverse | .[:$keep] | map(.digest)) as $keep_digests
     | $imgs | map(select(.created < (now - ($older*86400))))
     | map(select(.digest as $d | ($keep_digests | index($d)) | not))
     | .[] | .digest')
-  [[ -z "$DELETABLE_DIGESTS" ]] && { echo "[INFO] 条件により削除対象なし"; return 0; }
-  echo "[PLAN] 削除予定:"; while read -r d; do [[ -n "$d" ]] && echo "  - ${AR_PATH}@${d}"; done <<< "$DELETABLE_DIGESTS"
-  [[ "$DRY_RUN" == true ]] && { echo "[DRY-RUN] --no-dry-run で実行"; return 0; }
-  echo "[EXEC] 削除実行..."; local FAILED=0
+  [[ -z "$DELETABLE_DIGESTS" ]] && { printf "%s\n" "[INFO] 条件により削除対象なし"; return 0; }
+  printf "%s\n" "[PLAN] 削除予定:"; while read -r d; do [[ -n "$d" ]] && printf "  - %s\n" "${AR_PATH}@${d}"; done <<< "$DELETABLE_DIGESTS"
+  [[ "$DRY_RUN" == true ]] && { printf "%s\n" "[DRY-RUN] --no-dry-run で実行"; return 0; }
+  printf "%s\n" "[EXEC] 削除実行..."; local FAILED=0
   while read -r d; do [[ -z "$d" ]] && continue; gcloud artifacts docker images delete "${AR_PATH}@${d}" --quiet || FAILED=$((FAILED+1)); done <<< "$DELETABLE_DIGESTS"
-  (( FAILED > 0 )) && { echo "[DONE] 完了（失敗: $FAILED）"; return 1; } || echo "[DONE] クリーンアップ完了"
+  (( FAILED > 0 )) && { printf "%s\n" "[DONE] 完了（失敗: $FAILED）"; return 1; } || printf "%s\n" "[DONE] クリーンアップ完了"
 }
 
 # ===== init（旧 local-setup.sh） =====
 cmd_init(){
-  echo -e "${CYAN}MindBridge ローカル初期設定${NC}"
+  printf "%b\n" "${CYAN}MindBridge ローカル初期設定${NC}"
   if [[ -f .env ]]; then
     confirm ".env が存在します。上書きしますか?" || { echo "キャンセル"; return 0; }
   fi

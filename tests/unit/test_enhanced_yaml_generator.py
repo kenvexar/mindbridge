@@ -10,7 +10,6 @@ Enhanced YAML Frontmatter Generator のテストケース
 """
 
 from datetime import date, datetime
-import pytest
 from unittest.mock import Mock
 
 from src.obsidian.template_system.yaml_generator import YAMLFrontmatterGenerator

@@ -2,16 +2,31 @@
 set -Eeuo pipefail
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 
 SCRIPT=./scripts/manage.sh
 
 pass=0; fail=0
 green='\033[0;32m'; red='\033[0;31m'; yellow='\033[1;33m'; nc='\033[0m'
 
-section(){ echo -e "${yellow}==> $*${nc}"; }
-ok(){ echo -e "${green}[OK]${nc} $*"; pass=$((pass+1)); }
-ng(){ echo -e "${red}[NG]${nc} $*"; fail=$((fail+1)); }
+section(){
+  printf "%b " "${yellow}==>${nc}"
+  printf "%s" "$1"; shift || true
+  while (($#)); do printf " %s" "$1"; shift; done
+  printf "\n"
+}
+ok(){
+  printf "%b " "${green}[OK]${nc}"
+  printf "%s" "$1"; shift || true
+  while (($#)); do printf " %s" "$1"; shift; done
+  printf "\n"; pass=$((pass+1))
+}
+ng(){
+  printf "%b " "${red}[NG]${nc}"
+  printf "%s" "$1"; shift || true
+  while (($#)); do printf " %s" "$1"; shift; done
+  printf "\n"; fail=$((fail+1))
+}
 assert_contains(){ local hay=$1; local needle=$2; [[ "$hay" == *"$needle"* ]] && ok "$needle" || ng "期待文字列が見つかりません: $needle"; }
 
 TMPDIR=$(mktemp -d)
@@ -66,6 +81,6 @@ PATH="$TMPDIR/bin"; hash -r; if $SCRIPT env test-proj >/dev/null 2>&1; then ng "
 section "ar-clean は gcloud/jq 無しでエラー"
 PATH="$TMPDIR/bin"; hash -r; if $SCRIPT ar-clean >/dev/null 2>&1; then ng "gcloud/jq 無しで ar-clean が成功"; else ok "gcloud/jq 無しで ar-clean が適切に失敗"; fi
 
-echo
-echo "合計: $((pass+fail)) / 成功: $pass / 失敗: $fail"
+printf "\n"
+printf "合計: %d / 成功: %d / 失敗: %d\n" "$((pass+fail))" "$pass" "$fail"
 exit $(( fail == 0 ? 0 : 1 ))
