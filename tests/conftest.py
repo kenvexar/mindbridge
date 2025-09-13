@@ -3,11 +3,20 @@
 
 - `manual/` 配下の手動テストは pytest の自動収集から除外
 - テスト向けの環境変数を毎テスト自動設定（autouse）
+- ルートを `sys.path` に追加して `import src.*` を解決
 """
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
+
+# プロジェクトルート（このファイルの親の親）をパスに追加
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 # manual ディレクトリは手動実行専用のため収集対象から除外
 collect_ignore = ["manual"]
