@@ -43,16 +43,16 @@ BILLING_ACCOUNT=$(gcloud billing accounts list --filter="open=true" --format="va
 gcloud billing projects link $PROJECT_ID --billing-account=$BILLING_ACCOUNT
 ```
 
-### 3. 環境変数設定
+### 3. シークレットと環境設定
+
+推奨: 付属スクリプトで Secret Manager に安全に登録します。
 
 ```bash
-# 必須環境変数を設定
-export PROJECT_ID="your-project-id"
-export DISCORD_BOT_TOKEN="your-discord-bot-token"
-export DISCORD_GUILD_ID="your-discord-server-id"
-export GEMINI_API_KEY="your-gemini-api-key"
-export GOOGLE_CLOUD_SPEECH_API_KEY="your-speech-api-key"
-export NOTIFICATION_EMAIL="your-email@example.com"
+# 必須シークレットの設定（対話式）
+./scripts/setup-secrets.sh <PROJECT_ID>
+
+# 音声認識を使う場合（認証情報 JSON を自動生成し Secret 登録）
+./scripts/generate-speech-credentials.sh <PROJECT_ID>
 ```
 
 ### 4. デプロイ実行
@@ -62,16 +62,16 @@ export NOTIFICATION_EMAIL="your-email@example.com"
 git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 
-# デプロイスクリプト実行
-./scripts/deploy-gcp.sh
+# 完全自動デプロイ（推奨）
+./scripts/full-deploy.sh <PROJECT_ID> --with-optional
+
+# もしくは分割実行
+./scripts/deploy.sh <PROJECT_ID>
 ```
 
 ### 5. 費用監視設定
 
-```bash
-# 予算アラート設定
-./scripts/setup-gcp-budget.sh
-```
+Cloud Console の「請求」→「予算とアラート」から予算を作成し、50%/80%/100% のしきい値通知を設定してください。
 
 ## ⚙️ 詳細設定
 
@@ -89,12 +89,14 @@ timeout: '300'           # 5 分タイムアウト
 
 ### Secret Manager 設定
 
-以下のシークレットが自動作成されます：
+`scripts/setup-secrets.sh` により以下が作成・更新されます：
 
 - `discord-bot-token`
 - `discord-guild-id`
 - `gemini-api-key`
-- `google-cloud-speech-api-key`
+- `github-token`
+- `obsidian-backup-repo`
+- （オプション）`google-cloud-speech-credentials`
 
 ### 予算アラート設定
 
@@ -185,7 +187,7 @@ gcloud builds list --limit=10
 ```bash
 # コード変更後
 git add . && git commit -m "feat: new feature"
-./scripts/deploy-gcp.sh
+./scripts/deploy.sh <PROJECT_ID>
 ```
 
 ### 定期メンテナンス

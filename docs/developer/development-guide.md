@@ -2,6 +2,27 @@
 
 環境セットアップから実装まで、 MindBridge 開発の包括的ガイド。
 
+## 🔎 クイックリファレンス
+
+```bash
+# セットアップ
+uv sync --dev
+
+# 実行
+uv run python -m src.main
+
+# テスト / カバレッジ
+uv run pytest -q
+uv run pytest --cov=src --cov-report=term-missing
+
+# 品質
+uv run ruff check . --fix && uv run ruff format .
+uv run mypy src
+
+# フック
+uv run pre-commit run --all-files
+```
+
 ## 目次
 
 1. [開発環境セットアップ](#開発環境セットアップ)
@@ -187,18 +208,15 @@ graph TD
 ### 日常的な開発
 
 ```bash
-# 1. Start development session
+# 1. 開発用に起動（必要なら --debug）
 uv run python -m src.main --dev
 
-# 2. Run tests continuously
-uv run pytest --watch
+# 2. テスト
+uv run pytest -q
 
-# 3. Check code quality
-uv run ruff check src/ --fix
+# 3. 品質チェック
+uv run ruff check . --fix && uv run ruff format .
 uv run mypy src/
-
-# 4. Format code
-uv run ruff format src/
 ```
 
 ### 機能開発サイクル

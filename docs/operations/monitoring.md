@@ -198,159 +198,46 @@ data:
 
 ## 📈 メトリクス収集
 
-### カスタムメトリクス定義
+### 内蔵メトリクス（推奨）
+
+本リポジトリにはアプリ用の軽量メトリクスが実装済みです。
+
+- `src/bot/metrics.py` の `SystemMetrics` と `APIUsageMonitor`
+- `src/monitoring/health_server.py` の `/health`, `/ready`, `/metrics` エンドポイント
+
+使用例:
 
 ```python
-# src/monitoring/metrics.py
-from prometheus_client import Counter, Histogram, Gauge, start_http_server
-import time
-from functools import wraps
+from src.bot.metrics import SystemMetrics, APIUsageMonitor
 
-# カウンター
-MESSAGES_PROCESSED = Counter(
-    'discord_messages_processed_total',
-    'Total number of processed Discord messages',
-    ['channel', 'status']
-)
+system_metrics = SystemMetrics()
+api_usage = APIUsageMonitor()
 
-AI_REQUESTS = Counter(
-    'ai_requests_total',
-    'Total number of AI API requests',
-    ['api', 'status']
-)
+# メッセージ処理
+system_metrics.record_message_processed()
 
-OBSIDIAN_FILES_CREATED = Counter(
-    'obsidian_files_created_total',
-    'Total number of Obsidian files created',
-    ['folder']
-)
+# AI リクエスト記録（成功/失敗と処理時間）
+system_metrics.record_ai_request(success=True, processing_time_ms=240)
 
-# ヒストグラム
-PROCESSING_TIME = Histogram(
-    'message_processing_duration_seconds',
-    'Time spent processing messages',
-    ['operation']
-)
+# ファイル作成記録
+system_metrics.record_file_created()
 
-AI_RESPONSE_TIME = Histogram(
-    'ai_response_duration_seconds',
-    'AI API response time',
-    ['api']
-)
-
-# ゲージ
-ACTIVE_CONNECTIONS = Gauge(
-    'discord_active_connections',
-    'Number of active Discord connections'
-)
-
-MEMORY_USAGE = Gauge(
-    'process_memory_usage_bytes',
-    'Process memory usage in bytes'
-)
-
-# デコレーター
-def track_processing_time(operation: str):
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            start_time = time.time()
-            try:
-                result = await func(*args, **kwargs)
-                PROCESSING_TIME.labels(operation=operation).observe(
-                    time.time() - start_time
-                )
-                return result
-            except Exception as e:
-                PROCESSING_TIME.labels(operation=f"{operation}_error").observe(
-                    time.time() - start_time
-                )
-                raise
-        return wrapper
-    return decorator
-
-# 使用例
-@track_processing_time("ai_analysis")
-async def analyze_message(self, content: str):
-    # AI 分析処理
+# API 利用のレート制御
+if api_usage.record_api_usage("gemini"):
+    # 呼び出し許可時のみ実行
     pass
+
+# ダッシュボード向け要約
+summary = system_metrics.get_metrics_summary()
 ```
 
-### システムメトリクス
+### ヘルス/メトリクス エンドポイント
 
-```python
-# src/monitoring/system_metrics.py
-import psutil
-import asyncio
-from typing import Dict, Any
+`src/monitoring/health_server.py` を起動すると以下が公開されます（Cloud Run 想定）。
 
-class SystemMetrics:
-    def __init__(self):
-        self.process = psutil.Process()
-
-    async def get_metrics(self) -> Dict[str, Any]:
-        """システムメトリクスを取得."""
-        cpu_percent = self.process.cpu_percent()
-        memory_info = self.process.memory_info()
-        disk_usage = psutil.disk_usage('/')
-
-        return {
-            "cpu": {
-                "percent": cpu_percent,
-                "count": psutil.cpu_count()
-            },
-            "memory": {
-                "rss": memory_info.rss,
-                "vms": memory_info.vms,
-                "percent": self.process.memory_percent(),
-                "available": psutil.virtual_memory().available
-            },
-            "disk": {
-                "total": disk_usage.total,
-                "used": disk_usage.used,
-                "free": disk_usage.free,
-                "percent": disk_usage.percent
-            },
-            "network": {
-                "connections": len(self.process.connections())
-            }
-        }
-
-    async def update_prometheus_metrics(self):
-        """Prometheus メトリクスを更新."""
-        metrics = await self.get_metrics()
-
-        MEMORY_USAGE.set(metrics["memory"]["rss"])
-        ACTIVE_CONNECTIONS.set(metrics["network"]["connections"])
-```
-
-### Discord 特有メトリクス
-
-```python
-# src/monitoring/discord_metrics.py
-class DiscordMetrics:
-    def __init__(self, bot_client):
-        self.bot = bot_client
-
-    async def collect_discord_metrics(self):
-        """Discord 関連メトリクスを収集."""
-        if self.bot.is_ready():
-            guild_count = len(self.bot.guilds)
-            user_count = sum(guild.member_count for guild in self.bot.guilds)
-            channel_count = sum(len(guild.channels) for guild in self.bot.guilds)
-
-            # WebSocket latency
-            latency = round(self.bot.latency * 1000, 2)
-
-            return {
-                "guilds": guild_count,
-                "users": user_count,
-                "channels": channel_count,
-                "latency_ms": latency,
-                "shards": len(self.bot.shards) if self.bot.shards else 1
-            }
-        return {}
-```
+- `GET /health`  基本ヘルス
+- `GET /ready`   起動準備（Bot 接続状況を含む）
+- `GET /metrics` アプリメトリクス（SystemMetrics/APIUsageMonitor 連携）
 
 ## 🚨 アラート設定
 
@@ -417,10 +304,10 @@ documentation:
   mimeType: text/markdown
 ```
 
-### Discord Webhook アラート
+### 参考: Discord Webhook での通知（任意）
 
 ```python
-# src/monitoring/alerts.py
+# 任意のユーティリティとして実装例
 import aiohttp
 import json
 from datetime import datetime

@@ -45,6 +45,16 @@ MindBridge は知識管理システムです。 Discord サーバーでメッセ
 
 ## クイックスタート
 
+### 🧑‍💻 ローカル（最短）
+
+```
+uv sync --dev
+./scripts/local-setup.sh
+./scripts/local-run.sh
+```
+
+詳細: docs/user/quick-start.md
+
 ### 🚀 Google Cloud Run デプロイ（推奨）
 
 **完全自動デプロイスクリプト**で 5 分でデプロイ完了：
@@ -95,12 +105,37 @@ uv run python -m src.main --debug
 
 詳細な開発コマンドとアーキテクチャについては [開発ガイド](docs/developer/development-guide.md) を参照してください。
 
+### 開発クイックリファレンス
+
+```bash
+# セットアップ
+uv sync --dev
+
+# 実行（ローカル）
+uv run python -m src.main
+
+# テスト / カバレッジ
+uv run pytest -q
+uv run pytest --cov=src --cov-report=term-missing
+
+# Lint / Format / 型
+uv run ruff check . --fix && uv run ruff format .
+uv run mypy src
+
+# フック（pre-commit）
+uv run pre-commit run --all-files
+
+# コンテナ
+docker compose up -d
+```
+
+より詳細な運用ルールは [リポジトリ運用ガイドライン](docs/developer/repository-guidelines.md) を参照してください。
+
 ## ドキュメント
 
 ### 📚 ユーザードキュメント
-- **[クイックスタート](docs/user/quick-start.md)** - 10 分で始める
-- **[簡単セットアップ](docs/user/easy-setup.md)** - 5 分セットアップ
-- **[インストールガイド](docs/user/installation.md)** - 詳細セットアップ手順
+- **[クイックスタート](docs/user/quick-start.md)** - 最短 3 ステップ
+- **[インストールガイド](docs/user/installation.md)** - 全機能の詳細手順
 - **[基本的な使用方法](docs/user/basic-usage.md)** - 日常の使用方法
 - **[コマンドリファレンス](docs/user/commands-reference.md)** - 利用可能なコマンド
 - **[使用例](docs/user/examples.md)** - 使用例
@@ -114,7 +149,8 @@ uv run python -m src.main --debug
 - **[フィールドリファレンス](docs/developer/field-reference.md)** - データフィールド仕様
 
 ### 🚀 運用ドキュメント
-- **[デプロイメント](docs/operations/deployment.md)** - 本番デプロイメント
+- **[デプロイメント](docs/operations/deployment.md)** - 本番デプロイメント（全体像）
+- **[Cloud Run デプロイ](docs/operations/cloud-run.md)** - 具体的な Cloud Run 手順
 - **[GCP デプロイメント](docs/operations/gcp-deployment.md)** - Google Cloud Platform デプロイ
 - **[監視](docs/operations/monitoring.md)** - 監視とログ
 - **[トラブルシューティング](docs/operations/troubleshooting.md)** - 問題解決
