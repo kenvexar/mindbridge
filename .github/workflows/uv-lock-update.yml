@@ -36,7 +36,7 @@ jobs:
           uv run pytest -q || echo "Tests failed; still proposing lockfile update for review"
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           commit-message: 'deps: weekly uv.lock update'
           title: 'deps: weekly uv.lock update'
