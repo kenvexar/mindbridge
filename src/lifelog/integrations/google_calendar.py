@@ -5,6 +5,7 @@ Google Calendar 連携
 """
 
 import asyncio
+import os
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -193,8 +194,29 @@ class GoogleCalendarIntegration(BaseIntegration):
                 headers={"User-Agent": "MindBridge-Lifelog/1.0"},
             )
 
+            # 環境変数から不足分を補完（.env 反映後に自動読込）
+            if not self.config.client_id:
+                self.config.client_id = os.getenv("GOOGLE_CALENDAR_CLIENT_ID")
+            if not self.config.client_secret:
+                self.config.client_secret = os.getenv("GOOGLE_CALENDAR_CLIENT_SECRET")
+            if not self.config.access_token:
+                self.config.access_token = os.getenv("GOOGLE_CALENDAR_ACCESS_TOKEN")
+            if not self.config.refresh_token:
+                self.config.refresh_token = os.getenv("GOOGLE_CALENDAR_REFRESH_TOKEN")
+
+            # アクセストークンが無くても、リフレッシュトークン+クライアント情報があれば更新を試行
             if self.config.access_token:
                 return await self._authenticate_oauth()
+            elif (
+                self.config.refresh_token
+                and self.config.client_id
+                and self.config.client_secret
+            ):
+                refreshed = await self._refresh_token()
+                if refreshed:
+                    return await self._authenticate_oauth()
+                self.add_error("Google Calendar トークンのリフレッシュに失敗しました")
+                return False
             else:
                 self.add_error("Google Calendar 認証情報が設定されていません")
                 return False

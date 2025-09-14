@@ -145,22 +145,39 @@ class DiscordBot(LoggerMixin):
                         total_commands = len(self.bot.tree.get_commands())
                         guild_commands = len(self.bot.tree.get_commands(guild=guild))
                         self.logger.info(
-                            f"同期前の状況 - グローバルコマンド: {total_commands}, ギルドコマンド: {guild_commands}"
+                            f"同期前の状況 - グローバル: {total_commands}, ギルド: {guild_commands}"
                         )
 
-                        self.logger.info("Discord に Slash Commands を同期中...")
-                        # まずグローバルコマンドとして同期を試す
-                        synced = await self.bot.tree.sync()
                         self.logger.info(
-                            f"✅ {len(synced)} 個の Slash Commands を同期しました"
+                            "Discord に Slash Commands を同期（ギルド専用）中..."
                         )
 
-                        # 同期されたコマンドの詳細をログ出力
-                        if synced:
-                            command_names = [cmd.name for cmd in synced]
-                            self.logger.info(f"同期されたコマンド: {command_names}")
+                        # 1) まず現在のグローバル定義をギルドへコピー
+                        try:
+                            self.bot.tree.copy_global_to(guild=guild)
+                        except Exception as copy_err:
+                            self.logger.warning(f"copy_global_to で警告: {copy_err}")
+
+                        # 2) グローバルコマンドを消去してから同期（＝グローバルからは削除）
+                        self.bot.tree.clear_commands(guild=None)
+                        cleared = await self.bot.tree.sync()
+                        self.logger.info(
+                            f"🧹 グローバルコマンド消去＆同期: {len(cleared)} 件（通常0）"
+                        )
+
+                        # 3) ギルドにのみ同期（即時反映）
+                        guild_synced = await self.bot.tree.sync(guild=guild)
+                        self.logger.info(
+                            f"✅ ギルド({guild.id}) 同期: {len(guild_synced)} 個のコマンド"
+                        )
+
+                        if guild_synced:
+                            names = [cmd.name for cmd in guild_synced]
+                            self.logger.info(f"ギルド同期コマンド: {names}")
                         else:
-                            self.logger.warning("同期されたコマンドがありません")
+                            self.logger.warning(
+                                "ギルドに同期されたコマンドがありません"
+                            )
 
                     except Exception as e:
                         self.logger.error(

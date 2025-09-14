@@ -166,7 +166,7 @@ class IntegrationCommands(commands.Cog):
             )
 
     @discord.app_commands.command(
-        name="外部連携状態", description="外部連携の状態を確認"
+        name="integration_status", description="外部連携の状態を確認"
     )
     async def integration_status(self, interaction: discord.Interaction):
         """外部連携の状態を表示"""
@@ -262,7 +262,7 @@ class IntegrationCommands(commands.Cog):
             await interaction.followup.send(f"❌ エラーが発生しました: {str(e)}")
 
     @discord.app_commands.command(
-        name="手動同期", description="外部連携の手動同期を実行"
+        name="manual_sync", description="外部連携の手動同期を実行"
     )
     @discord.app_commands.describe(
         integration="同期する外部連携名（省略時は全て）",
@@ -419,7 +419,7 @@ class IntegrationCommands(commands.Cog):
             await interaction.followup.send(f"❌ エラーが発生しました: {str(e)}")
 
     @discord.app_commands.command(
-        name="外部連携設定", description="外部連携の設定を表示・変更"
+        name="integration_config", description="外部連携の設定を表示・変更"
     )
     @discord.app_commands.describe(
         integration="設定する外部連携名",
@@ -531,7 +531,7 @@ class IntegrationCommands(commands.Cog):
             await interaction.followup.send(f"❌ エラーが発生しました: {str(e)}")
 
     @discord.app_commands.command(
-        name="スケジューラー状態", description="自動同期スケジューラーの状態を確認"
+        name="scheduler_status", description="自動同期スケジューラーの状態を確認"
     )
     async def scheduler_status(self, interaction: discord.Interaction):
         """スケジューラー状態表示"""
@@ -619,7 +619,7 @@ class IntegrationCommands(commands.Cog):
             await interaction.followup.send(f"❌ エラーが発生しました: {str(e)}")
 
     @discord.app_commands.command(
-        name="ライフログ統計", description="外部連携から取得したライフログ統計を表示"
+        name="lifelog_stats", description="外部連携から取得したライフログ統計を表示"
     )
     @discord.app_commands.describe(days="表示期間（日数、デフォルト 30 日）")
     async def lifelog_integration_stats(
