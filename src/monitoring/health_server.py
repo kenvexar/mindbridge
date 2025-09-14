@@ -28,6 +28,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self._handle_ready()
         elif self.path == "/metrics":
             self._handle_metrics()
+        elif self.path.startswith("/callback"):
+            self._handle_callback()
         else:
             self._send_response(404, {"error": "Not Found"})
 
@@ -121,6 +123,70 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
         response_body = json.dumps(data, ensure_ascii=False, indent=2)
         self.wfile.write(response_body.encode("utf-8"))
+
+    def _send_html(self, status_code: int, html: str) -> None:
+        """Send HTML response"""
+        self.send_response(status_code)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(html.encode("utf-8"))
+
+    def _handle_callback(self) -> None:
+        """Handle OAuth callback to capture 'code' and show a friendly page"""
+        try:
+            import os
+            from datetime import datetime
+            from urllib.parse import parse_qs, urlparse
+
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+            code = params.get("code", [None])[0]
+
+            if not code:
+                self._send_html(
+                    400,
+                    """
+                    <html><body>
+                    <h1>OAuth Callback</h1>
+                    <p>No 'code' parameter was found in the URL.</p>
+                    </body></html>
+                    """,
+                )
+                return
+
+            # Persist the code to logs for convenience
+            logs_dir = os.path.join(os.getcwd(), "logs")
+            os.makedirs(logs_dir, exist_ok=True)
+            out_path = os.path.join(logs_dir, "google_calendar_auth_code.txt")
+            with open(out_path, "a", encoding="utf-8") as f:
+                f.write(f"{datetime.now().isoformat()}\t{code}\n")
+
+            self.logger.info("Received OAuth code", path=self.path)
+
+            self._send_html(
+                200,
+                f"""
+                <html><body>
+                <h1>Authentication Code Received</h1>
+                <p>Copy this code and paste it in Discord using:<br>
+                <code>/calendar_token code:&lt;paste-code-here&gt;</code></p>
+                <p><strong>Code:</strong> <code>{code}</code></p>
+                <p>Saved to: logs/google_calendar_auth_code.txt</p>
+                </body></html>
+                """,
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to handle OAuth callback: {e}")
+            self._send_html(
+                500,
+                """
+                <html><body>
+                <h1>Error</h1>
+                <p>Failed to handle OAuth callback.</p>
+                </body></html>
+                """,
+            )
 
     def log_message(self, format: str, *args: Any) -> None:
         """Override to use our logger instead of stderr"""

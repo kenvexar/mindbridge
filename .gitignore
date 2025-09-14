@@ -214,7 +214,7 @@ test-vault*/
 
 # Temporary test files and development artifacts
 # NOTE: 実テストは tests/ 配下に配置する方針のため、
-# ルート直下の一時テストのみ除外します（tests/ は除外しない）。
+# ルート直下の一時テストのみ除外します（ tests/ は除外しない）。
 /test_*.py
 /*_test.py
 temp_*.py
@@ -227,6 +227,7 @@ sample_note.md
 .env.*.backup
 .env.backup*
 *.env.backup
+.env.docker-*
 
 # Secure environment files (never commit production secrets)
 .env.cloudrun
@@ -276,3 +277,6 @@ health_data/
 
 # Docker Compose local overrides
 docker-compose.override.yml
+
+# Local GCP credentials (do not commit)
+.config/
