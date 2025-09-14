@@ -2,7 +2,6 @@
 Discord bot client implementation
 """
 
-import os
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -32,7 +31,6 @@ class DiscordBot(LoggerMixin):
         # Initialize components first
         self.channel_config = ChannelConfig()
 
-        # 🔧 FIX: 同じ ChannelConfig インスタンスを MessageHandler に渡す
         # Create MessageHandler with all required dependencies and shared ChannelConfig
         self.message_handler = MessageHandler(
             ai_processor=ai_processor,
@@ -162,13 +160,13 @@ class DiscordBot(LoggerMixin):
                         self.bot.tree.clear_commands(guild=None)
                         cleared = await self.bot.tree.sync()
                         self.logger.info(
-                            f"🧹 グローバルコマンド消去＆同期: {len(cleared)} 件（通常0）"
+                            f"🧹 グローバルコマンド消去＆同期: {len(cleared)} 件（通常 0 ）"
                         )
 
                         # 3) ギルドにのみ同期（即時反映）
                         guild_synced = await self.bot.tree.sync(guild=guild)
                         self.logger.info(
-                            f"✅ ギルド({guild.id}) 同期: {len(guild_synced)} 個のコマンド"
+                            f"✅ ギルド ({guild.id}) 同期: {len(guild_synced)} 個のコマンド"
                         )
 
                         if guild_synced:
@@ -300,29 +298,10 @@ class DiscordBot(LoggerMixin):
     async def run_async(self) -> None:
         """Run the bot asynchronously"""
         try:
-            # Debug: Token length and format
-            token_str = str(self.settings.discord_bot_token)
             actual_secret_value = self.settings.discord_bot_token.get_secret_value()
-            self.logger.info(
-                f"🔍 DEBUG: Token length: {len(token_str)}, starts with: {token_str[:20]}..."
-            )
-            self.logger.info(
-                f"🔍 DEBUG: Actual token length: {len(actual_secret_value)}, first 20 chars: {actual_secret_value[:20]}..."
-            )
-            self.logger.info(
-                f"🔍 DEBUG: Environment variable raw value: {os.getenv('DISCORD_BOT_TOKEN', 'NOT_FOUND')[:20]}..."
-            )
-
-            # Debug: Discord.py version and settings
-            import discord
-
-            self.logger.info(f"🔍 DEBUG: Discord.py version: {discord.__version__}")
-            self.logger.info(f"🔍 DEBUG: Bot intents: {self.bot.intents}")
-
             await self.bot.start(actual_secret_value)
         except Exception as e:
             self.logger.error(f"Failed to start bot: {e}")
-            self.logger.error(f"🔍 DEBUG: Exception type: {type(e).__name__}")
             raise
 
     def run(self) -> None:

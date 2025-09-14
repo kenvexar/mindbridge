@@ -51,7 +51,7 @@ ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
-# CI では unit / integration のみ検出。manual は明示実行に限定
+# CI では unit / integration のみ検出。 manual は明示実行に限定
 testpaths = ["tests/unit", "tests/integration"]
 asyncio_mode = "auto"
 pythonpath = ["src"]
@@ -70,6 +70,12 @@ dev = [
     "types-requests",
     "types-beautifulsoup4",
     "pre-commit>=4.3.0",
+]
+
+# セキュリティツール（個人使用向け）
+security = [
+    "bandit>=1.7.5",        # Python セキュリティリンター
+    "safety>=3.0.0",        # 依存関係脆弱性チェック
 ]
 
 [project.optional-dependencies]

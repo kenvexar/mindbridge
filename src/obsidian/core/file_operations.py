@@ -24,7 +24,6 @@ class FileOperations:
         """Save a note to the vault."""
 
         try:
-            # 🔧 FIX: Cloud Run environment vault path validation
             if not self.vault_path.exists():
                 logger.warning(
                     "Vault path does not exist, creating it",
@@ -54,7 +53,6 @@ class FileOperations:
             # Prepare content
             content = self._format_note_content(note)
 
-            # 🔧 FIX: Add additional error handling for file operations
             try:
                 # Write file
                 async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
@@ -66,7 +64,7 @@ class FileOperations:
 
             except Exception as write_error:
                 logger.error(
-                    "🔧 ERROR: File write operation failed",
+                    "File write operation failed",
                     error=str(write_error),
                     file_path=str(file_path),
                     vault_exists=self.vault_path.exists(),

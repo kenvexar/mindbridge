@@ -11,6 +11,9 @@ uv sync --dev
 # 実行
 uv run python -m src.main
 
+# Debug mode
+uv run python -m src.main --debug
+
 # テスト / カバレッジ
 uv run pytest -q
 uv run pytest --cov=src --cov-report=term-missing
@@ -216,8 +219,11 @@ graph TD
 ### 日常的な開発
 
 ```bash
-# 1. 開発用に起動（必要なら --debug）
-uv run python -m src.main --dev
+# 1. 開発用に起動
+uv run python -m src.main
+
+# Debug mode
+uv run python -m src.main --debug
 
 # 2. テスト
 uv run pytest -q
@@ -256,7 +262,7 @@ uv run mypy src/
    uv run pytest tests/integration/ -v
 
    # 手動テスト
-   uv run python -m src.main --dev
+   uv run python -m src.main
    ```
 
 4. **品質保証**

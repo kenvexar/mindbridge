@@ -57,7 +57,7 @@ class MessageHandler(LoggerMixin):
         channel_config: ChannelConfig | None = None,
     ) -> None:
         """Initialize message handler with dependencies"""
-        # 🔧 CRITICAL FIX: 処理済みメッセージとノート作成中メッセージを追跡するためのセット追加（重複処理防止）
+        # Track processed messages and notes being created to prevent duplicates
         self._processed_messages: set[str] = set()  # メッセージキーの文字列を格納
         self._creating_notes: set[str] = set()  # ノート作成中のメッセージキーを追跡
         self._max_processed_messages = 1000  # メモリ管理のため最大数を制限
@@ -81,7 +81,7 @@ class MessageHandler(LoggerMixin):
         # Initialize dependencies
         from src.bot.message_processor import MessageProcessor
 
-        # 🔧 FIX: 共有された ChannelConfig インスタンスを使用、または新規作成
+        # Use shared ChannelConfig instance or create new one
         if channel_config is not None:
             self.channel_config = channel_config
         else:
@@ -182,7 +182,7 @@ class MessageHandler(LoggerMixin):
         """
         processing_start = datetime.now()
 
-        # 🔧 CRITICAL FIX: より確実な重複処理防止
+        # Prevent duplicate processing
         try:
             if hasattr(message.created_at, "timestamp") and callable(
                 getattr(message.created_at, "timestamp", None)
@@ -201,18 +201,18 @@ class MessageHandler(LoggerMixin):
         message_key = f"{message.id}_{message.channel.id}_{timestamp_int}"
 
         if message_key in self._processed_messages:
-            self.logger.info(
-                f"🔄 DEBUG: Message {message.id} already processed, skipping duplicate processing",
+            self.logger.debug(
+                f"Message {message.id} already processed, skipping duplicate processing",
                 message_key=message_key,
             )
             return None
 
-        # 🔧 FIX: メッセージを処理済みとして記録（処理開始時に追加）
+        # Mark message as processed at start
         self._processed_messages.add(message_key)
 
-        # 🔧 DEBUG: 処理済みメッセージ一覧をログ出力
-        self.logger.info(
-            "🔧 DEBUG: Added message to processed set",
+        # Log processed message tracking
+        self.logger.debug(
+            "Added message to processed set",
             message_key=message_key,
             total_processed=len(self._processed_messages),
         )
@@ -227,20 +227,20 @@ class MessageHandler(LoggerMixin):
                 f"Cleaned up {len(old_messages)} old processed message IDs"
             )
 
-        # 🔍 DEBUG: Add detailed logging for channel monitoring check
-        self.logger.info(
-            f"🔍 DEBUG: process_message called for channel {message.channel.id} (#{getattr(message.channel, 'name', 'unknown')})"
+        # Log channel monitoring check
+        self.logger.debug(
+            f"Processing message for channel {message.channel.id} (#{getattr(message.channel, 'name', 'unknown')})"
         )
 
         # Skip bot messages (but log what's happening for debugging)
-        # 🔧 UPDATED FIX: Allow processing bot messages with TEST: or 🔧 prefix
+        # Allow processing bot messages with TEST: or debug prefix
         if message.author.bot and not (
             message.content.startswith("🔧") or message.content.startswith("TEST:")
         ):
-            self.logger.info(
-                f"🤖 DEBUG: Skipping bot message from {message.author} (bot={message.author.bot})"
+            self.logger.debug(
+                f"Skipping bot message from {message.author} (bot={message.author.bot})"
             )
-            # 🔧 FIX: ボットメッセージをスキップする場合も処理済みセットから削除
+            # Remove from processed set when skipping bot messages
             self._processed_messages.discard(message_key)
             return None
         elif message.author.bot and (
@@ -251,14 +251,14 @@ class MessageHandler(LoggerMixin):
                 if hasattr(message.content, "__getitem__")
                 else str(message.content)
             )
-            self.logger.info(
-                f"🧪 DEBUG: Processing bot message for testing - from {message.author} (content preview: {content_preview}...)"
+            self.logger.debug(
+                f"Processing bot message for testing - from {message.author} (content preview: {content_preview}...)"
             )
 
         # Check if channel is monitored
         is_monitored = self.channel_config.is_monitored_channel(message.channel.id)
-        self.logger.info(
-            f"🔍 DEBUG: is_monitored_channel({message.channel.id}) = {is_monitored}"
+        self.logger.debug(
+            f"Channel monitoring check: {message.channel.id} = {is_monitored}"
         )
         try:
             channels_info = (
@@ -266,23 +266,23 @@ class MessageHandler(LoggerMixin):
                 if hasattr(self.channel_config, "channels")
                 else []
             )
-            self.logger.info(f"🔍 DEBUG: Available channels: {channels_info}")
+            self.logger.debug(f"Available channels: {channels_info}")
         except Exception as e:
-            self.logger.info(f"🔍 DEBUG: Could not list channels: {e}")
+            self.logger.debug(f"Could not list channels: {e}")
 
-        # 🔧 TEMPORARY FIX: Force processing memo channel even if not properly discovered
+        # Force processing memo channel even if not properly discovered
         channel_name = getattr(message.channel, "name", "unknown").lower()
         if not is_monitored:
             if channel_name == "memo":
                 self.logger.warning(
-                    f"🔧 OVERRIDE: Channel #{channel_name} not in discovered channels, but forcing processing for memo channel"
+                    f"Channel #{channel_name} not in discovered channels, but forcing processing for memo channel"
                 )
                 # Continue processing anyway
             else:
                 self.logger.warning(
                     f"Channel {message.channel.id} (#{channel_name}) is not monitored. Skipping processing."
                 )
-                # 🔧 FIX: 監視されていないチャンネルの場合も処理済みセットから削除
+                # Remove from processed set when skipping unmonitored channels
                 self._processed_messages.discard(message_key)
                 return None
 
@@ -304,8 +304,8 @@ class MessageHandler(LoggerMixin):
         # Extract comprehensive metadata using the message processor
         metadata = self.message_processor.extract_metadata(message)
 
-        # 🔧 CRITICAL FIX: AI 処理を後回しにして、まず音声処理を実行
-        # 初期の AI 処理結果は None で開始
+        # Process audio first, then AI processing
+        # Initial AI processing result is None
         ai_result: AIProcessingResult | None = None
 
         # Combine with channel information (初期状態)
@@ -325,7 +325,7 @@ class MessageHandler(LoggerMixin):
             else message.content,
         }
 
-        # 🎵 音声処理を先に実行（文字起こし結果をメッセージデータに統合）
+        # Process audio first and integrate transcription results
         attachments_data: Any = metadata.get("attachments", {})
         has_audio = (
             attachments_data.get("has_audio", False)
@@ -343,21 +343,21 @@ class MessageHandler(LoggerMixin):
                     has_audio = True
                     break
 
-        self.logger.info(
-            f"🎵 DEBUG: Audio detection - has_audio={has_audio}, attachments_count={len(message.attachments)}, attachments_data_type={type(attachments_data)}"
+        self.logger.debug(
+            f"Audio detection - has_audio={has_audio}, attachments_count={len(message.attachments)}, attachments_data_type={type(attachments_data)}"
         )
 
-        # 🔧 CRITICAL FIX: 音声処理は _handle_capture_message で一元管理
-        # ここでは音声処理を実行しない（重複通知を防止）
+        # Audio processing is handled centrally in _handle_capture_message
+        # Don't process audio here to prevent duplicate notifications
         if has_audio and message.attachments:
-            self.logger.info(
-                "🎵 Audio detected - will be processed in _handle_capture_message"
+            self.logger.debug(
+                "Audio detected - will be processed in _handle_capture_message"
             )
 
         # メタデータを更新
         metadata = cast(MessageMetadata, message_data.get("metadata", metadata))
 
-        # 🤖 AI 処理を音声処理後に実行（文字起こし結果も含めて処理）
+        # Execute AI processing after audio processing (including transcription results)
         final_content = ""
         original_content = message.content if message.content else ""
         transcription_content = ""
@@ -374,8 +374,8 @@ class MessageHandler(LoggerMixin):
             final_content = original_content
 
         content_length = len(final_content.strip())
-        self.logger.info(
-            f"🤖 DEBUG: Checking AI processing conditions - final_content_length={content_length}, original_content_length={len(original_content)}, has_transcription={bool(transcription_content)}"
+        self.logger.debug(
+            f"Checking AI processing conditions - final_content_length={content_length}, original_content_length={len(original_content)}, has_transcription={bool(transcription_content)}"
         )
 
         # AI 処理の実行（音声文字起こし結果も含めて）
@@ -437,10 +437,10 @@ class MessageHandler(LoggerMixin):
         # AI 処理結果をメッセージデータに更新
         message_data["ai_processing"] = ai_result.model_dump() if ai_result else None
 
-        # 🔧 CRITICAL FIX: ノート作成前にもう一度重複チェック
+        # Check for duplicate note creation before processing
         if message_key in getattr(self, "_creating_notes", set()):
             self.logger.warning(
-                f"🚫 DUPLICATE CREATION DETECTED: Message {message.id} is already being processed for note creation"
+                f"Duplicate creation detected: Message {message.id} is already being processed for note creation"
             )
             return message_data
 
@@ -451,15 +451,15 @@ class MessageHandler(LoggerMixin):
 
         try:
             # Route message based on channel category
-            self.logger.info(
-                f"🚀 DEBUG: Routing message to category handler - category={channel_info.category.value}"
+            self.logger.debug(
+                f"Routing message to category handler - category={channel_info.category.value}"
             )
             await self._route_message_by_category(
                 message_data, channel_info.category, message
             )
 
-            self.logger.info(
-                f"✅ DEBUG: Message processing completed successfully for message {message.id}"
+            self.logger.debug(
+                f"Message processing completed successfully for message {message.id}"
             )
 
         finally:
@@ -503,13 +503,13 @@ class MessageHandler(LoggerMixin):
         original_message: discord.Message | None = None,
     ) -> None:
         """Handle messages from capture channels"""
-        self.logger.info("🔧 DEBUG: _handle_capture_message called")
+        self.logger.debug("_handle_capture_message called")
         self.logger.info(
             "Handling capture message",
             channel_name=message_data["channel_info"]["name"],
         )
 
-        # 🔧 FIX: 音声添付ファイルの処理をノート生成の前に実行（転写内容をノートに含めるため）
+        # Process audio attachments before note generation to include transcription
         from src.bot.channel_config import ChannelCategory, ChannelInfo
 
         channel_info_dict = message_data.get("channel_info", {})
@@ -537,7 +537,7 @@ class MessageHandler(LoggerMixin):
                 message_data, channel_info, original_message
             )
 
-        # 🤖 CRITICAL FIX: 音声処理後に AI 分析を実行
+        # Execute AI analysis after audio processing
         ai_processing = message_data.get("ai_processing")
 
         # 音声処理が完了した後、最終コンテンツで AI 処理を実行
@@ -550,18 +550,18 @@ class MessageHandler(LoggerMixin):
             if "raw_content" in content_info:
                 final_content = content_info["raw_content"]
 
-            # 🔧 CRITICAL FIX: 音声データがメタデータにのみ保存されている場合
+            # Handle case where audio data is only saved in metadata
             audio_data = content_info.get("audio_transcription_data")
             if audio_data and not final_content.strip():
                 final_content = audio_data["transcript"]
-                self.logger.info(
-                    "🤖 Using audio transcript for AI processing",
+                self.logger.debug(
+                    "Using audio transcript for AI processing",
                     transcript_length=len(final_content),
                 )
 
             content_length = len(final_content.strip())
-            self.logger.info(
-                f"🤖 DEBUG: Post-audio AI processing check - final_content_length={content_length}, has_transcription={bool('🎤 音声文字起こし' in final_content)}"
+            self.logger.debug(
+                f"Post-audio AI processing check - final_content_length={content_length}, has_transcription={bool('🎤 音声文字起こし' in final_content)}"
             )
 
             # 文字起こし結果がある場合に AI 処理を実行
@@ -576,8 +576,8 @@ class MessageHandler(LoggerMixin):
                         message_data["ai_processing"] = result.model_dump()
                         ai_processing = message_data["ai_processing"]
 
-                        self.logger.info(
-                            "🤖 Post-audio AI processing completed",
+                        self.logger.debug(
+                            "Post-audio AI processing completed",
                             has_summary=getattr(result, "summary", None) is not None,
                             has_tags=getattr(result, "tags", None) is not None,
                             has_category=getattr(result, "category", None) is not None,
@@ -585,7 +585,7 @@ class MessageHandler(LoggerMixin):
 
                 except Exception as e:
                     self.logger.error(
-                        "🤖 Post-audio AI processing failed",
+                        "Post-audio AI processing failed",
                         error=str(e),
                         exc_info=True,
                     )
@@ -636,16 +636,16 @@ class MessageHandler(LoggerMixin):
                 )
                 # AI 処理失敗時でも処理を継続するため、 ai_result は None のままにする
 
-        # Obsidian ノートの生成と保存（ GitHub 直接同期統合版）
-        self.logger.info("🔧 DEBUG: About to call _handle_obsidian_note_creation")
+        # Generate and save Obsidian note (with GitHub direct sync integration)
+        self.logger.debug("About to call _handle_obsidian_note_creation")
         await self._handle_obsidian_note_creation(ai_result, message_data)
-        self.logger.info("🔧 DEBUG: _handle_obsidian_note_creation completed")
+        self.logger.debug("_handle_obsidian_note_creation completed")
 
-        # 🔧 DISABLED: Daily Note Integration to prevent duplicates
+        # Daily Note Integration disabled to prevent duplicates
         # await self._handle_daily_note_integration(message_data, channel_info)
-        self.logger.info("🔧 Daily Note Integration disabled to prevent duplicates")
+        self.logger.debug("Daily Note Integration disabled to prevent duplicates")
 
-        # 🎯 ライフログ自動検出・生成
+        # Lifelog auto-detection and generation
         await self._handle_lifelog_auto_detection(message_data, original_message)
 
     async def _handle_obsidian_note_creation(
@@ -653,9 +653,9 @@ class MessageHandler(LoggerMixin):
         ai_result: AIProcessingResult | None,
         message_data: dict[str, Any],
     ) -> None:
-        """⭐ ENHANCED SOLUTION with Comprehensive YAML Frontmatter: GitHub Direct + Local Fallback + Auto Sync ノート作成"""
+        """Enhanced note creation with comprehensive YAML frontmatter: GitHub Direct + Local Fallback + Auto Sync"""
         self.logger.info(
-            "🚀 ENHANCED SOLUTION with Comprehensive YAML Frontmatter: Starting note creation"
+            "Enhanced note creation with comprehensive YAML frontmatter: Starting note creation"
         )
 
         try:
@@ -683,12 +683,12 @@ class MessageHandler(LoggerMixin):
                 .get("raw_content", "新しいメモ")
             )
 
-            # 🔧 CRITICAL FIX: 音声データがあれば統合（一元管理）
+            # Integrate audio data if available (centralized management)
             content_info = message_data.get("metadata", {}).get("content", {})
             audio_data = content_info.get("audio_transcription_data")
 
             if audio_data and "🎤 音声文字起こし" not in raw_content:
-                # 音声セクションを追加
+                # Add audio section
                 audio_section = (
                     f"\n\n## 🎤 音声文字起こし\n\n{audio_data['transcript']}"
                 )
@@ -702,18 +702,18 @@ class MessageHandler(LoggerMixin):
                         )
 
                 raw_content += audio_section
-                self.logger.info(
-                    "🔧 CRITICAL FIX: Audio section added from metadata",
+                self.logger.debug(
+                    "Audio section added from metadata",
                     transcript_length=len(audio_data["transcript"]),
                 )
 
-            # 🔧 CRITICAL FIX: インライン重複除去（確実に動作）
+            # Inline duplicate removal (reliable operation)
             content = raw_content
             audio_marker = "## 🎤 音声文字起こし"
             audio_count_before = content.count(audio_marker)
 
-            self.logger.info(
-                f"🔍 DEDUP: Starting deduplication. Found {audio_count_before} audio sections"
+            self.logger.debug(
+                f"Starting deduplication. Found {audio_count_before} audio sections"
             )
 
             if audio_count_before > 1:
@@ -726,16 +726,14 @@ class MessageHandler(LoggerMixin):
                 for line in lines:
                     if line.strip() == audio_marker.strip():
                         if not audio_section_encountered:
-                            # 最初の音声セクション - 保持
+                            # First audio section - keep
                             audio_section_encountered = True
                             result_lines.append(line)
-                            self.logger.info("🔧 DEDUP: Keeping first audio section")
+                            self.logger.debug("Keeping first audio section")
                         else:
-                            # 重複する音声セクション - スキップ開始
+                            # Duplicate audio section - start skipping
                             skip_mode = True
-                            self.logger.info(
-                                "🔧 DEDUP: Skipping duplicate audio section"
-                            )
+                            self.logger.debug("Skipping duplicate audio section")
                             continue
                     elif line.startswith("##") and skip_mode:
                         # 新しいセクションが始まったらスキップ終了
@@ -747,27 +745,33 @@ class MessageHandler(LoggerMixin):
 
                 content = "\n".join(result_lines)
                 audio_count_after = content.count(audio_marker)
-                self.logger.info(
-                    f"🔧 DEDUP: Completed. {audio_count_before} -> {audio_count_after} audio sections"
+                self.logger.debug(
+                    f"Deduplication completed. {audio_count_before} -> {audio_count_after} audio sections"
                 )
             else:
-                self.logger.info("🔍 DEDUP: No duplicates found")
+                self.logger.debug("No duplicates found")
 
-            # 🔧 CRITICAL FIX: マークダウン記号と音声関連テキストをクリーンアップしてタイトル生成
+            # Clean up markdown symbols and audio-related text for title generation
             title_preview = content[:30].replace("\n", " ").strip()
-            # マークダウンヘッダー記号（#）とアスタリスク（*）を除去
+            # Remove markdown header symbols (#) and asterisks (*)
             import re
 
-            title_preview = re.sub(r"^[#\s*]+", "", title_preview)  # 先頭の#や*を除去
-            title_preview = re.sub(r"[#*]+$", "", title_preview)  # 末尾の#や*を除去
-            title_preview = re.sub(r"#{1,6}\s*", "", title_preview)  # 中間の##を除去
-            # 🔧 NEW: 音声関連テキストを除去
+            title_preview = re.sub(
+                r"^[#\s*]+", "", title_preview
+            )  # Remove leading # and *
+            title_preview = re.sub(
+                r"[#*]+$", "", title_preview
+            )  # Remove trailing # and *
+            title_preview = re.sub(
+                r"#{1,6}\s*", "", title_preview
+            )  # Remove intermediate ##
+            # Remove audio-related text
             title_preview = re.sub(
                 r"🎤\s*音声文字起こし\s*", "", title_preview
-            )  # 🎤 音声文字起こしを除去
+            )  # Remove 🎤 音声文字起こし
             title_preview = re.sub(
                 r"音声文字起こし\s*", "", title_preview
-            )  # 音声文字起こしを除去
+            )  # Remove 音声文字起こし
             title_preview = title_preview.strip()
 
             # AI 分析に基づくカテゴリ決定（シンプル化）
@@ -809,7 +813,7 @@ class MessageHandler(LoggerMixin):
             filename = f"{timestamp}-{safe_title}.md"
             file_path = f"{category_folder}/{filename}"
 
-            # ⭐ ENHANCED: 包括的な YAML フロントマター生成器を使用
+            # Use comprehensive YAML frontmatter generator
             yaml_generator = YAMLFrontmatterGenerator()
 
             # Discord コンテキスト情報の準備
@@ -832,7 +836,7 @@ class MessageHandler(LoggerMixin):
                         discord_context["input_method"] = "voice"
                         break
 
-            # ⭐ NEW: 包括的フロントマターを生成
+            # Generate comprehensive frontmatter
             yaml_frontmatter = yaml_generator.create_comprehensive_frontmatter(
                 title=title_preview,
                 content_type=category,
@@ -846,7 +850,7 @@ class MessageHandler(LoggerMixin):
                 data_quality="high" if ai_result else "medium",
             )
 
-            # ⭐ ENHANCED: 包括的な YAML フロントマター付きマークダウンコンテンツ生成
+            # Generate comprehensive YAML frontmatter markdown content
             markdown_parts = [
                 yaml_frontmatter,
                 "",  # フロントマター後の空行
@@ -859,7 +863,7 @@ class MessageHandler(LoggerMixin):
 
             # AI 分析結果がある場合は追加情報を含める
             if ai_result:
-                markdown_parts.extend(["", "---", "", "## 🤖 AI 分析情報", ""])
+                markdown_parts.extend(["", "---", "", "## AI 分析情報", ""])
 
                 if ai_result.category:
                     confidence = getattr(ai_result.category, "confidence_score", 0)
@@ -903,7 +907,7 @@ class MessageHandler(LoggerMixin):
             clean_markdown = "\n".join(markdown_parts)
 
             self.logger.info(
-                "⭐ Creating comprehensive YAML frontmatter note",
+                "Creating comprehensive YAML frontmatter note",
                 file_path=file_path,
                 category=category,
                 title=title_preview,
@@ -914,7 +918,7 @@ class MessageHandler(LoggerMixin):
             # GitHub API 失敗フラグ
             github_success = False
 
-            # 🔄 STEP 1: GitHub API に挑戦
+            # STEP 1: Try GitHub API
             github_token = os.getenv("GITHUB_TOKEN")
             github_repo = "kenvexar/obsidian-vault-test"  # テストリポジトリに修正
 
@@ -930,7 +934,7 @@ class MessageHandler(LoggerMixin):
                     url = f"https://api.github.com/repos/{github_repo}/contents/{file_path}"
 
                     payload = {
-                        "message": f"⭐ Enhanced YAML: {title_preview}",
+                        "message": f"Enhanced YAML: {title_preview}",
                         "content": base64.b64encode(
                             clean_markdown.encode("utf-8")
                         ).decode("utf-8"),
@@ -945,27 +949,27 @@ class MessageHandler(LoggerMixin):
 
                             if response.status == 201:
                                 self.logger.info(
-                                    "⭐ SUCCESS: Enhanced YAML frontmatter note created on GitHub",
+                                    "Enhanced YAML frontmatter note created on GitHub",
                                     file_path=file_path,
                                     sha=result_data.get("content", {}).get("sha"),
                                 )
                                 github_success = True
                             else:
                                 self.logger.warning(
-                                    "⚠️ GitHub creation failed, falling back to local",
+                                    "GitHub creation failed, falling back to local",
                                     status=response.status,
                                     response=result_data,
                                 )
 
                 except Exception as e:
                     self.logger.warning(
-                        "⚠️ GitHub API error, falling back to local",
+                        "GitHub API error, falling back to local",
                         error=str(e),
                     )
             else:
-                self.logger.info("ℹ️ No GitHub credentials, using local fallback")
+                self.logger.info("No GitHub credentials, using local fallback")
 
-            # 🔄 STEP 2: ローカルファイル作成フォールバック
+            # STEP 2: Local file creation fallback
             local_file_created = False
             if not github_success:
                 try:
@@ -986,7 +990,7 @@ class MessageHandler(LoggerMixin):
                         await f.write(clean_markdown)
 
                     self.logger.info(
-                        "⭐ SUCCESS: Enhanced YAML frontmatter note created locally",
+                        "Enhanced YAML frontmatter note created locally",
                         local_path=str(local_file_path),
                         category=category,
                         folder=category_folder,
@@ -995,65 +999,65 @@ class MessageHandler(LoggerMixin):
 
                 except Exception as e:
                     self.logger.error(
-                        "❌ Local fallback also failed",
+                        "Local fallback also failed",
                         error=str(e),
                         exc_info=True,
                     )
 
-            # 🔄 STEP 3: GitHub 同期（ローカルファイルが作成された場合のみ）
+            # STEP 3: GitHub sync (only if local file was created)
             if local_file_created:
                 try:
                     from src.obsidian.github_sync import GitHubObsidianSync
 
-                    self.logger.info("🔄 Starting automatic GitHub sync...")
+                    self.logger.info("Starting automatic GitHub sync...")
 
-                    # GitHub 同期インスタンスを作成
+                    # Create GitHub sync instance
                     sync_client = GitHubObsidianSync()
 
-                    # 設定確認
+                    # Check configuration
                     if not sync_client.is_configured:
                         self.logger.warning(
                             "GitHub sync not configured, skipping auto sync"
                         )
                     else:
-                        # 自動同期実行
+                        # Execute auto sync
                         sync_success = await sync_client.sync_to_github(
                             commit_message=f"Auto-sync Enhanced YAML: {title_preview}"
                         )
 
                         if sync_success:
-                            self.logger.info("⭐ SUCCESS: Auto GitHub sync completed")
+                            self.logger.info("Auto GitHub sync completed")
                         else:
-                            self.logger.warning("⚠️ GitHub auto sync failed")
+                            self.logger.warning("GitHub auto sync failed")
 
                 except Exception as e:
                     self.logger.warning(
-                        "⚠️ GitHub auto sync error (note still saved locally)",
+                        "GitHub auto sync error (note still saved locally)",
                         error=str(e),
                     )
 
         except Exception as e:
             self.logger.error(
-                "❌ Enhanced YAML note creation completely failed",
+                "Enhanced YAML note creation completely failed",
                 error=str(e),
                 exc_info=True,
             )
 
     def _deduplicate_audio_sections(self, content: str) -> str:
-        """音声セクションの重複を除去する（シンプル文字列処理アプローチ）"""
+        """Remove duplicate audio sections using simple string processing approach"""
         try:
             if not content or "🎤 音声文字起こし" not in content:
-                self.logger.info("🔍 No audio sections found in content")
+                self.logger.debug("No audio sections found in content")
                 return content
 
-            # 音声セクションの数をカウント
+            # Count audio sections
             audio_marker = "## 🎤 音声文字起こし"
             section_count = content.count(audio_marker)
 
-            self.logger.info(f"🔍 Found {section_count} audio sections in content")
+            self.logger.debug(f"Found {section_count} audio sections in content")
 
             if section_count <= 1:
-                self.logger.info("🔍 No duplicates to remove")
+                self.logger.debug("No duplicates to remove")
                 return content
 
             # シンプルなアプローチ：最初の音声セクションの位置を見つけて、それ以降の同じセクションを削除
@@ -1069,14 +1073,14 @@ class MessageHandler(LoggerMixin):
                 # 音声セクションの開始を検出
                 if line.strip() == audio_marker.strip():
                     if not audio_section_found:
-                        # 最初の音声セクション - 保持
+                        # First audio section - keep
                         audio_section_found = True
                         result_lines.append(line)
-                        self.logger.info("🔧 Keeping first audio section")
+                        self.logger.debug("Keeping first audio section")
                     else:
-                        # 2 回目以降の音声セクション - スキップ開始
+                        # Subsequent audio sections - start skipping
                         skip_until_next_section = True
-                        self.logger.info("🔧 Skipping duplicate audio section")
+                        self.logger.debug("Skipping duplicate audio section")
                         i += 1
                         continue
 
@@ -1094,15 +1098,15 @@ class MessageHandler(LoggerMixin):
             result_content = "\n".join(result_lines)
             final_count = result_content.count(audio_marker)
 
-            self.logger.info(
-                f"🔧 Audio deduplication completed: {section_count} -> {final_count} sections"
+            self.logger.debug(
+                f"Audio deduplication completed: {section_count} -> {final_count} sections"
             )
 
             return result_content
 
         except Exception as e:
-            self.logger.error(f"❌ Error in audio deduplication: {e}", exc_info=True)
-            # エラーの場合は元のコンテンツを返す
+            self.logger.error(f"Error in audio deduplication: {e}", exc_info=True)
+            # Return original content on error
             return content
 
     def _remove_bot_attribution_messages(self, content: str) -> str:
@@ -1130,9 +1134,9 @@ class MessageHandler(LoggerMixin):
     async def _handle_github_direct_sync(
         self, ai_result: AIProcessingResult | None, note, saved_file_path
     ) -> None:
-        """Cloud Run 環境での GitHub 直接同期を実行 - ローカルノート内容をそのまま同期"""
-        self.logger.info(
-            "🔧 DEBUG: _handle_github_direct_sync called",
+        """Execute GitHub direct sync in Cloud Run environment - sync local note content as-is"""
+        self.logger.debug(
+            "_handle_github_direct_sync called",
             note_title=getattr(note, "title", "unknown"),
             saved_file_path=str(saved_file_path),
             has_ai_result=ai_result is not None,
@@ -1143,8 +1147,8 @@ class MessageHandler(LoggerMixin):
             # GitHub Direct Client を初期化
             github_client = GitHubDirectClient()
 
-            self.logger.info(
-                "🔧 DEBUG: GitHubDirectClient initialized",
+            self.logger.debug(
+                "GitHubDirectClient initialized",
                 is_configured=github_client.is_configured,
                 has_token=bool(github_client.github_token),
                 has_repo_url=bool(github_client.github_repo_url),
@@ -1154,7 +1158,7 @@ class MessageHandler(LoggerMixin):
 
             if not github_client.is_configured:
                 self.logger.warning(
-                    "❌ GitHub direct sync not configured - file saved locally only"
+                    "GitHub direct sync not configured - file saved locally only"
                 )
                 return
 
@@ -1182,14 +1186,14 @@ class MessageHandler(LoggerMixin):
             full_markdown_content = note.to_markdown()
 
             self.logger.info(
-                "✅ Syncing existing local note to GitHub",
+                "Syncing existing local note to GitHub",
                 category=category,
                 file_path=file_path,
                 content_length=len(full_markdown_content),
                 note_title=note.title,
             )
 
-            # GitHub にローカルノート内容をそのまま同期
+            # Sync local note content to GitHub as-is
             result = await github_client.create_or_update_file(
                 file_path=file_path,
                 content=full_markdown_content,
@@ -1198,14 +1202,14 @@ class MessageHandler(LoggerMixin):
 
             if result:
                 self.logger.info(
-                    "✅ GitHub direct sync completed successfully",
+                    "GitHub direct sync completed successfully",
                     file_path=file_path,
                     commit_sha=result.get("content", {}).get("sha"),
                     category=category,
                 )
             else:
                 self.logger.warning(
-                    "⚠️ GitHub direct sync failed",
+                    "GitHub direct sync failed",
                     file_path=file_path,
                     reason="create_or_update_file returned None",
                 )
@@ -1216,19 +1220,13 @@ class MessageHandler(LoggerMixin):
             )
         except Exception as github_error:
             self.logger.error(
-                "❌ GitHub direct sync failed with error",
+                "GitHub direct sync failed with error",
                 file_path=str(saved_file_path),
                 error=str(github_error),
                 exc_info=True,
             )
 
-    # 🔧 REMOVED: This method is no longer needed as its functionality
-    # has been integrated into _handle_obsidian_note_creation
-    pass
-
-    # 🔧 REMOVED: This method is no longer needed as its functionality
-    # has been integrated into the simplified _handle_obsidian_note_creation
-    pass
+    # Removed methods: functionality integrated into _handle_obsidian_note_creation
 
     def _extract_transcription_text(self, cleaned_content: str) -> str:
         """音声転写テキストを抽出"""
@@ -1475,14 +1473,14 @@ class MessageHandler(LoggerMixin):
             metadata = message_data.get("metadata", {})
             attachments = metadata.get("attachments", [])
 
-            # 🔧 DEBUG: 添付ファイル情報をログ出力
-            self.logger.info(
-                f"🎵 DEBUG: _handle_audio_attachments called with {len(attachments)} total attachments"
+            # Log attachment information
+            self.logger.debug(
+                f"_handle_audio_attachments called with {len(attachments)} total attachments"
             )
 
             for i, att in enumerate(attachments):
-                self.logger.info(
-                    f"🎵 DEBUG: Attachment {i}: filename={att.get('filename', 'N/A')}, "
+                self.logger.debug(
+                    f"Attachment {i}: filename={att.get('filename', 'N/A')}, "
                     f"file_category={att.get('file_category', 'N/A')}, "
                     f"content_type={att.get('content_type', 'N/A')}, "
                     f"extension={att.get('file_extension', 'N/A')}"
@@ -1499,14 +1497,12 @@ class MessageHandler(LoggerMixin):
                 )
             ]
 
-            self.logger.info(
-                f"🎵 DEBUG: Found {len(audio_attachments)} audio attachments after filtering"
+            self.logger.debug(
+                f"Found {len(audio_attachments)} audio attachments after filtering"
             )
 
             if not audio_attachments:
-                self.logger.info(
-                    "🎵 DEBUG: No audio attachments found, returning early"
-                )
+                self.logger.debug("No audio attachments found, returning early")
                 return
 
             self.logger.info(
@@ -1516,8 +1512,8 @@ class MessageHandler(LoggerMixin):
             )
 
             for attachment in audio_attachments:
-                self.logger.info(
-                    f"🎵 DEBUG: Processing audio attachment: {attachment.get('filename', 'N/A')}"
+                self.logger.debug(
+                    f"Processing audio attachment: {attachment.get('filename', 'N/A')}"
                 )
                 await self._process_single_audio_attachment(
                     attachment, message_data, channel_info, original_message
@@ -1654,7 +1650,7 @@ class MessageHandler(LoggerMixin):
 
                 # 成功メッセージ
                 success_msg = (
-                    f"✅ 音声文字起こしが完了しました！\n"
+                    f"音声文字起こしが完了しました！\n"
                     f"📝 **ファイル**: `{filename}`\n"
                     f"📊 **信頼度**: {audio_result.transcription.confidence:.2f}\n"
                     f"📄 ノートが Obsidian に保存されました。"
@@ -1713,23 +1709,168 @@ class MessageHandler(LoggerMixin):
             await self._update_feedback_message(feedback_message, error_msg)
 
     async def _download_attachment(self, url: str) -> bytes | None:
-        """添付ファイルをダウンロード"""
+        """添付ファイルをダウンロード（セキュリティ強化版）"""
         try:
             import aiohttp
 
-            async with aiohttp.ClientSession() as session, session.get(url) as response:
-                if response.status == 200:
-                    return await response.read()
-                self.logger.error(
-                    "Failed to download attachment",
-                    url=url,
-                    status=response.status,
+            # セキュリティ: URL の検証
+            if not url or not isinstance(url, str):
+                self.logger.warning(
+                    "Invalid URL provided for attachment download", url=url
                 )
                 return None
 
+            # セキュリティ: Discord CDN URL の検証
+            allowed_domains = {
+                "cdn.discordapp.com",
+                "media.discordapp.net",
+                "discord.com",
+            }
+
+            from urllib.parse import urlparse
+
+            parsed_url = urlparse(url)
+            if parsed_url.hostname not in allowed_domains:
+                self.logger.warning(
+                    "Rejected attachment download from unauthorized domain",
+                    url=url,
+                    domain=parsed_url.hostname,
+                )
+                return None
+
+            # 個人使用向けセキュリティ設定（緩和）
+            MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB 制限（個人使用では緩和）
+            TIMEOUT = 60  # 60 秒タイムアウト（個人使用では緩和）
+
+            connector = aiohttp.TCPConnector(
+                limit=10, limit_per_host=5, ttl_dns_cache=300, use_dns_cache=True
+            )
+
+            timeout = aiohttp.ClientTimeout(total=TIMEOUT, connect=10)
+
+            async with aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout,
+                headers={"User-Agent": "MindBridge-Bot/1.0"},
+            ) as session:
+                async with session.get(url) as response:
+                    if response.status != 200:
+                        self.logger.error(
+                            "Failed to download attachment",
+                            url=url,
+                            status=response.status,
+                        )
+                        return None
+
+                    # セキュリティ: Content-Length チェック
+                    content_length = response.headers.get("Content-Length")
+                    if content_length and int(content_length) > MAX_FILE_SIZE:
+                        self.logger.warning(
+                            "Rejected attachment download due to size limit",
+                            url=url,
+                            size=content_length,
+                            max_size=MAX_FILE_SIZE,
+                        )
+                        return None
+
+                    # セキュリティ: Content-Type の検証
+                    content_type = response.headers.get("Content-Type", "").lower()
+                    allowed_content_types = {
+                        "audio/ogg",
+                        "audio/mpeg",
+                        "audio/mp3",
+                        "audio/wav",
+                        "audio/webm",
+                        "audio/mp4",
+                        "audio/m4a",
+                        "audio/x-wav",
+                        "audio/vnd.wave",
+                        "audio/wave",
+                    }
+
+                    if content_type and not any(
+                        ct in content_type for ct in allowed_content_types
+                    ):
+                        self.logger.warning(
+                            "Rejected attachment download due to invalid content type",
+                            url=url,
+                            content_type=content_type,
+                        )
+                        return None
+
+                    # セキュリティ: ストリーミングダウンロードでサイズ制限
+                    data = bytearray()
+                    async for chunk in response.content.iter_chunked(
+                        8192
+                    ):  # 8KB チャンク
+                        data.extend(chunk)
+                        if len(data) > MAX_FILE_SIZE:
+                            self.logger.warning(
+                                "Rejected attachment download due to size limit during download",
+                                url=url,
+                                downloaded_size=len(data),
+                                max_size=MAX_FILE_SIZE,
+                            )
+                            return None
+
+                    # セキュリティ: マジックバイト検証
+                    if len(data) < 12:
+                        self.logger.warning(
+                            "Rejected attachment download due to insufficient data",
+                            url=url,
+                            size=len(data),
+                        )
+                        return None
+
+                    # 音声ファイルのマジックバイト検証
+                    audio_magic_bytes = [
+                        b"OggS",  # OGG
+                        b"\xff\xfb",
+                        b"\xff\xf3",
+                        b"\xff\xf2",  # MP3
+                        b"RIFF",  # WAV
+                        b"\x1a\x45\xdf\xa3",  # WebM/Matroska
+                        b"ftypM4A",  # M4A
+                        b"ftypisom",  # MP4
+                    ]
+
+                    header = bytes(data[:12])
+                    is_valid_audio = any(
+                        header.startswith(magic) or magic in header[:12]
+                        for magic in audio_magic_bytes
+                    )
+
+                    if not is_valid_audio:
+                        self.logger.warning(
+                            "Rejected attachment download due to invalid audio format",
+                            url=url,
+                            header=header.hex()[:24],  # 最初の 12 バイトの hex 表示
+                        )
+                        return None
+
+                    self.logger.info(
+                        "Successfully downloaded and validated audio attachment",
+                        url=url,
+                        size=len(data),
+                        content_type=content_type,
+                    )
+
+                    return bytes(data)
+
+        except aiohttp.ClientError as e:
+            self.logger.error(
+                "Network error downloading attachment",
+                url=url,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return None
         except Exception as e:
             self.logger.error(
-                "Error downloading attachment", url=url, error=str(e), exc_info=True
+                "Unexpected error downloading attachment",
+                url=url,
+                error=str(e),
+                exc_info=True,
             )
             return None
 
@@ -1748,12 +1889,12 @@ class MessageHandler(LoggerMixin):
             # 既存のコンテンツに音声文字起こし結果を追加
             transcription_text = audio_result.transcription.transcript
 
-            # 🔧 ENHANCED DUPLICATION CHECK: より厳密な重複防止チェック
-            # 既存のコンテンツに音声セクションまたは転写テキストが含まれているかチェック
-            # 変数は使用しないため削除
+            # Enhanced duplication check: strict duplicate prevention
+            # Check if existing content contains audio sections or transcription text
+            # Variables not used, removed
 
-            # 🔧 CRITICAL FIX: 音声セクションは _handle_obsidian_note_creation で一元管理
-            # ここでは音声データをメタデータに保存するのみ
+            # Audio sections are centrally managed in _handle_obsidian_note_creation
+            # Only save audio data to metadata here
             content_info["audio_transcription_data"] = {
                 "transcript": transcription_text,
                 "confidence": audio_result.transcription.confidence,
@@ -1767,13 +1908,13 @@ class MessageHandler(LoggerMixin):
                 else None,
             }
 
-            self.logger.info(
-                "🔧 CRITICAL FIX: Audio transcription data saved to metadata only",
+            self.logger.debug(
+                "Audio transcription data saved to metadata only",
                 transcript_length=len(transcription_text),
                 confidence=audio_result.transcription.confidence,
             )
 
-            # 🔧 CRITICAL FIX: メタデータ管理のみのため、コンテンツ処理は不要
+            # Only metadata management needed, content processing not required
             content_info["has_audio_transcription"] = True
             content_info["audio_confidence"] = audio_result.transcription.confidence
 

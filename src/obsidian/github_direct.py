@@ -62,7 +62,7 @@ class GitHubDirectClient:
                 # 文字列の場合
                 category_value = str(category).lower()
 
-            # FolderMappingクラスを使用して統一的にマッピング
+            # FolderMapping クラスを使用して統一的にマッピング
             vault_folder = FolderMapping.get_folder_for_category(category_value)
             return vault_folder.value
 
@@ -89,7 +89,6 @@ class GitHubDirectClient:
 
             import aiohttp
 
-            # 🔧 FIX: 最終段階で自動生成メッセージを確実に除去
             clean_content = self._remove_bot_attribution_messages(content)
 
             # Base64 エンコード
@@ -100,7 +99,7 @@ class GitHubDirectClient:
             # API エンドポイント
             api_url = f"https://api.github.com/repos/{self.owner}/{self.repo}/contents/{file_path}"
 
-            # 既存ファイルのSHAを取得を試行
+            # 既存ファイルの SHA を取得を試行
             existing_sha = None  # 新規作成として処理
 
             # リクエストペイロード
@@ -265,7 +264,7 @@ class GitHubDirectClient:
         ai_analysis = note_data.get("ai_analysis", {})
         if ai_analysis:
             if ai_analysis.get("category"):
-                content_parts.append(f"- **AI分類**: {ai_analysis['category']}")
+                content_parts.append(f"- **AI 分類**: {ai_analysis['category']}")
             if ai_analysis.get("confidence"):
                 content_parts.append(f"- **信頼度**: {ai_analysis['confidence']:.2%}")
 

@@ -8,7 +8,7 @@ MindBridge の完全インストール・セットアップガイド。
 
 ### システム要件
 - **OS**: macOS 10.15+, Ubuntu 20.04+, Windows 10+ (WSL2 推奨)
-- **Python**: 3.13+ (プロジェクトは 3.13 で開発)
+- **Python**: >=3.13 (プロジェクトは 3.13 で開発)
 - **メモリ**: 最小 512MB 、推奨 1GB+
 - **ストレージ**: 最小 1GB 、推奨 5GB+ (Obsidian ボルトを含む)
 - **ネットワーク**: インターネット接続が必要
@@ -39,7 +39,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # pip 経由での手動インストール
 curl -LsSf https://astral.sh/uv/install.sh | sh
-# macOS の場合（Homebrew）: brew install uv
+# macOS の場合（ Homebrew ）: brew install uv
 
 # Windows (PowerShell)
 irm https://astral.sh/uv/install.ps1 | iex

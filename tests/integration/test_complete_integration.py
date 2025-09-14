@@ -300,7 +300,7 @@ class TestCompleteMessageProcessingFlow:
                     cast(discord.Message, test_message)
                 )
 
-                # フォールバック処理の確認（AI エラーでも graceful に処理継続）
+                # フォールバック処理の確認（ AI エラーでも graceful に処理継続）
                 assert result is not None
                 assert result.get("status") == "success"
                 assert result.get("message_id") is not None
@@ -363,7 +363,8 @@ class TestSecurityIntegration:
             from src.security.access_logger import SecurityEvent
 
             user_id = "suspicious_user"
-            for i in range(6):  # 閾値 (5) を超える失敗
+            # 実装の閾値 (20) を超える失敗イベントを生成
+            for i in range(21):
                 event = SecurityEvent(
                     event_type=SecurityEventType.COMMAND_EXECUTION,
                     user_id=user_id,
