@@ -123,10 +123,7 @@ class GeminiClient(LoggerMixin):
             settings = get_settings()
             api_key = settings.gemini_api_key.get_secret_value()
 
-            # 🔍 DEBUG: API キーの存在確認
-            self.logger.info(
-                f"🔍 DEBUG: Initializing Gemini with API key length: {len(api_key)}"
-            )
+            self.logger.info("Initializing Gemini client", api_key_length=len(api_key))
 
             if not api_key or api_key == "your_gemini_api_key_here":
                 raise ValueError(

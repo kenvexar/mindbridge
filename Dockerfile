@@ -26,15 +26,22 @@ RUN uv sync --frozen --no-dev
 # Production stage
 FROM python:3.13.7-slim
 
-# Install runtime dependencies including ffmpeg for audio processing
-RUN apt-get update && apt-get install -y \
+# セキュリティ: セキュリティアップデートを適用してからパッケージインストール
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     curl \
     git \
     ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+    # セキュリティ: セキュリティツールも含める
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    # セキュリティ: apt キャッシュと tmp ファイルもクリーンアップ
+    && apt-get autoremove -y \
+    && apt-get autoclean
 
-# Create personal user
-RUN useradd --create-home --shell /bin/bash mindbridge
+# セキュリティ: 個人使用向けユーザー作成（より安全な設定）
+RUN groupadd -r mindbridge && \
+    useradd -r -g mindbridge -d /app -s /bin/bash \
+    --no-log-init mindbridge
 
 # Set working directory
 WORKDIR /app
@@ -46,17 +53,24 @@ COPY --from=builder --chown=mindbridge:mindbridge /app/.venv /app/.venv
 COPY --chown=mindbridge:mindbridge src/ ./src/
 COPY --chown=mindbridge:mindbridge README.md ./
 
-# Create personal directories for logs, vault, cache, config, and backups
-RUN mkdir -p logs vault .cache .config backups && chown -R mindbridge:mindbridge logs vault .cache .config backups
+# セキュリティ: 個人使用向けディレクトリ作成（適切な権限設定）
+RUN mkdir -p logs vault .cache .config backups && \
+    chown -R mindbridge:mindbridge logs vault .cache .config backups && \
+    # セキュリティ: ディレクトリ権限を制限（個人使用向け）
+    chmod 750 logs vault .cache .config backups
 
-# Copy Google Cloud credentials (if they exist) for personal use
-COPY --chown=mindbridge:mindbridge speech-key.json* ./.config/
+# セキュリティ: Google Cloud 認証情報の安全なコピー（個人使用向け）
+COPY --chown=mindbridge:mindbridge --chmod=600 speech-key.json* ./.config/
 
-# Switch to personal user
+# セキュリティ: 個人ユーザーに切り替え
 USER mindbridge
 
-# Add virtual environment to PATH
-ENV PATH="/app/.venv/bin:$PATH"
+# 環境変数設定
+ENV PATH="/app/.venv/bin:$PATH" \
+    # セキュリティ: Python のハッシュランダム化を有効化
+    PYTHONHASHSEED=random \
+    # セキュリティ: Python の最適化を有効化
+    PYTHONOPTIMIZE=1
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

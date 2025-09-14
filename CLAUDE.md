@@ -14,8 +14,6 @@ uv sync --dev
 
 # Run locally
 uv run python -m src.main
-# or
-make run
 
 # Debug mode
 uv run python -m src.main --debug
@@ -126,7 +124,7 @@ MindBridge is an AI-powered Discord bot that captures messages and voice memos, 
 ## Development Guidelines
 
 ### Code Standards
-- Python 3.13+ with type annotations required for public functions
+- Python >=3.13 with type annotations required for public functions
 - Use `snake_case` for functions/modules, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants
 - Line length ~88 characters (handled by ruff formatter)
 - Async/await for all I/O operations

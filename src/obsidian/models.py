@@ -253,7 +253,6 @@ class ObsidianNote(BaseModel):
         """完全な Markdown ファイル内容を生成"""
         frontmatter_yaml = self._frontmatter_to_yaml()
 
-        # 🔧 FIX: 自動生成メッセージを除去してから Markdown を生成
         clean_content = self._remove_bot_attribution_messages(self.content)
 
         return f"""---

@@ -500,7 +500,7 @@ class SpeechProcessor(LoggerMixin):
         start_time = datetime.now()
 
         try:
-            # 🔧 FIX: 実際の Google Cloud Speech クライアントライブラリを使用
+            # 実際の Google Cloud Speech クライアントライブラリを使用
             import io
 
             from google.cloud import speech
@@ -511,7 +511,7 @@ class SpeechProcessor(LoggerMixin):
                 format=audio_format.value,
             )
 
-            # 🔧 IMPROVEMENT: OGG Opus ファイルを 16-bit WAV に変換してから処理
+            # OGG Opus ファイルを 16-bit WAV に変換してから処理
             processed_audio_data = file_data
             target_format = audio_format
 
@@ -527,7 +527,7 @@ class SpeechProcessor(LoggerMixin):
                         io.BytesIO(file_data), format="ogg"
                     )
 
-                    # 🔧 FIX: 16-bit, 48kHz モノラルに正規化（ Google Cloud Speech API 対応）
+                    # 16-bit, 48kHz モノラルに正規化（ Google Cloud Speech API 対応）
                     audio_segment = (
                         audio_segment.set_frame_rate(48000)
                         .set_channels(1)
@@ -561,7 +561,7 @@ class SpeechProcessor(LoggerMixin):
             # 音声データを準備
             audio = speech.RecognitionAudio(content=processed_audio_data)
 
-            # 🔧 NEW: 音声ファイルの実際のプロパティを取得
+            # 音声ファイルの実際のプロパティを取得
             sample_rate, channels = self._get_audio_properties(
                 processed_audio_data, target_format
             )
@@ -573,7 +573,7 @@ class SpeechProcessor(LoggerMixin):
                 format=target_format.value,
             )
 
-            # 🔧 IMPROVED: より柔軟な認識設定
+            # より柔軟な認識設定
             encoding = self._get_speech_encoding_for_format(target_format)
 
             self.logger.info(
@@ -584,8 +584,8 @@ class SpeechProcessor(LoggerMixin):
 
             config = speech.RecognitionConfig(
                 encoding=encoding,
-                sample_rate_hertz=sample_rate,  # 🔧 FIX: 実際のサンプルレートを使用
-                audio_channel_count=channels,  # 🔧 FIX: 実際のチャンネル数を使用
+                sample_rate_hertz=sample_rate,  # 実際のサンプルレートを使用
+                audio_channel_count=channels,  # 実際のチャンネル数を使用
                 language_code="ja-JP",
                 alternative_language_codes=["en-US"],  # 英語も対応
                 enable_automatic_punctuation=True,
@@ -701,7 +701,7 @@ class SpeechProcessor(LoggerMixin):
 
         await self._simulate_processing_delay(processing_delay)
 
-        # 🔧 FIX: サイズに基づいて異なる転写結果を生成（デモ用）
+        # サイズに基づいて異なる転写結果を生成（デモ用）
         if audio_size < 5000:
             transcript = "こんにちは、テストメッセージです。"
         elif audio_size < 10000:

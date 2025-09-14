@@ -27,13 +27,13 @@ cp .env.example .env
 
 ```
 uv run python -m src.main
-# もしくは
-make run
+# Debug mode
+uv run python -m src.main --debug
 ```
 
 ## 追加機能（任意）
 
-- 音声認識（Google Cloud Speech-to-Text）: `.env.example` のキーを追記
+- 音声認識（ Google Cloud Speech-to-Text ）: `.env.example` のキーを追記
 - Garmin/Google Calendar 連携: 必要なキーを `.env` に追記
 
 ## よくある質問

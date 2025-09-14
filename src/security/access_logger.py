@@ -57,18 +57,53 @@ class SecurityEvent:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert event to dictionary for logging"""
+        """Convert event to dictionary for logging （機密情報マスキング付き）"""
+        # 機密情報のマスキング
+        filtered_details = (
+            self._mask_sensitive_data(self.details) if self.details else {}
+        )
+
         return {
             "timestamp": self.timestamp.isoformat(),
             "event_type": self.event_type.value,
             "user_id": self.user_id,
             "channel_id": self.channel_id,
             "action": self.action,
-            "details": self.details,
+            "details": filtered_details,
             "success": self.success,
             "ip_address": self.ip_address,
             "session_id": self.session_id,
         }
+
+    def _mask_sensitive_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """機密情報をマスキング（個人使用向け）"""
+        SENSITIVE_KEYS = {
+            "password",
+            "token",
+            "secret",
+            "api_key",
+            "authorization",
+            "cookie",
+            "session",
+            "credential",
+            "private_key",
+            "discord_token",
+            "gemini_key",
+            "github_token",
+        }
+
+        filtered_data = {}
+        for key, value in data.items():
+            if any(sensitive in key.lower() for sensitive in SENSITIVE_KEYS):
+                # 機密情報はマスク
+                if isinstance(value, str) and len(value) > 4:
+                    filtered_data[key] = f"{value[:2]}...{value[-2:]}"
+                else:
+                    filtered_data[key] = "[MASKED]"
+            else:
+                filtered_data[key] = value
+
+        return filtered_data
 
 
 class AccessLogger(LoggerMixin):
@@ -88,12 +123,12 @@ class AccessLogger(LoggerMixin):
         )  # Track rate limiting by user
         self.suspicious_patterns: list[SecurityEvent] = []
 
-        # Configuration
-        self.max_recent_events = 1000
-        self.failed_attempt_threshold = 5
-        self.failed_attempt_window = timedelta(minutes=15)
-        self.rate_limit_threshold = 50
-        self.rate_limit_window = timedelta(minutes=5)
+        # Configuration （個人使用向けに大幅簡素化）
+        self.max_recent_events = 100  # 個人使用では 100 イベントで十分
+        self.failed_attempt_threshold = 20  # 個人使用では緩和
+        self.failed_attempt_window = timedelta(hours=1)  # 個人使用では長めに設定
+        self.rate_limit_threshold = 200  # 個人使用では高めに設定
+        self.rate_limit_window = timedelta(minutes=30)  # 個人使用では長めに設定
 
     async def log_event(self, event: SecurityEvent) -> None:
         """Log a security event"""
@@ -216,21 +251,12 @@ class AccessLogger(LoggerMixin):
             )
         ]
 
-        # Check for rapid command execution
-        if len(recent_commands) >= 10:
+        # 個人使用では rapid command execution は正常なので閾値を大幅に緩和
+        if len(recent_commands) >= 50:
             await self._flag_suspicious_activity(
                 event.user_id,
-                "Rapid command execution detected",
+                "Excessive command execution detected",
                 {"command_count": len(recent_commands), "time_window": "5 minutes"},
-            )
-
-        # Check for unusual command sequences
-        command_actions = [e.action for e in recent_commands]
-        if len(set(command_actions)) == 1 and len(command_actions) >= 5:
-            await self._flag_suspicious_activity(
-                event.user_id,
-                f"Repeated command execution: {command_actions[0]}",
-                {"command": command_actions[0], "count": len(command_actions)},
             )
 
     async def get_security_report(self, hours: int = 24) -> dict[str, Any]:

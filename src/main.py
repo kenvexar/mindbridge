@@ -183,7 +183,7 @@ async def main() -> None:
 
         bot = DiscordBot(
             ai_processor=ai_processor,
-            vault_manager=file_manager,  # 🔧 FIX: ObsidianFileManager を使用（ save_note メソッドがある）
+            vault_manager=file_manager,
             note_template=note_template,
             daily_integration=daily_integration,
             template_engine=template_engine,
@@ -210,7 +210,7 @@ async def main() -> None:
         logger.info("Health analysis scheduler started in background")
 
         try:
-            await bot.run_async()  # 🔧 FIX: start() → run_async() に修正
+            await bot.run_async()
         finally:
             # Cleanup and sync to GitHub on shutdown
             logger.info("Shutting down services...")

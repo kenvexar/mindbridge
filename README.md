@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-AI 駆動の知識管理システムです。Discord をインターフェースとして使用し、インテリジェントなメモ処理と自動 Obsidian ノート保存を行います。
+AI 駆動の知識管理システムです。 Discord をインターフェースとして使用し、インテリジェントなメモ処理と自動 Obsidian ノート保存を行います。
 
 ## 概要
 
@@ -20,7 +20,7 @@ AI 駆動メッセージ処理
 音声メモ処理
 - Google Cloud Speech-to-Text による自動文字起こし
 - デプロイ時の自動認証情報生成機能
-- 複数の音声フォーマット（MP3 / WAV / FLAC / OGG / M4A / WEBM）
+- 複数の音声フォーマット（ MP3 / WAV / FLAC / OGG / M4A / WEBM ）
 
 Obsidian 統合
 - 自動フォルダ分類による構造化 Markdown ノート生成
@@ -36,10 +36,10 @@ Obsidian 統合
 - 進捗追跡機能付きプロジェクト管理
 
 外部サービス統合
-- Garmin Connect：フィットネス・健康データ同期（python-garminconnect 使用、OAuth 不要）
-- Google Calendar：自動イベント・会議インポート
+- Garmin Connect ：フィットネス・健康データ同期（ python-garminconnect 使用、 OAuth 不要）
+- Google Calendar ：自動イベント・会議インポート
 - 健康データ統合：睡眠・歩数・心拍数・アクティビティの自動取得
-- GitHub 同期：Obsidian Vault の自動バックアップ
+- GitHub 同期： Obsidian Vault の自動バックアップ
 - 暗号化された認証情報ストレージによる安全な認証
 
 ## クイックスタート
@@ -49,7 +49,7 @@ Obsidian 統合
 ```
 uv sync --dev
 ./scripts/manage.sh init   # 対話で .env を生成
-uv run python -m src.main      # もしくは ./scripts/manage.sh run
+uv run python -m src.main
 ```
 
 詳細: docs/user/quick-start.md
@@ -73,7 +73,7 @@ cd mindbridge
 主な特徴：
 - Google Cloud 環境の自動セットアップ
 - Speech-to-Text 認証情報の自動生成
-- Garmin Connect 統合（OAuth 不要）
+- Garmin Connect 統合（ OAuth 不要）
 - GitHub 同期によるデータ永続化
 - エラー処理とリトライ機能
 
@@ -119,14 +119,14 @@ uv run pytest --cov=src --cov-report=term-missing
 uv run ruff check . --fix && uv run ruff format .
 uv run mypy src
 
-# フック（pre-commit）
+# フック（ pre-commit ）
 uv run pre-commit run --all-files
 
 # コンテナ
 docker compose up -d
 ```
 
-#### Manual Tests（任意実行）
+#### Manual Tests （任意実行）
 
 CI 対象外の手動テストは必要時に個別実行してください：
 
@@ -189,5 +189,5 @@ MIT ライセンス - 詳細は [LICENSE](LICENSE) ファイルを参照して�
 
 **プロジェクト情報**
 - バージョン管理：`src/__init__.py` の `__version__` を参照
-- Python：3.13+
-- 最終更新：2025
+- Python ： >=3.13
+- 最終更新： 2025
