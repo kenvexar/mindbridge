@@ -1,10 +1,10 @@
-# 📋 MindBridge 包括的 YAML フロントマターシステム
+# MindBridge 包括的 YAML フロントマターシステム
 
 ## 概要
 
 MindBridge の包括的 YAML フロントマターシステムは、 Discord から投稿されたメッセージを構造化された Obsidian ノートに変換する際に、 60 以上の包括的なメタデータフィールドを自動生成する高度なシステムです。
 
-## 🎯 システムの特徴
+## システムの特徴
 
 - **完全自動化**: ユーザーの手動入力なしで包括的なメタデータを生成
 - **AI 統合**: Google Gemini を使用した高度なコンテンツ分析
@@ -12,7 +12,7 @@ MindBridge の包括的 YAML フロントマターシステムは、 Discord か
 - **多言語対応**: 日本語・英語混在コンテンツに対応
 - **型安全性**: Pydantic による厳密なデータバリデーション
 
-## 🏗️ アーキテクチャ
+## アーキテクチャ
 
 ```
 Discord メッセージ
@@ -43,7 +43,7 @@ Obsidian ノート
    - Discord メッセージの処理
    - YAML 生成器との連携
 
-## 📊 フィールドカテゴリ詳細解説
+## フィールドカテゴリ詳細解説
 
 ### 1. 基本情報フィールド（ Core Fields ）
 
@@ -290,7 +290,7 @@ publish: false
 featured: false
 ```
 
-## 🔧 技術実装詳細
+## 技術実装詳細
 
 ### データ型自動変換システム
 
@@ -393,7 +393,7 @@ FIELD_ORDER = [
 ]
 ```
 
-## 📝 使用例とベストプラクティス
+## 使用例とベストプラクティス
 
 ### 1. 学習ノートの例
 
@@ -516,7 +516,7 @@ auto_generated: true
 ---
 ```
 
-## 🔍 デバッグとトラブルシューティング
+## デバッグとトラブルシューティング
 
 ### よくある問題と解決策
 
@@ -527,10 +527,10 @@ auto_generated: true
 
 **解決策**:
 ```python
-# ❌ 間違い
+# 間違い
 ai_data["category"] = ai_result.category.lower()
 
-# ✅ 正しい
+# 正しい
 if hasattr(ai_result.category, 'category') and hasattr(ai_result.category.category, 'value'):
     category_value = ai_result.category.category.value
     ai_data["category"] = category_value.lower()
@@ -543,10 +543,10 @@ if hasattr(ai_result.category, 'category') and hasattr(ai_result.category.catego
 
 **解決策**:
 ```python
-# ❌ 間違い
+# 間違い
 tags_str = ", ".join(ai_result.tags)
 
-# ✅ 正しい
+# 正しい
 if isinstance(tags_list, (list, tuple)):
     tags_str = ", ".join(str(tag) for tag in tags_list)
 ```
@@ -577,7 +577,7 @@ docker compose up --build -d
 }
 ```
 
-## 🧪 テストスイート
+## テストスイート
 
 包括的なテストケースで品質を保証しています。
 
@@ -603,7 +603,7 @@ uv run pytest tests/unit/test_enhanced_yaml_generator.py::TestEnhancedYAMLFrontm
 uv run pytest tests/unit/test_enhanced_yaml_generator.py --cov=src/obsidian/template_system/yaml_generator
 ```
 
-## 📈 パフォーマンス最適化
+## パフォーマンス最適化
 
 ### メモリ使用量の最適化
 
@@ -623,7 +623,7 @@ AMOUNT_PATTERN = re.compile(r'[¥$€£]\s?(\d+(?:,\d+)*(?:\.\d+)?)')
 DATE_PATTERN = re.compile(r'(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})')
 ```
 
-## 🔮 将来の拡張計画
+## 将来の拡張計画
 
 ### 予定されている機能追加
 
@@ -650,7 +650,7 @@ DATE_PATTERN = re.compile(r'(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})')
 - 設定ファイルによる動的フィールド定義
 - GraphQL API による柔軟なデータアクセス
 
-## 🤝 コントリビューション ガイド
+## コントリビューション ガイド
 
 ### 新しいフィールドの追加方法
 
@@ -692,7 +692,7 @@ def test_new_field_generation(self):
 - **エラーハンドリング**: 適切な例外処理
 - **ログ出力**: デバッグ用の構造化ログ
 
-## 📚 関連資料
+## 関連資料
 
 ### 技術仕様書
 - [Obsidian YAML Frontmatter 仕様](https://help.obsidian.md/Editing+and+formatting/Properties)

@@ -2,7 +2,7 @@
 
 MindBridge を Google Cloud Platform で**月額約 8 円**で運用するための完全ガイドです。
 
-## 📊 費用概算 (無料枠適用後)
+## 費用概算 (無料枠適用後)
 
 | サービス | 無料枠 | 月額費用 |
 |---------|-------|----------|
@@ -14,7 +14,7 @@ MindBridge を Google Cloud Platform で**月額約 8 円**で運用するため
 | Speech-to-Text | 60 分/月 | **$0** |
 | **合計** | | **約$0.06/月 (8 円)** |
 
-## 🚀 セットアップ手順
+## セットアップ手順
 
 ### 1. 前提条件
 
@@ -72,7 +72,7 @@ cd mindbridge
 
 Cloud Console の「請求」→「予算とアラート」から予算を作成し、50%/80%/100% のしきい値通知を設定してください。
 
-## ⚙️ 詳細設定
+## 詳細設定
 
 ### Cloud Run 設定 (無料枠最適化)
 
@@ -103,7 +103,7 @@ timeout: '300'           # 5 分タイムアウト
 - **80% 使用時**: 警告
 - **100% 使用時**: 緊急アラート
 
-## 📈 監視・ダッシュボード
+## 監視・ダッシュボード
 
 ### Cloud Console でのモニタリング
 
@@ -118,7 +118,7 @@ timeout: '300'           # 5 分タイムアウト
 - API 呼び出し回数
 - エラー率
 
-## 🔧 トラブルシューティング
+## トラブルシューティング
 
 ### よくある問題
 
@@ -159,7 +159,7 @@ gcloud run services logs read mindbridge --region=us-central1
 gcloud builds list --limit=10
 ```
 
-## 💰 費用最適化のコツ
+## 費用最適化のコツ
 
 ### 1. 無料枠の効率活用
 
@@ -179,7 +179,7 @@ gcloud builds list --limit=10
 - 軽量 Docker イメージ使用
 - 効率的な API 呼び出し
 
-## 🔄 更新・メンテナンス
+## 更新・メンテナンス
 
 ### アプリケーションの更新
 
@@ -195,21 +195,21 @@ git add . && git commit -m "feat: new feature"
 - 週次: ログ確認
 - 日次: ヘルスチェック
 
-## 📚 関連リンク
+## 関連リンク
 
 - [Google Cloud 無料枠](https://cloud.google.com/free)
 - [Cloud Run 料金](https://cloud.google.com/run/pricing)
 - [Gemini API 料金](https://ai.google.dev/pricing)
 - [Speech-to-Text 料金](https://cloud.google.com/speech-to-text/pricing)
 
-## 🆘 サポート
+## サポート
 
 問題が発生した場合：
 
-1. [トラブルシューティング](#-トラブルシューティング) を確認
+1. [トラブルシューティング](#トラブルシューティング) を確認
 2. ログを確認
 3. GitHub Issues で報告
 
 ---
 
-**💡 ヒント**: 無料枠を最大限活用すれば、月額 8 円程度で本格的な AI 知識管理システムを運用できます！
+ヒント: 無料枠を活用すれば、低コストで本格的な AI 知識管理システムを運用できます。

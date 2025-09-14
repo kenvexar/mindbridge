@@ -2,7 +2,7 @@
 
 MindBridge の完全インストール・セットアップガイド。
 
-> 💡 **最短手順** は [クイックスタート](quick-start.md) を参照してください。
+> 最短手順は [クイックスタート](quick-start.md) を参照してください。
 
 ## 前提条件
 
@@ -120,9 +120,9 @@ echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/gcloud/speech-key.json" >> .e
 Discord サーバーに以下の 3 つのチャンネルを作成:
 
 ```
-📝 memo           ← メイン入力チャンネル（テキスト、音声、ファイル）
-🔔 notifications  ← システム通知
-🤖 commands       ← Bot コマンド
+memo           ← メイン入力チャンネル（テキスト、音声、ファイル）
+notifications  ← システム通知
+commands       ← Bot コマンド
 ```
 
 **重要**: チャンネル名は正確に (`memo`、`notifications`、`commands`) 自動検出のためです。手順は [クイックスタート](quick-start.md) を参照してください。

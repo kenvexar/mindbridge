@@ -10,18 +10,18 @@ MindBridge をシンプルに運用する手順。
 4. [環境変数設定](#環境変数設定)
 5. [バックアップとメンテナンス](#バックアップとメンテナンス)
 
-## 🎯 推奨デプロイメント方法
+## 推奨デプロイメント方法
 
 以下の順序で検討することを推奨：
 
 ```
-1. Google Cloud Run （無料、自動デプロイスクリプト利用）⭐ 最推奨
+1. Google Cloud Run （無料、自動デプロイスクリプト利用）最推奨
 2. ローカル Docker 運用（開発・テスト用）
 3. VPS での Docker 運用
 4. ローカルマシンでの直接実行
 ```
 
-### ⭐ Google Cloud Run （新推奨）
+### Google Cloud Run （推奨）
 
 最も簡単な本番運用。まずは以下のガイドを参照：
 
@@ -40,7 +40,7 @@ MindBridge をシンプルに運用する手順。
 3. **定期バックアップ**: Obsidian ボルトの定期バックアップ
 4. **ログ確認**: 問題発生時のログチェック
 
-## 🐳 ローカル Docker 運用
+## ローカル Docker 運用
 
 最も簡単な運用方法。 Docker がインストールされていれば即座に開始できます。
 
@@ -88,7 +88,7 @@ docker compose down
 - **ログ**: `./logs/` ディレクトリに保存
 - **バックアップ**: `./backups/` ディレクトリに保存
 
-## 🖥️ VPS 運用
+## VPS 運用
 
 24/7 運用したい場合は VPS での Docker 運用を推奨。
 
@@ -144,7 +144,7 @@ sudo systemctl start mindbridge
 sudo systemctl status mindbridge
 ```
 
-## ⚙️ 環境変数設定
+## 環境変数設定
 
 ### 必須設定
 
@@ -179,7 +179,7 @@ LOG_LEVEL=INFO
 ENVIRONMENT=production
 ```
 
-## 🔧 バックアップとメンテナンス
+## バックアップとメンテナンス
 
 ### 自動バックアップ
 
@@ -238,7 +238,7 @@ docker compose down --remove-orphans
 docker compose up -d --force-recreate
 ```
 
-## 📊 監視
+## 監視
 
 ### ヘルスチェック
 

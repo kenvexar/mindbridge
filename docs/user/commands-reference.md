@@ -14,7 +14,7 @@ MindBridge の全コマンドの完全リファレンス。
 8. [健康データ](#健康データ)
 9. [トラブルシューティング](#トラブルシューティング)
 
-## 🎯 コマンドの基本
+## コマンドの基本
 
 ### 実行方法
 
@@ -32,7 +32,7 @@ MindBridge の全コマンドの完全リファレンス。
 | `123` | 数値入力 |
 | `true/false` | ブール値 |
 
-## ⚙️ 基本コマンド
+## 基本コマンド
 
 ### `/help`
 ヘルプ情報とコマンド一覧を表示。
@@ -109,7 +109,7 @@ MindBridge の全コマンドの完全リファレンス。
 • ディスク使用率: 45%
 ```
 
-## 📚 Obsidian 管理
+## Obsidian 管理
 
 ### `/search_notes`
 Obsidian ボルト内のノートを検索。
@@ -207,7 +207,7 @@ Obsidian ボルトの統計を表示。
 /daily_note action:update content:"Important meeting today"
 ```
 
-## 🧠 AI 処理
+## AI 処理
 
 ### `/process`
 AI を使ってテキストを手動処理。
@@ -282,7 +282,7 @@ URL コンテンツの分析と要約。
 /analyze_url url:"https://tech-blog.com/post" analysis_depth:deep
 ```
 
-## 💰 家計管理
+## 家計管理
 
 ### `/add_expense`
 支出を記録。
@@ -355,7 +355,7 @@ URL コンテンツの分析と要約。
 /add_subscription name:"Adobe CC" amount:6480 billing_date:1 category:"tools"
 ```
 
-## ✅ タスク管理
+## タスク管理
 
 ### `/add_task`
 新しいタスクを作成。
@@ -434,7 +434,7 @@ URL コンテンツの分析と要約。
 /complete_task task_id:"T-003" time_spent:120
 ```
 
-## 🔧 システム管理
+## システム管理
 
 ### `/backup_vault`
 Obsidian ボルトのバックアップを作成。
@@ -498,7 +498,7 @@ AI キャッシュの状態を確認。
 /cache_info
 ```
 
-## 🏃 健康データ
+## 健康データ
 
 ### `/garmin_sync`
 Garmin Connect からデータを同期。
@@ -566,7 +566,7 @@ Garmin Connect からデータを同期。
 /health_report period:monthly focus:sleep
 ```
 
-## 🔍 トラブルシューティング
+## トラブルシューティング
 
 ### `/debug_info`
 デバッグ情報を表示。
