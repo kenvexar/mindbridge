@@ -2,7 +2,7 @@
 
 環境セットアップから実装まで、 MindBridge 開発の包括的ガイド。
 
-## 🔎 クイックリファレンス
+## クイックリファレンス
 
 ```bash
 # セットアップ
@@ -34,7 +34,7 @@ uv run pre-commit run --all-files
 7. [新機能開発](#新機能開発)
 8. [パフォーマンス最適化](#パフォーマンス最適化)
 
-## 🚀 開発環境セットアップ
+## 開発環境セットアップ
 
 ### 必要ツール
 
@@ -139,7 +139,7 @@ ENABLE_DEBUG_ENDPOINTS=true
 ENABLE_PROFILING=false
 ```
 
-## 🏗️ プロジェクト構造
+## プロジェクト構造
 
 ### アーキテクチャ概要
 
@@ -211,7 +211,7 @@ graph TD
     E --> J[obsidian/template_system.py]
 ```
 
-## 🔄 開発ワークフロー
+## 開発ワークフロー
 
 ### 日常的な開発
 
@@ -293,7 +293,7 @@ git push origin feature/new-feature
 gh pr create --title "Add enhanced AI classification" --body "Implementation details..."
 ```
 
-## 📝 Code Style and Guidelines
+## コードスタイルとガイドライン
 
 ### Ruff 設定
 
@@ -398,7 +398,7 @@ def save_to_obsidian(note: Note) -> Path:
     return note.path
 ```
 
-## 🧪 テスト戦略
+## テスト戦略
 
 ### テスト構造
 
@@ -546,7 +546,7 @@ filterwarnings =
     ignore::PendingDeprecationWarning
 ```
 
-## 🐛 デバッグ技術
+## デバッグ技術
 
 ### デバッグ設定
 
@@ -652,7 +652,7 @@ docker compose logs -f mindbridge-bot
 docker compose -f docker-compose.debug.yml up
 ```
 
-## 🚀 New Feature Development
+## 新機能開発
 
 ### 機能開発プロセス
 
@@ -763,7 +763,7 @@ class Settings(BaseSettings):
         case_sensitive = True
 ```
 
-## ⚡ Performance Optimization
+## パフォーマンス最適化
 
 ### プロファイリングと監視
 

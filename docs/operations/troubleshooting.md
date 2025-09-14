@@ -1,8 +1,8 @@
-# 🔧 トラブルシューティングガイド
+# トラブルシューティングガイド
 
 MindBridgeの運用中に発生する可能性のある問題と解決方法を体系的に説明します。
 
-## 📋 目次
+## 目次
 
 1. [問題の分類と優先度](#問題の分類と優先度)
 2. [セットアップ関連の問題](#セットアップ関連の問題)
@@ -13,7 +13,7 @@ MindBridgeの運用中に発生する可能性のある問題と解決方法を�
 7. [診断ツールとログ分析](#診断ツールとログ分析)
 8. [緊急時の対応](#緊急時の対応)
 
-## 🎯 問題の分類と優先度
+## 問題の分類と優先度
 
 ### 緊急度分類
 
@@ -24,7 +24,7 @@ MindBridgeの運用中に発生する可能性のある問題と解決方法を�
 | **P2 - 中** | 一部機能不具合 | 4時間以内 | 音声認識不可、コマンド一部不動作 |
 | **P3 - 低** | パフォーマンス劣化 | 24時間以内 | 処理速度低下、メモリ使用量増大 |
 
-## 🚀 セットアップ関連の問題
+## セットアップ関連の問題
 
 ### ボットが起動しない
 
@@ -176,7 +176,7 @@ sudo chown $USER:$USER "$OBSIDIAN_VAULT_PATH"
 mkdir -p "$OBSIDIAN_VAULT_PATH"/{00_Inbox,01_DailyNotes,02_Tasks,03_Ideas,10_Knowledge,11_Projects,12_Resources,20_Finance,21_Health,30_Archive,80_Attachments,90_Meta}
 ```
 
-## ⚡ 実行時の問題
+## 実行時の問題
 
 ### メッセージが処理されない
 
@@ -308,7 +308,7 @@ export MOCK_SPEECH_ENABLED=true
 # 対応形式: MP3, WAV, FLAC, OGG, M4A, WEBM
 ```
 
-## 📊 パフォーマンス問題
+## パフォーマンス問題
 
 ### 処理速度の低下
 
@@ -382,7 +382,7 @@ cd /path/to/mindbridge
 uv run python -m src.main &
 ```
 
-## 🌐 API関連の問題
+## API関連の問題
 
 ### Discord API エラー
 
@@ -428,7 +428,7 @@ gcloud config set project YOUR_PROJECT_ID
 gcloud services list --enabled | grep -E "(speech|generativeai)"
 ```
 
-## 💾 ストレージ関連の問題
+## ストレージ関連の問題
 
 ### ファイル保存エラー
 
@@ -482,7 +482,7 @@ export AUTO_BACKUP_ENABLED=true
 export BACKUP_INTERVAL_HOURS=6
 ```
 
-## 🔍 診断ツールとログ分析
+## 診断ツールとログ分析
 
 ### ログレベルの調整
 
@@ -547,7 +547,7 @@ grep "PROCESSING_TIME" logs/bot.log | awk '{print $NF}' | sort -n | tail -10
 grep "2025-08-17 10:" logs/bot.log
 ```
 
-## 🚨 緊急時の対応
+## 緊急時の対応
 
 ### サービス完全停止時
 
@@ -592,7 +592,7 @@ chmod -R 755 "$OBSIDIAN_VAULT_PATH"
 | **データ損失** | メンテナー直接連絡 | 即座 |
 | **セキュリティ問題** | security@project.com | 即座 |
 
-## 🔄 予防保守
+## 予防保守
 
 ### 定期チェック項目
 
@@ -623,7 +623,7 @@ uv sync --upgrade
 find logs/ -name "*.log" -mtime +30 -delete
 ```
 
-## 📚 参考資料
+## 参考資料
 
 ### 関連ドキュメント
 - [システム監視ガイド](monitoring.md)

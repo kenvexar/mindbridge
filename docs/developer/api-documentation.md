@@ -1,10 +1,10 @@
-# 🔧 YAML フロントマター システム API ドキュメント
+# YAML フロントマター システム API ドキュメント
 
 ## 概要
 
 MindBridge YAML フロントマターシステムのプログラマティック API について詳細に解説します。
 
-## 📋 クラス構成
+## クラス構成
 
 ### YAMLFrontmatterGenerator
 
@@ -274,7 +274,7 @@ def _map_category_to_type(self, category: str) -> str:
     """
 ```
 
-## 🤖 AI 統合 API
+## AI 統合 API
 
 ### AIProcessingResult オブジェクト
 
@@ -327,7 +327,7 @@ yaml_str = generator.create_comprehensive_frontmatter(
 )
 ```
 
-## 🔧 設定・カスタマイズ API
+## 設定・カスタマイズ API
 
 ### フィールド順序のカスタマイズ
 
@@ -371,7 +371,7 @@ yaml_str = generator.generate_frontmatter(
 )
 ```
 
-## 🏗️ 拡張 API
+## 拡張 API
 
 ### カスタムフィールド生成器の追加
 
@@ -466,7 +466,7 @@ generator.add_plugin(TimestampPlugin())
 generator.add_plugin(HashtagPlugin())
 ```
 
-## 🔍 デバッグ・監視 API
+## デバッグ・監視 API
 
 ### ログ出力の制御
 
@@ -533,7 +533,7 @@ print(tracker.metrics)
 # -> {'create_comprehensive_frontmatter': {'execution_time': 0.023, 'field_count': 25, 'character_count': 1250}}
 ```
 
-## 🧪 テスト API
+## テスト API
 
 ### ユニットテスト用のモック
 
@@ -614,7 +614,7 @@ class IntegrationTest:
         assert "tags:" in yaml_str
 ```
 
-## 📊 メトリクス・分析 API
+## メトリクス・分析 API
 
 ### 生成統計の収集
 
@@ -659,7 +659,7 @@ class GenerationMetrics:
         }
 ```
 
-## 🚀 高度な使用例
+## 高度な使用例
 
 ### バッチ処理
 

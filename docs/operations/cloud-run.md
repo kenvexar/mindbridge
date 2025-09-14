@@ -2,7 +2,7 @@
 
 Google Cloud Run を使用して MindBridge を無料枠中心で運用するための詳細ガイドです。自動デプロイスクリプトにより最短 5 分でデプロイ可能、GitHub 同期による Obsidian Vault データの永続化にも対応します。イメージは Artifact Registry に保存します。
 
-## 🚀 クイックデプロイ（推奨）
+## クイックデプロイ（推奨）
 
 ```bash
 # リポジトリをクローン

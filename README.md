@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**AI 駆動知識管理システム** - Discord をインターフェースとして使用し、インテリジェントなメモ処理と自動 Obsidian ノート保存を行います。
+AI 駆動の知識管理システムです。Discord をインターフェースとして使用し、インテリジェントなメモ処理と自動 Obsidian ノート保存を行います。
 
 ## 概要
 
@@ -12,40 +12,39 @@ MindBridge は知識管理システムです。 Discord サーバーでメッセ
 
 ### 主要機能
 
-**🤖 AI 駆動メッセージ処理**
+AI 駆動メッセージ処理
 - AI 分析とメタデータ抽出による自動 Discord メッセージキャプチャ
 - URL コンテンツの取得と要約
 - インテリジェントな分類とフォルダ割り当て
 
-**🎤 音声メモ処理**
+音声メモ処理
 - Google Cloud Speech-to-Text による自動文字起こし
 - デプロイ時の自動認証情報生成機能
-- 複数の音声フォーマットサポート（ MP3 、 WAV 、 FLAC 、 OGG 、 M4A 、 WEBM ）
-- 60 分/月の無料枠内で利用可能
+- 複数の音声フォーマット（MP3 / WAV / FLAC / OGG / M4A / WEBM）
 
-**📝 Obsidian 統合**
+Obsidian 統合
 - 自動フォルダ分類による構造化 Markdown ノート生成
-- Activity Log と Daily Tasks との Daily Note 統合
-- プレースホルダー置換機能付きテンプレートシステム
+- Activity Log と Daily Tasks のデイリーノート統合
+- プレースホルダー置換に対応したテンプレートシステム
 
-**💰 家計管理**
+家計管理
 - 支出追跡とサブスクリプション管理
 - 自動財務レポートと予算管理
 
-**✅ タスク管理**
+タスク管理
 - タスクの作成、追跡、生産性レビュー
 - 進捗追跡機能付きプロジェクト管理
 
-**🔗 外部サービス統合**
-- **Garmin Connect**：フィットネスと健康データ同期（ python-garminconnect 使用、 OAuth 不要）
-- **Google Calendar**：自動イベントと会議インポート
-- **健康データ統合**：睡眠・歩数・心拍数・アクティビティの自動取得
-- **GitHub 同期**： Obsidian vault の自動バックアップ
+外部サービス統合
+- Garmin Connect：フィットネス・健康データ同期（python-garminconnect 使用、OAuth 不要）
+- Google Calendar：自動イベント・会議インポート
+- 健康データ統合：睡眠・歩数・心拍数・アクティビティの自動取得
+- GitHub 同期：Obsidian Vault の自動バックアップ
 - 暗号化された認証情報ストレージによる安全な認証
 
 ## クイックスタート
 
-### 🧑‍💻 ローカル（最短）
+### ローカル（最短）
 
 ```
 uv sync --dev
@@ -55,7 +54,7 @@ uv run python -m src.main      # もしくは ./scripts/manage.sh run
 
 詳細: docs/user/quick-start.md
 
-### 🚀 Google Cloud Run デプロイ（推奨）
+### Google Cloud Run デプロイ（推奨）
 
 **完全自動デプロイスクリプト**で 5 分でデプロイ完了：
 
@@ -71,14 +70,14 @@ cd mindbridge
 ./scripts/manage.sh full-deploy YOUR_PROJECT_ID
 ```
 
-**特徴**：
-- ✅ Google Cloud 環境の自動セットアップ
-- ✅ Speech-to-Text 認証情報の自動生成
-- ✅ Garmin Connect 統合（ OAuth 不要）
-- ✅ GitHub 同期による無料永続化
-- ✅ エラー処理とリトライ機能
+主な特徴：
+- Google Cloud 環境の自動セットアップ
+- Speech-to-Text 認証情報の自動生成
+- Garmin Connect 統合（OAuth 不要）
+- GitHub 同期によるデータ永続化
+- エラー処理とリトライ機能
 
-### 💻 ローカル開発
+### ローカル開発
 
 ```bash
 # 依存関係をインストール
@@ -141,7 +140,7 @@ CI 対象外の手動テストは必要時に個別実行してください：
 
 ## ドキュメント
 
-### 📚 ユーザードキュメント
+### ユーザードキュメント
 - **[クイックスタート](docs/user/quick-start.md)** - 最短 3 ステップ
 - **[インストールガイド](docs/user/installation.md)** - 全機能の詳細手順
 - **[基本的な使用方法](docs/user/basic-usage.md)** - 日常の使用方法
@@ -149,14 +148,14 @@ CI 対象外の手動テストは必要時に個別実行してください：
 - **[使用例](docs/user/examples.md)** - 使用例
 - **[Vault 移行ガイド](docs/user/vault-migration.md)** - 既存 Obsidian Vault からの移行
 
-### 🛠️ 開発者ドキュメント
+### 開発者ドキュメント
 - **[開発ガイド](docs/developer/development-guide.md)** - 開発環境セットアップ
 - **[アーキテクチャ](docs/developer/architecture.md)** - システム設計
 - **[API ドキュメント](docs/developer/api-documentation.md)** - API リファレンス
 - **[YAML フロントマターシステム](docs/developer/yaml-frontmatter-system.md)** - テンプレートシステム
 - **[フィールドリファレンス](docs/developer/field-reference.md)** - データフィールド仕様
 
-### 🚀 運用ドキュメント
+### 運用ドキュメント
 - **[デプロイメント](docs/operations/deployment.md)** - 本番デプロイメント（全体像）
 - **[Cloud Run デプロイ](docs/operations/cloud-run.md)** - 具体的な Cloud Run 手順
 - **[GCP デプロイメント](docs/operations/gcp-deployment.md)** - Google Cloud Platform デプロイ

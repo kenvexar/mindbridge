@@ -2,7 +2,7 @@
 
 MindBridge をローカル環境でテストする方法を説明します。
 
-## 🏗️ モックモードでのテスト（推奨）
+## モックモードでのテスト（推奨）
 
 **実際の API キーを必要とせず、安全にテストできます。**
 
@@ -39,7 +39,7 @@ uv run python -m src.main
 
 ---
 
-## 🧪 Manual Tests クイックリンク
+## Manual Tests クイックリンク
 
 以下は収集対象外（CI では実行されません）。必要時に個別に起動してください。
 
@@ -109,7 +109,7 @@ asyncio.run(test_channels())
 "
 ```
 
-## 🎯 実 API を使用したテスト
+## 実 API を使用したテスト
 
 実際の API を使用してテストする場合は `ENVIRONMENT=testing` を設定します。
 (`staging`、`integration` も同等に機能します)
@@ -175,7 +175,7 @@ GARMIN_PASSWORD=your_garmin_password
 DOTENV_PATH=.env.testing uv run python -m src.main
 ```
 
-## 🧪 単体テスト実行
+## 単体テスト実行
 
 ```bash
 # 全テスト実行
@@ -200,7 +200,7 @@ uv run pytest tests/unit/test_ai_processing.py -v
 - **Integration Tests** (`tests/integration/`): コンポーネント間統合テスト
 - **Feature Tests**: 特定機能の動作確認
 
-## 🔧 品質チェック
+## 品質チェック
 
 ```bash
 # コード品質チェック
@@ -213,7 +213,7 @@ uv run mypy src/
 uv run ruff check src/ --fix && uv run ruff format src/ && uv run mypy src/
 ```
 
-## 🚨 よくある問題
+## よくある問題
 
 ### モックモードが動作しない
 
@@ -244,7 +244,7 @@ uv run pytest tests/unit/ -v
 - ボットが Discord サーバーに参加済みか
 - 必要なチャンネル（#memo 、#notifications 、#commands ）が作成済みか
 
-## 📊 テスト結果の確認
+## テスト結果の確認
 
 ```bash
 # 生成されたファイルを確認
@@ -258,7 +258,7 @@ uv run pytest --html=report.html
 open report.html
 ```
 
-## 💡 ヒント
+## ヒント
 
 1. **段階的テスト**: モック→単体テスト→統合テスト→実 API の順で進める
 2. **ログ活用**: `LOG_LEVEL=DEBUG`でより詳細な情報を確認
