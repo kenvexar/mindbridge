@@ -129,13 +129,16 @@ class IntegrationCommands(commands.Cog):
                 },
             },
             "google_calendar": {
-                "enabled": False,
+                "enabled": True,
                 "sync_interval": 1800,  # 30 分間隔
                 "custom_settings": {
                     "google_calendar": {
-                        "calendars": ["primary"],
-                        "sync_past_events": False,
-                        "min_duration_minutes": 15,
+                        "calendars": ["primary"],  # デフォルトはプライマリのみ
+                        "auto_discover_calendars": True,  # 自動検出を有効
+                        "sync_selected_only": True,  # 選択されたカレンダーのみ同期
+                        "sync_past_events": True,
+                        "sync_all_day_events": True,
+                        "min_duration_minutes": 5,
                         "exclude_keywords": [],
                     }
                 },
