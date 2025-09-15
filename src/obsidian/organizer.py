@@ -74,8 +74,11 @@ class VaultOrganizer(LoggerMixin):
                     folder_notes = await self.file_manager.search_notes(
                         folder=folder.value, limit=1000
                     )
-                except Exception:
+                except Exception as e:
                     # フォルダが存在しない場合はスキップ
+                    self.logger.debug(
+                        "Failed to process folder", folder=folder, error=str(e)
+                    )
                     continue
 
                 for note_result in folder_notes:

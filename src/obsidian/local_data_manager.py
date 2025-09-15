@@ -337,7 +337,7 @@ class LocalDataManager(LoggerMixin):
                     for member in tar.getmembers()
                 ]
                 safe_members = [m for m in safe_members if m is not None]
-                tar.extractall(target_path.parent, members=safe_members)
+                tar.extractall(target_path.parent, members=safe_members)  # nosec: B202
 
                 # vault ディレクトリをリネーム
                 extracted_vault = target_path.parent / "vault"
