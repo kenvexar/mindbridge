@@ -5,8 +5,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from src.utils.mixins import LoggerMixin
 
-class TemplateProcessor:
+
+class TemplateProcessor(LoggerMixin):
     """テンプレート変数置換とレンダリング処理"""
 
     async def render_template(
