@@ -180,21 +180,20 @@ Thumbs.db
             self.logger.info("Created .gitignore file")
 
     def _get_authenticated_repo_url(self) -> str:
-        """環境変数を使用した安全な認証 URL 生成"""
+        """トークン埋め込み URL 生成（最も確実な認証方式）"""
         if self.github_repo_url is None:
             raise GitHubSyncError("GitHub repository URL is not configured")
 
-        if self.github_repo_url.startswith("https://github.com/"):
-            # トークンを環境変数として設定（プロセス引数に露出させない）
-            import os
+        if self.github_repo_url.startswith("https://github.com/") and self.github_token:
+            # URL にトークンを直接埋め込む（最も確実な方式）
+            repo_path = self.github_repo_url.replace("https://github.com/", "")
+            authenticated_url = f"https://{self.github_token}@github.com/{repo_path}"
+            self.logger.info("Using token-embedded URL for GitHub authentication")
+            return authenticated_url
 
-            os.environ["GIT_USERNAME"] = "oauth2"
-            os.environ["GIT_PASSWORD"] = str(self.github_token)
-
-            self.logger.info("Git credentials configured via environment variables")
-            return self.github_repo_url
-
-        self.logger.info(f"Using original repo URL (not HTTPS): {self.github_repo_url}")
+        self.logger.info(
+            f"Using original repo URL (not HTTPS or no token): {self.github_repo_url}"
+        )
         return self.github_repo_url
 
     async def sync_to_github(self, commit_message: str | None = None) -> bool:
@@ -384,14 +383,8 @@ Thumbs.db
 
         cmd = ["git", "-C", str(self.vault_path)] + args
 
-        # 環境変数を設定して認証情報を渡す
+        # 環境変数をコピー（シンプルな実装）
         env = os.environ.copy()
-        if self.github_token:
-            env["GIT_USERNAME"] = "oauth2"
-            env["GIT_PASSWORD"] = str(self.github_token)
-            # Git credential helper として環境変数を使用
-            env["GIT_ASKPASS"] = "echo"
-            env["GIT_USERNAME"] = str(self.github_token)
 
         try:
             if capture_output:
