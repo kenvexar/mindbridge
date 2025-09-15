@@ -2,7 +2,7 @@
 Garmin health data caching system
 """
 
-import pickle
+import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -12,7 +12,7 @@ from src.utils.mixins import LoggerMixin
 
 
 class GarminDataCache(LoggerMixin):
-    """Garmin健康データのキャッシュシステム"""
+    """Garmin 健康データのキャッシュシステム"""
 
     def __init__(self, cache_dir: Path, max_age_hours: float = 24.0) -> None:
         """
@@ -34,7 +34,7 @@ class GarminDataCache(LoggerMixin):
 
     def _get_cache_file_path(self, target_date: date) -> Path:
         """指定日付のキャッシュファイルパスを取得"""
-        filename = f"health_data_{target_date.isoformat()}.pkl"
+        filename = f"health_data_{target_date.isoformat()}.json"
         return self.cache_dir / filename
 
     def save_health_data(self, health_data: HealthData) -> bool:
@@ -46,8 +46,16 @@ class GarminDataCache(LoggerMixin):
             health_data.is_cached_data = False  # 最新データとしてマーク
             health_data.cache_age_hours = 0.0
 
-            with open(cache_file, "wb") as f:
-                pickle.dump(health_data, f)
+            with open(cache_file, "w", encoding="utf-8") as f:
+                # Convert HealthData to dict for JSON serialization
+                health_data_dict = health_data.model_dump()
+                # Handle date/datetime serialization
+                health_data_dict["date"] = health_data.date.isoformat()
+                if health_data.retrieved_at:
+                    health_data_dict["retrieved_at"] = (
+                        health_data.retrieved_at.isoformat()
+                    )
+                json.dump(health_data_dict, f, ensure_ascii=False, indent=2)
 
             self.logger.info(
                 "Health data cached successfully",
@@ -91,8 +99,17 @@ class GarminDataCache(LoggerMixin):
                 return None
 
             # キャッシュデータの読み込み
-            with open(cache_file, "rb") as f:
-                health_data: HealthData = pickle.load(f)
+            with open(cache_file, encoding="utf-8") as f:
+                health_data_dict = json.load(f)
+                # Convert date strings back to date objects
+                health_data_dict["date"] = datetime.fromisoformat(
+                    health_data_dict["date"]
+                ).date()
+                if health_data_dict.get("retrieved_at"):
+                    health_data_dict["retrieved_at"] = datetime.fromisoformat(
+                        health_data_dict["retrieved_at"]
+                    )
+                health_data = HealthData(**health_data_dict)
 
             # キャッシュメタデータを更新
             health_data.is_cached_data = True

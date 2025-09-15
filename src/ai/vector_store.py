@@ -18,7 +18,9 @@ try:
 except ImportError:
     # Mock for standalone testing
     class MockSettings:
-        obsidian_vault_path = "/tmp/vault"
+        import tempfile
+
+        obsidian_vault_path = tempfile.gettempdir() + "/vault"
 
     settings = MockSettings()
 
@@ -29,7 +31,7 @@ except ImportError:
     class MockAIProcessor:
         async def generate_embeddings(self, text: str) -> list[float]:
             # 簡単なハッシュベースのダミー埋め込み
-            hash_obj = hashlib.md5(text.encode())
+            hash_obj = hashlib.md5(text.encode(), usedforsecurity=False)
             return [
                 float(int(hash_obj.hexdigest()[i : i + 2], 16)) / 255.0
                 for i in range(0, 32, 2)
@@ -118,8 +120,8 @@ class VectorStore(LoggerMixin):
         初期化
 
         Args:
-            obsidian_file_manager: Obsidianファイルマネージャー
-            ai_processor: AI処理システム（埋め込み生成用）
+            obsidian_file_manager: Obsidian ファイルマネージャー
+            ai_processor: AI 処理システム（埋め込み生成用）
         """
         self.file_manager = obsidian_file_manager or MockObsidianFileManager()
         self.ai_processor = ai_processor or MockAIProcessor()
@@ -156,7 +158,7 @@ class VectorStore(LoggerMixin):
             if not force_rebuild:
                 await self._load_existing_index()
 
-            # Vaultの全ファイルを取得
+            # Vault の全ファイルを取得
             vault_files = await self._get_all_vault_files()
 
             # 新規・更新ファイルの処理
@@ -215,7 +217,7 @@ class VectorStore(LoggerMixin):
             query_embedding = await self._generate_embedding(query_text)
 
             if not query_embedding:
-                # フォールバック: TF-IDF検索
+                # フォールバック: TF-IDF 検索
                 return await self._fallback_tfidf_search(
                     query_text, limit, exclude_files
                 )
@@ -261,7 +263,7 @@ class VectorStore(LoggerMixin):
             self.logger.error(
                 "Failed to search similar notes", error=str(e), exc_info=True
             )
-            # フォールバックとしてTF-IDF検索
+            # フォールバックとして TF-IDF 検索
             return await self._fallback_tfidf_search(
                 query_text, limit, exclude_files or set()
             )
@@ -299,7 +301,9 @@ class VectorStore(LoggerMixin):
                 return False
 
             # コンテンツハッシュを計算
-            content_hash = hashlib.md5(content.encode()).hexdigest()
+            content_hash = hashlib.md5(
+                content.encode(), usedforsecurity=False
+            ).hexdigest()
 
             # 埋め込みデータを作成
             now = datetime.now()
@@ -429,7 +433,7 @@ class VectorStore(LoggerMixin):
             raise
 
     async def _get_all_vault_files(self) -> list[str]:
-        """Vault内の全マークダウンファイルを取得"""
+        """Vault 内の全マークダウンファイルを取得"""
         try:
             settings = get_settings()
             vault_path = Path(settings.obsidian_vault_path)
@@ -464,7 +468,9 @@ class VectorStore(LoggerMixin):
             async with aiofiles.open(full_path, encoding="utf-8") as f:
                 content = await f.read()
 
-            current_hash = hashlib.md5(content.encode()).hexdigest()
+            current_hash = hashlib.md5(
+                content.encode(), usedforsecurity=False
+            ).hexdigest()
             stored_hash = self.embeddings[file_path].content_hash
 
             return current_hash != stored_hash
@@ -495,7 +501,7 @@ class VectorStore(LoggerMixin):
             # タイトルを抽出（ファイル名から）
             title = full_path.stem
 
-            # メタデータを抽出（YAMLフロントマターがあれば）
+            # メタデータを抽出（ YAML フロントマターがあれば）
             metadata = {}
             if content.startswith("---"):
                 try:
@@ -506,8 +512,9 @@ class VectorStore(LoggerMixin):
                         frontmatter = content[3:frontmatter_end]
                         metadata = yaml.safe_load(frontmatter)
                         content = content[frontmatter_end + 3 :].strip()
-                except Exception:
-                    pass
+                except Exception as e:
+                    # YAML parsing failed, keep original content
+                    self.logger.debug("Failed to parse YAML frontmatter", error=str(e))
 
             # 埋め込み生成
             embedding = await self._generate_embedding(content)
@@ -515,7 +522,9 @@ class VectorStore(LoggerMixin):
                 return
 
             # コンテンツハッシュ
-            content_hash = hashlib.md5(content.encode()).hexdigest()
+            content_hash = hashlib.md5(
+                content.encode(), usedforsecurity=False
+            ).hexdigest()
 
             # 埋め込みデータを作成・保存
             now = datetime.now()
@@ -561,7 +570,7 @@ class VectorStore(LoggerMixin):
     async def _generate_embedding(self, text: str) -> list[float] | None:
         """テキストの埋め込みを生成"""
         try:
-            # Gemini APIを使用
+            # Gemini API を使用
             if hasattr(self.ai_processor, "generate_embeddings"):
                 return await self.ai_processor.generate_embeddings(text)
 
@@ -605,7 +614,7 @@ class VectorStore(LoggerMixin):
                         async with aiofiles.open(full_path, encoding="utf-8") as f:
                             content = await f.read()
 
-                        # YAMLフロントマターを除去
+                        # YAML フロントマターを除去
                         if content.startswith("---"):
                             frontmatter_end = content.find("---", 3)
                             if frontmatter_end > 0:
@@ -613,7 +622,13 @@ class VectorStore(LoggerMixin):
 
                         documents.append(content)
                         self.file_paths_index.append(file_path)
-                except Exception:
+                except Exception as e:
+                    # File read error, skip this file
+                    self.logger.debug(
+                        "Failed to read file for TF-IDF",
+                        file_path=file_path,
+                        error=str(e),
+                    )
                     continue
 
             if documents:
@@ -625,7 +640,7 @@ class VectorStore(LoggerMixin):
     async def _fallback_tfidf_search(
         self, query_text: str, limit: int, exclude_files: set[str]
     ) -> list[SemanticSearchResult]:
-        """TF-IDFフォールバック検索"""
+        """TF-IDF フォールバック検索"""
         try:
             if self.tfidf_matrix is None or not self.file_paths_index:
                 return []
@@ -680,7 +695,7 @@ class VectorStore(LoggerMixin):
             async with aiofiles.open(full_path, encoding="utf-8") as f:
                 content = await f.read()
 
-            # YAMLフロントマターを除去
+            # YAML フロントマターを除去
             if content.startswith("---"):
                 frontmatter_end = content.find("---", 3)
                 if frontmatter_end > 0:

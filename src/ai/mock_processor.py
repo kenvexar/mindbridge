@@ -63,7 +63,7 @@ class MockAIProcessor(LoggerMixin):
         await asyncio.sleep(0.1)
 
         # Generate deterministic but varied responses based on content hash
-        content_hash = hashlib.md5(text.encode()).hexdigest()
+        content_hash = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
         hash_int = int(content_hash[:8], 16)
 
         # Use hash to select consistent responses for same content
@@ -74,7 +74,7 @@ class MockAIProcessor(LoggerMixin):
         # Create mock results
         summary = SummaryResult(
             summary=self.mock_summaries[summary_idx],
-            key_points=["重要なポイント1", "重要なポイント2"],
+            key_points=["重要なポイント 1", "重要なポイント 2"],
             confidence_score=0.85,
             processing_time_ms=100,
             model_used="mock-gemini-pro",
@@ -125,7 +125,7 @@ class MockAIProcessor(LoggerMixin):
 
     def generate_content_hash(self, text: str) -> str:
         """Generate content hash for caching"""
-        return hashlib.md5(text.encode()).hexdigest()
+        return hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
 
     def is_text_processable(self, text: str) -> bool:
         """Check if text is suitable for processing"""
@@ -137,7 +137,7 @@ class MockAIProcessor(LoggerMixin):
 
         self.logger.info("Mock URL processing", url=url)
 
-        return f"模擬URL要約: {url} の内容です。重要な情報が含まれています。"
+        return f"模擬 URL 要約: {url} の内容です。重要な情報が含まれています。"
 
     async def analyze_notes_relationship(
         self, text: str, existing_notes: list[str]
@@ -146,10 +146,12 @@ class MockAIProcessor(LoggerMixin):
         await asyncio.sleep(0.1)
 
         # Return some mock related notes
-        mock_relations = ["[[関連ノート1]]", "[[類似トピック]]", "[[参考資料]]"]
+        mock_relations = ["[[関連ノート 1]]", "[[類似トピック]]", "[[参考資料]]"]
 
         # Use text hash to determine number of relations
-        hash_val = int(hashlib.md5(text.encode()).hexdigest()[:8], 16)
+        hash_val = int(
+            hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()[:8], 16
+        )
         num_relations = (hash_val % 3) + 1
 
         return mock_relations[:num_relations]
@@ -179,7 +181,7 @@ class MockAIProcessor(LoggerMixin):
     async def summarize_url_content(self, content: str, url: str) -> str:
         """Mock URL content summarization"""
         await asyncio.sleep(0.1)  # Simulate processing
-        return f"URL要約（モック）: {url[:50]}の内容についてのサマリーです。"
+        return f"URL 要約（モック）: {url[:50]}の内容についてのサマリーです。"
 
     async def generate_internal_links(
         self, content: str, related_notes: list[dict[str, Any]]
