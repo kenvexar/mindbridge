@@ -229,6 +229,7 @@ class HealthServer:
             return HealthCheckHandler(*args, bot_instance=self.bot_instance, **kwargs)
 
         try:
+            # nosec: B104 - Cloud Run requires binding to all interfaces for health checks
             self.server = HTTPServer(("0.0.0.0", self.port), handler)
             self.thread = Thread(target=self.server.serve_forever, daemon=True)
             self.thread.start()

@@ -4,7 +4,7 @@ GitHub-based Obsidian vault synchronization system
 
 import asyncio
 import os
-import subprocess
+import subprocess  # nosec: B404 - subprocess used safely for git operations with validation
 from datetime import datetime
 from pathlib import Path
 from typing import Any

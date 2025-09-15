@@ -5,6 +5,7 @@
 
 import asyncio
 import json
+import os
 import shutil
 import tarfile
 import zipfile
@@ -202,8 +203,9 @@ class LocalDataManager(LoggerMixin):
                 frontmatter_data = yaml.safe_load(parts[1]) or {}
                 main_content = parts[2]
                 return frontmatter_data, main_content
-        except yaml.YAMLError:
-            pass
+        except yaml.YAMLError as e:
+            # YAML parsing failed, return empty frontmatter
+            self.logger.debug("Failed to parse YAML frontmatter", error=str(e))
 
         return {}, content
 
@@ -318,9 +320,24 @@ class LocalDataManager(LoggerMixin):
                 )
                 shutil.move(str(target_path), str(temp_backup))
 
-            # スナップショットを展開
+            # スナップショットを安全に展開
             with tarfile.open(snapshot_file, "r:gz") as tar:
-                tar.extractall(target_path.parent)
+                # セキュリティ: 安全なメンバーのみ展開
+                def safe_extract(tarinfo, path):
+                    """Safe extraction that prevents path traversal attacks"""
+                    if tarinfo.isfile() or tarinfo.isdir():
+                        # パス検証: 相対パスまたは '..' が含まれる場合は拒否
+                        if os.path.isabs(tarinfo.name) or ".." in tarinfo.name:
+                            return None
+                        return tarinfo
+                    return None
+
+                safe_members = [
+                    safe_extract(member, target_path.parent)
+                    for member in tar.getmembers()
+                ]
+                safe_members = [m for m in safe_members if m is not None]
+                tar.extractall(target_path.parent, members=safe_members)
 
                 # vault ディレクトリをリネーム
                 extracted_vault = target_path.parent / "vault"
@@ -559,8 +576,9 @@ class LocalDataManager(LoggerMixin):
                 async with aiofiles.open(self.config_file, encoding="utf-8") as f:
                     content = await f.read()
                     return json.loads(content)
-        except Exception:
-            pass
+        except Exception as e:
+            # JSON loading failed, return empty dict
+            self.logger.debug("Failed to load JSON metadata", error=str(e))
 
         return {}
 

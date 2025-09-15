@@ -293,7 +293,8 @@ class ExpenseManager:
             if record_type == "expense":
                 from src.finance.models import ExpenseRecord
 
-                assert isinstance(record, ExpenseRecord)
+                if not isinstance(record, ExpenseRecord):
+                    raise TypeError(f"Expected ExpenseRecord, got {type(record)}")
                 content = f"- **支出**: {record.description} - ¥{record.amount:,} ({record.category.value})"
                 if record.notes:
                     content += f" - {record.notes}"
