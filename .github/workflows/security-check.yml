@@ -31,7 +31,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --dev --group security
 
       - name: Security - Bandit (Python Security Linter)
         run: |
