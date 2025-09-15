@@ -482,9 +482,9 @@ class TemplateProcessor:
         try:
             result = self._evaluate_complex_condition(condition, context)
             return content if result else ""
-        except Exception:
+        except Exception as e:
             # Fallback to simple condition evaluation
-            pass
+            self.logger.debug("Failed to evaluate complex condition", error=str(e))
 
         if " == " in condition:
             left, right = condition.split(" == ", 1)

@@ -18,7 +18,7 @@ class SecurityEventType(Enum):
     """Types of security events to track"""
 
     LOGIN_ATTEMPT = "login_attempt"
-    SECRET_ACCESS = "secret_access"
+    SECRET_ACCESS = "secret_access"  # nosec: B105
     CONFIG_CHANGE = "config_change"
     COMMAND_EXECUTION = "command_execution"
     FILE_ACCESS = "file_access"

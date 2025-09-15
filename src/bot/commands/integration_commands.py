@@ -825,8 +825,7 @@ class IntegrationCommands(commands.Cog):
                 return
 
             # 認証コードをアクセストークンに交換
-            # nosec: B105 - This is Google's official OAuth2 token endpoint URL, not a password
-            token_url = "https://oauth2.googleapis.com/token"
+            token_url = "https://oauth2.googleapis.com/token"  # nosec: B105
             token_data = {
                 "client_id": client_id if client_id else "",
                 "client_secret": client_secret if client_secret else "",
