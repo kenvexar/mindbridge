@@ -68,13 +68,42 @@ class GoogleCalendarIntegration(BaseIntegration):
 
         # Google Calendar 固有設定
         calendar_settings = config.custom_settings.get("google_calendar", {})
-        self.calendars_to_sync = calendar_settings.get("calendars", ["primary"])
+
+        # 環境変数から設定を読み込み（設定ファイルを上書き）
+        auto_discover = (
+            os.getenv("GOOGLE_CALENDAR_AUTO_DISCOVER", "false").lower() == "true"
+        )
+        sync_selected_only = (
+            os.getenv("GOOGLE_CALENDAR_SYNC_SELECTED_ONLY", "false").lower() == "true"
+        )
+        additional_ids = os.getenv("GOOGLE_CALENDAR_ADDITIONAL_IDS", "")
+
+        # 基本設定
+        base_calendars = calendar_settings.get("calendars", ["primary"])
+
+        # 環境変数で追加されたカレンダー ID があれば追加
+        if additional_ids.strip():
+            additional_calendar_list = [
+                cal.strip() for cal in additional_ids.split(",") if cal.strip()
+            ]
+            base_calendars.extend(additional_calendar_list)
+
+        self.calendars_to_sync = list(set(base_calendars))  # 重複除去
+        self.auto_discover_calendars = calendar_settings.get(
+            "auto_discover_calendars", auto_discover
+        )
+        self.sync_selected_only = calendar_settings.get(
+            "sync_selected_only", sync_selected_only
+        )
         self.sync_past_events = calendar_settings.get("sync_past_events", False)
         self.sync_all_day_events = calendar_settings.get("sync_all_day_events", True)
         self.event_duration_threshold = calendar_settings.get(
             "min_duration_minutes", 15
         )
         self.exclude_keywords = calendar_settings.get("exclude_keywords", [])
+
+        # 検出されたカレンダーのキャッシュ
+        self.discovered_calendars: list[str] = []
 
         # イベントカテゴリマッピング
         self.event_category_mapping = {
@@ -243,7 +272,33 @@ class GoogleCalendarIntegration(BaseIntegration):
 
                     # カレンダー情報を取得・キャッシュ
                     calendar_data = await response.json()
-                    await self._cache_calendar_info(calendar_data.get("items", []))
+                    calendars = calendar_data.get("items", [])
+
+                    self.logger.info(
+                        "カレンダー一覧取得", calendar_count=len(calendars)
+                    )
+
+                    # カレンダー情報の詳細ログ
+                    for cal in calendars[:5]:  # 最初の5つのカレンダーをログ出力
+                        self.logger.debug(
+                            "取得カレンダー詳細",
+                            calendar_id=cal.get("id", ""),
+                            summary=cal.get("summary", ""),
+                            primary=cal.get("primary", False),
+                            selected=cal.get("selected", False),
+                            access_role=cal.get("accessRole", ""),
+                        )
+
+                    await self._cache_calendar_info(calendars)
+
+                    # キャッシュ後の確認
+                    calendar_info = self.config.custom_settings.get(
+                        "google_calendar", {}
+                    ).get("calendar_info", {})
+                    self.logger.info(
+                        "カレンダー情報キャッシュ完了", cached_count=len(calendar_info)
+                    )
+
                     return True
 
                 elif response.status == 401:
@@ -325,6 +380,100 @@ class GoogleCalendarIntegration(BaseIntegration):
             self.config.custom_settings["google_calendar"] = {}
         self.config.custom_settings["google_calendar"]["calendar_info"] = calendar_info
 
+        # 自動検出が有効な場合、カレンダー一覧を更新
+        if self.auto_discover_calendars:
+            await self._discover_and_update_calendars(calendars)
+
+    async def _discover_and_update_calendars(self, calendars: list[dict[str, Any]]):
+        """カレンダー自動検出と同期対象更新"""
+        discovered_calendar_ids = []
+
+        for cal in calendars:
+            cal_id = cal["id"]
+            access_role = cal.get("accessRole", "")
+            selected = cal.get("selected", False)
+            summary = cal.get("summary", "")
+
+            # アクセス権限があり、かつ以下の条件を満たすカレンダーを自動検出
+            should_include = False
+
+            if self.sync_selected_only:
+                # 選択されたカレンダーのみ
+                should_include = selected
+            else:
+                # 読み取り権限があるカレンダー（owner, writer のみ - reader は除外）
+                should_include = access_role in ["owner", "writer"]
+
+            # 除外条件チェック
+            if should_include:
+                # システム系カレンダーとホリデーカレンダーを除外
+                exclude_patterns = [
+                    "#contacts@",
+                    "@import.calendar.google.com",
+                    "#holiday@",  # 祝日カレンダー全般
+                    "japanese#holiday@",  # 日本の祝日カレンダー
+                ]
+
+                exclude_names = [
+                    "日本の祝日",
+                    "Holidays in Japan",
+                    "祝日",
+                ]
+
+                # IDパターンでの除外チェック
+                for pattern in exclude_patterns:
+                    if pattern in cal_id:
+                        should_include = False
+                        self.logger.debug(
+                            f"カレンダー除外 (IDパターン): {summary} ({cal_id})",
+                            pattern=pattern,
+                            calendar_id=cal_id,
+                        )
+                        break
+
+                # 名前パターンでの除外チェック
+                if should_include:
+                    for name_pattern in exclude_names:
+                        if name_pattern in summary:
+                            should_include = False
+                            self.logger.debug(
+                                f"カレンダー除外 (名前パターン): {summary} ({cal_id})",
+                                pattern=name_pattern,
+                                calendar_id=cal_id,
+                            )
+                            break
+
+            if should_include:
+                discovered_calendar_ids.append(cal_id)
+                self.logger.info(
+                    f"カレンダー自動検出: {summary} ({cal_id})",
+                    calendar_id=cal_id,
+                    access_role=access_role,
+                    selected=selected,
+                )
+            else:
+                self.logger.debug(
+                    f"カレンダースキップ: {summary} ({cal_id})",
+                    calendar_id=cal_id,
+                    access_role=access_role,
+                    selected=selected,
+                    reason="除外条件に該当",
+                )
+
+        # 検出されたカレンダー一覧を更新
+        self.discovered_calendars = discovered_calendar_ids
+
+        # 明示的に指定されたカレンダーと統合
+        all_calendars = list(set(self.calendars_to_sync + discovered_calendar_ids))
+
+        self.logger.info(
+            f"同期対象カレンダー: {len(all_calendars)}件 "
+            f"(設定: {len(self.calendars_to_sync)}件, 自動検出: {len(discovered_calendar_ids)}件)"
+        )
+
+        # 動的に同期対象を更新
+        self.calendars_to_sync = all_calendars
+
     async def test_connection(self) -> bool:
         """接続テスト"""
         if not self._authenticated:
@@ -365,6 +514,10 @@ class GoogleCalendarIntegration(BaseIntegration):
         synced_data: list[IntegrationData] = []
 
         try:
+            # セッションが存在しない場合は作成
+            if self.session is None:
+                await self.authenticate()
+
             # デフォルトで過去 1 日から今後 7 日間
             if not start_date:
                 start_date = datetime.now() - timedelta(
@@ -423,6 +576,10 @@ class GoogleCalendarIntegration(BaseIntegration):
             self.add_error(f"Google Calendar データ同期でエラー: {str(e)}")
             self.update_metrics(health_score=max(0.0, self.metrics.health_score - 10.0))
             return []
+        finally:
+            # セッションのクリーンアップ（一時的なテスト用セッションの場合）
+            # 注意: 通常の使用では、__aexit__ でセッションをクローズする
+            pass
 
     async def _sync_calendar_events(
         self, calendar_id: str, start_date: datetime, end_date: datetime
@@ -454,14 +611,33 @@ class GoogleCalendarIntegration(BaseIntegration):
             async with self.session.get(
                 url, headers=headers, params=params
             ) as response:
-                if response.status != 200:
+                calendar_name = self._get_calendar_name(calendar_id)
+
+                if response.status == 404:
+                    # 404エラーは読み取り専用カレンダーやアクセス権限がない場合によく発生
+                    # エラーレベルではなく警告レベルでログ出力し、処理を続行
+                    self.logger.warning(
+                        f"Google Calendar カレンダーにアクセスできません ({calendar_name}): HTTP 404 - スキップします",
+                        calendar_id=calendar_id,
+                        calendar_name=calendar_name,
+                    )
+                    return events_data
+                elif response.status == 403:
+                    # 権限エラー
+                    self.logger.warning(
+                        f"Google Calendar カレンダーへのアクセス権限がありません ({calendar_name}): HTTP 403 - スキップします",
+                        calendar_id=calendar_id,
+                        calendar_name=calendar_name,
+                    )
+                    return events_data
+                elif response.status != 200:
+                    # その他のエラー
                     self.add_error(
-                        f"Google Calendar イベント取得失敗 ({calendar_id}): HTTP {response.status}"
+                        f"Google Calendar イベント取得失敗 ({calendar_name}): HTTP {response.status}"
                     )
                     return events_data
 
                 events_json = await response.json()
-                calendar_name = self._get_calendar_name(calendar_id)
 
                 for event in events_json.get("items", []):
                     try:
@@ -485,13 +661,18 @@ class GoogleCalendarIntegration(BaseIntegration):
                             if duration_minutes < self.event_duration_threshold:
                                 continue
 
+                        # raw_data にカレンダー情報を追加
+                        enhanced_raw_data = event.copy()
+                        enhanced_raw_data["calendar_id"] = calendar_id
+                        enhanced_raw_data["calendar_name"] = calendar_name
+
                         # IntegrationData に変換
                         integration_data = IntegrationData(
                             integration_name="google_calendar",
                             external_id=event_data.event_id,
                             data_type="calendar_event",
                             timestamp=event_data.start_time,
-                            raw_data=event,
+                            raw_data=enhanced_raw_data,
                             processed_data=event_data.model_dump(),
                             confidence_score=0.9,
                             data_quality=IntegrationDataProcessor.calculate_data_quality(
@@ -509,13 +690,19 @@ class GoogleCalendarIntegration(BaseIntegration):
                         )
                         continue
 
-                self.logger.info(
-                    f"Google Calendar イベント取得完了 ({calendar_name}): {len(events_data)}件"
-                )
+                if len(events_data) > 0:
+                    self.logger.info(
+                        f"Google Calendar イベント取得完了 ({calendar_name}): {len(events_data)}件"
+                    )
+                else:
+                    self.logger.debug(
+                        f"Google Calendar イベントなし ({calendar_name}): 指定期間にイベントが見つかりません"
+                    )
 
         except Exception as e:
+            calendar_name = self._get_calendar_name(calendar_id)
             self.add_error(
-                f"Google Calendar イベント同期でエラー ({calendar_id}): {str(e)}"
+                f"Google Calendar イベント同期でエラー ({calendar_name}): {str(e)}"
             )
 
         return events_data
@@ -593,7 +780,44 @@ class GoogleCalendarIntegration(BaseIntegration):
         calendar_info = self.config.custom_settings.get("google_calendar", {}).get(
             "calendar_info", {}
         )
-        return calendar_info.get(calendar_id, {}).get("name", calendar_id)
+
+        # primary カレンダーの場合、実際のプライマリカレンダーIDを探す
+        if calendar_id == "primary":
+            for cal_id, info in calendar_info.items():
+                if info.get("primary", False):
+                    calendar_name = info.get("name", cal_id)
+                    self.logger.debug(
+                        "プライマリカレンダー名解決",
+                        primary_id=cal_id,
+                        name=calendar_name,
+                    )
+                    return calendar_name
+            # プライマリカレンダーが見つからない場合
+            return "primary"
+
+        # 通常のカレンダーID
+        cached_info = calendar_info.get(calendar_id, {})
+        calendar_name = cached_info.get("name", "")
+
+        # デバッグ情報をログに出力
+        self.logger.debug(
+            "カレンダー名取得",
+            calendar_id=calendar_id,
+            cached_name=calendar_name,
+            has_cache=bool(cached_info),
+            total_cached_calendars=len(calendar_info),
+        )
+
+        # カレンダー名が取得できない場合の fallback
+        if not calendar_name:
+            if "@" in calendar_id:
+                # email形式の場合、@より前の部分を使用
+                return calendar_id.split("@")[0]
+            else:
+                # その他の場合、最初の20文字を使用
+                return calendar_id[:20] + ("..." if len(calendar_id) > 20 else "")
+
+        return calendar_name
 
     def _should_exclude_event(self, summary: str, description: str) -> bool:
         """イベント除外判定"""
@@ -676,8 +900,10 @@ class GoogleCalendarIntegration(BaseIntegration):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.session:
+        """非同期コンテキストマネージャーの終了処理"""
+        if self.session and not self.session.closed:
             await self.session.close()
+            self.session = None
 
     def convert_to_lifelog_entry(
         self, integration_data: IntegrationData
