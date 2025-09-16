@@ -11,20 +11,20 @@ repos:
       - id: debug-statements
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.12
+    rev: v0.13.0
     hooks:
-      # ローカル開発では自動整形・修正（commit段階）
+      # ローカル開発では自動整形・修正（ commit 段階）
       - id: ruff-format
         stages: [pre-commit]
       - id: ruff
         args: [--fix]
         stages: [pre-commit]
-      # CI/Pushでは検査のみ（fixしない）
+      # CI/Push では検査のみ（ fix しない）
       - id: ruff
         name: ruff (check on push)
         stages: [pre-push]
 
-  # mypyはuv環境を利用（追加依存の記述を撤廃）
+  # mypy は uv 環境を利用（追加依存の記述を撤廃）
   - repo: local
     hooks:
       - id: mypy
@@ -44,7 +44,7 @@ repos:
         files: ^scripts/(.*\.sh)$
         args: ["--severity=warning", "--external-sources"]
 
-  # 機密検出はpush段階のみ（重さを回避）
+  # 機密検出は push 段階のみ（重さを回避）
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.28.0
     hooks:
