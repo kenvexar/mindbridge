@@ -4,6 +4,8 @@ Simple admin authentication for personal use.
 """
 
 import os
+from collections.abc import Callable
+from typing import Any
 
 import discord
 import structlog
@@ -14,7 +16,7 @@ logger = structlog.get_logger(__name__)
 class SimpleAdminAuth:
     """個人使用向けシンプル管理者権限システム"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # 環境変数から自分のユーザー ID を取得（オプション）
         owner_id_str = os.getenv("DISCORD_OWNER_ID", "")
         self.owner_id: int | None = int(owner_id_str) if owner_id_str.strip() else None
@@ -74,10 +76,12 @@ def get_simple_admin() -> SimpleAdminAuth:
     return _simple_admin
 
 
-def admin_required(func):
+def admin_required(func: Callable[..., Any]) -> Callable[..., Any]:
     """管理者権限が必要なコマンドのデコレータ（個人使用向け）"""
 
-    async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
+    async def wrapper(
+        self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any
+    ) -> Any:
         admin_auth = get_simple_admin()
 
         if not await admin_auth.check_admin_command(interaction):
