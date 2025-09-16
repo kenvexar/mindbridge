@@ -1,44 +1,118 @@
-# 簡単デプロイメントガイド
+# MindBridge デプロイメントガイド
 
-MindBridge をシンプルに運用する手順。
+MindBridge の各種デプロイメント方法とその運用手順。
 
 ## 目次
 
-1. [推奨デプロイメント方法](#推奨デプロイメント方法)
+1. [Google Cloud Run （推奨）](#google-cloud-run-推奨)
 2. [ローカル Docker 運用](#ローカル-docker-運用)
 3. [VPS 運用](#vps-運用)
 4. [環境変数設定](#環境変数設定)
 5. [バックアップとメンテナンス](#バックアップとメンテナンス)
 
-## 推奨デプロイメント方法
+## Google Cloud Run （推奨）
 
-以下の順序で検討することを推奨：
+**月額約 8 円**で本格的な AI 知識管理システムを運用可能。
 
-```
-1. Google Cloud Run （無料、自動デプロイスクリプト利用）最推奨
-2. ローカル Docker 運用（開発・テスト用）
-3. VPS での Docker 運用
-4. ローカルマシンでの直接実行
-```
+### 費用概算 (無料枠適用後)
 
-### Google Cloud Run （推奨）
+| サービス | 無料枠 | 月額費用 |
+|---------|-------|----------|
+| Cloud Run | 200 万リクエスト/月 | **$0** |
+| Artifact Registry | 0.5GB | **$0** |
+| Cloud Build | 120 分/日 | **$0** |
+| Secret Manager | 6 シークレット | **$0.06** |
+| Gemini API | 1,500 回/日 | **$0** |
+| Speech-to-Text | 60 分/月 | **$0** |
+| **合計** | | **約$0.06/月 (8 円)** |
 
-最も簡単な本番運用。まずは以下のガイドを参照：
-
-- Cloud Run 詳細手順: `docs/operations/cloud-run.md`
-
-クイック実行コマンド（参考）：
+### クイックデプロイ（最短 5 分）
 
 ```bash
+# リポジトリをクローン
+git clone https://github.com/kenvexar/mindbridge.git
+cd mindbridge
+
+# 完全自動デプロイ（音声認識・健康データ統合含む）
 ./scripts/manage.sh full-deploy YOUR_PROJECT_ID --with-optional
+
+# 基本機能のみデプロイ
+./scripts/manage.sh full-deploy YOUR_PROJECT_ID
 ```
+
+主な特徴：
+- Google Cloud 環境の自動セットアップ
+- Speech-to-Text 認証情報の自動生成
+- Garmin Connect 統合（ OAuth 不要）
+- GitHub 同期によるデータ永続化
+- エラー処理とリトライ機能
+
+### 事前準備
+
+**1. GitHub リポジトリの準備**
+
+```bash
+# 1) プライベートリポジトリを作成（例: obsidian-vault ）
+# 2) ローカルの Obsidian Vault をプッシュ
+cd /path/to/your/obsidian/vault
+git init && git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/username/obsidian-vault.git
+git push -u origin main
+```
+
+**2. Google Cloud CLI のセットアップ**
+
+```bash
+# Google Cloud CLI のインストール
+curl https://sdk.cloud.google.com | bash
+exec -l $SHELL
+
+# 認証
+gcloud auth login
+gcloud auth application-default login
+
+# プロジェクト作成
+export PROJECT_ID="mindbridge-$(date +%s)"
+gcloud projects create $PROJECT_ID
+gcloud config set project $PROJECT_ID
+
+# 請求アカウントの関連付け (必須)
+BILLING_ACCOUNT=$(gcloud billing accounts list --filter="open=true" --format="value(name)" --limit=1)
+gcloud billing projects link $PROJECT_ID --billing-account=$BILLING_ACCOUNT
+```
+
+### 詳細手順
+
+推奨は自動デプロイスクリプトですが、手動実行の場合：
+
+**Step 1: 環境設定**
+```bash
+./scripts/manage.sh env YOUR_PROJECT_ID
+```
+
+**Step 2: シークレット設定**
+```bash
+./scripts/manage.sh secrets YOUR_PROJECT_ID --with-optional
+```
+
+**Step 3: デプロイ実行**
+```bash
+./scripts/manage.sh deploy YOUR_PROJECT_ID
+```
+
+### 監視・費用管理
+
+- **Cloud Console**: https://console.cloud.google.com/run
+- **予算設定**: 50%/80%/100% のしきい値通知を設定
+- **ログ確認**: `gcloud run services logs read mindbridge --region=us-central1`
 
 ### 基本原則
 
-1. **シンプルさ重視**: 複雑な設定は避ける
-2. **環境変数管理**: .env ファイルで設定を一元管理
-3. **定期バックアップ**: Obsidian ボルトの定期バックアップ
-4. **ログ確認**: 問題発生時のログチェック
+1. **無料枠活用**: 月額約 8 円での運用
+2. **自動スケール**: アイドル時は費用ゼロ
+3. **安全管理**: Secret Manager による認証情報保護
+4. **永続化**: GitHub 同期による Vault データ保護
 
 ## ローカル Docker 運用
 

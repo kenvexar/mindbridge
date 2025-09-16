@@ -206,17 +206,48 @@ MindBridge は AI を使用して `#memo` に投稿された全てのコンテ�
 ### 家計管理
 
 ```bash
-/add_expense amount:1500 description:"本の購入" category:"教育"
-/expense_report period:monthly           # 月次支出レポート
-/add_subscription name:"Netflix" amount:1200 billing_date:15
+# 支出記録
+/expense_add amount:1500 description:"本の購入" category:"education"
+/expense_add amount:800 description:"コーヒー" category:"food" notes:"カフェで作業"
+
+# 収入記録
+/income_add amount:50000 description:"給与"
+/income_add amount:3000 description:"副業" notes:"フリーランス案件"
+
+# 支出履歴
+/expense_list                            # 過去 30 日の支出一覧
+/expense_list category:"food" days:7     # 食費の過去 7 日分
+
+# 定期購入管理
+/subscription_add name:"Netflix" amount:1490 frequency:"monthly"
+/subscription_add name:"Adobe CC" amount:6248 frequency:"monthly" category:"ソフトウェア"
+/subscription_list                       # アクティブな定期購入一覧
+
+# 家計サマリー
+/finance_summary                         # 過去 30 日の財務状況
+/finance_summary days:90                 # 過去 90 日の財務状況
 ```
 
 ### タスク管理
 
 ```bash
-/add_task title:"機能実装" priority:high due_date:"2025-01-20"
-/list_tasks status:pending              # 未完了タスクを一覧
-/complete_task task_id:123 notes:"実装完了"
+# タスク作成
+/task_add title:"機能実装" priority:"high" due_date:"2025-01-20"
+/task_add title:"資料作成" project:"WebApp" estimated_hours:3
+/task_add title:"レビュー" tags:"開発,コードレビュー"
+
+# タスク一覧・フィルタ
+/task_list                               # 全アクティブタスク
+/task_list status:"in_progress" priority:"high"
+/task_list project:"WebApp" limit:5
+
+# タスク管理
+/task_progress task_id:"abc12345" progress:50 notes:"API 実装完了"
+/task_done task_id:"abc12345" actual_hours:2.5 notes:"予定より早く完了"
+/task_delete task_id:"abc12345" confirm:"DELETE"
+
+# ヘルプ
+/task_help                               # タスク管理機能の詳細ヘルプ
 ```
 
 ## Obsidian 統合
