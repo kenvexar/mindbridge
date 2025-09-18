@@ -280,3 +280,6 @@ docker-compose.override.yml
 
 # Local GCP credentials (do not commit)
 .config/
+
+# Mise (development tool configuration)
+mise.toml
