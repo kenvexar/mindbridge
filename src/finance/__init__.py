@@ -1,6 +1,6 @@
 """Finance management module for tracking subscriptions, expenses, and budget."""
 
-from src.bot.commands import FinanceCommands, setup_finance_commands
+# Removed circular import: FinanceCommands imports from this module
 from src.finance.budget_manager import BudgetManager
 from src.finance.expense_manager import ExpenseManager
 from src.finance.message_handler import FinanceMessageHandler
@@ -33,6 +33,4 @@ __all__ = [
     "FinanceReportGenerator",
     "FinanceMessageHandler",
     "FinanceReminderSystem",
-    "FinanceCommands",
-    "setup_finance_commands",
 ]

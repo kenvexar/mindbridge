@@ -295,6 +295,33 @@ class DiscordBot(LoggerMixin):
             else:
                 await ctx.send(f"❌ コマンドの実行中にエラーが発生しました: {error}")
 
+        @self.bot.tree.error
+        async def on_app_command_error(
+            interaction: discord.Interaction, error: discord.app_commands.AppCommandError
+        ) -> None:
+            """Application command (slash command) error handler"""
+            self.logger.error(f"Application command error: {error}", exc_info=True)
+            self.system_metrics.add_error(
+                {
+                    "type": "app_command_error",
+                    "command": interaction.command.name if interaction.command else "unknown",
+                    "error": str(error),
+                    "user": str(interaction.user),
+                }
+            )
+
+            try:
+                if interaction.response.is_done():
+                    await interaction.followup.send(
+                        f"❌ コマンドの実行中にエラーが発生しました: {error}", ephemeral=True
+                    )
+                else:
+                    await interaction.response.send_message(
+                        f"❌ コマンドの実行中にエラーが発生しました: {error}", ephemeral=True
+                    )
+            except Exception as e:
+                self.logger.error(f"Failed to send error response: {e}")
+
     async def run_async(self) -> None:
         """Run the bot asynchronously"""
         try:
