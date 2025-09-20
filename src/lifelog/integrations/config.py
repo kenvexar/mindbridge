@@ -77,7 +77,7 @@ class IntegrationSettings(BaseModel):
     """外部連携設定"""
 
     integration_name: str = Field(..., description="連携名")
-    enabled: bool = Field(default=False, description="有効/無効")
+    enabled: bool = Field(default=True, description="有効/無効")
 
     # 同期設定
     sync_enabled: bool = Field(default=True, description="自動同期有効")

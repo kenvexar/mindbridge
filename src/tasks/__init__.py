@@ -1,6 +1,6 @@
 """Task management module for productivity tracking and scheduling."""
 
-from src.bot.commands import TaskCommands, setup_task_commands
+# Removed circular import: TaskCommands imports from this module
 from src.tasks.models import (
     Schedule,
     ScheduleType,
@@ -25,6 +25,4 @@ __all__ = [
     "ScheduleManager",
     "TaskReminderSystem",
     "TaskReportGenerator",
-    "TaskCommands",
-    "setup_task_commands",
 ]

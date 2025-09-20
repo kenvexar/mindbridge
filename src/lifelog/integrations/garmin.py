@@ -499,10 +499,11 @@ class GarminIntegration(BaseIntegration):
         return {}
 
     async def _get_daily_sleep(self, date_str: str) -> dict[str, Any]:
-        """日別睡眠データ取得"""
+        """日別睡眠データ取得 - wellness summaryから取得"""
         try:
-            url = f"{self.base_url}/modern/proxy/wellness-service/wellness/dailySleepData/{self._get_user_uuid()}"
-            params = {"date": date_str}
+            # まずwellnessサマリーから基本的な睡眠データを取得
+            url = f"{self.base_url}/modern/proxy/usersummary-service/usersummary/daily/{self._get_user_uuid()}"
+            params = {"calendarDate": date_str}
             headers = {"Authorization": f"Bearer {self.config.access_token}"}
 
             if self.session is None:
@@ -515,26 +516,59 @@ class GarminIntegration(BaseIntegration):
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    if data.get("dailySleepDTO"):
-                        sleep_data = data["dailySleepDTO"]
-                        return {
-                            "sleep_start_time": IntegrationDataProcessor.normalize_timestamp(
-                                sleep_data.get("sleepStartTimestampLocal")
-                            )
-                            if sleep_data.get("sleepStartTimestampLocal")
-                            else None,
-                            "sleep_end_time": IntegrationDataProcessor.normalize_timestamp(
-                                sleep_data.get("sleepEndTimestampLocal")
-                            )
-                            if sleep_data.get("sleepEndTimestampLocal")
-                            else None,
-                            "sleep_duration": sleep_data.get("sleepTimeSeconds", 0)
-                            // 60,  # 分に変換
-                            "deep_sleep": sleep_data.get("deepSleepSeconds", 0) // 60,
-                            "light_sleep": sleep_data.get("lightSleepSeconds", 0) // 60,
-                            "rem_sleep": sleep_data.get("remSleepSeconds", 0) // 60,
-                            "sleep_score": sleep_data.get("overallSleepScore"),
-                        }
+                    
+                    # wellness summaryから睡眠データを抽出
+                    sleeping_seconds = data.get("sleepingSeconds", 0)
+                    measurable_sleep = data.get("measurableAsleepDuration", 0)
+                    body_battery_sleep = data.get("bodyBatteryDuringSleep", 0)
+                    
+                    # 詳細睡眠データも試行
+                    detailed_sleep = {}
+                    try:
+                        sleep_url = f"{self.base_url}/modern/proxy/wellness-service/wellness/dailySleepData/{self._get_user_uuid()}"
+                        sleep_params = {"date": date_str}
+                        
+                        async with self.session.get(
+                            sleep_url, headers=headers, params=sleep_params
+                        ) as sleep_response:
+                            if sleep_response.status == 200:
+                                sleep_data = await sleep_response.json()
+                                if sleep_data.get("dailySleepDTO"):
+                                    sleep_dto = sleep_data["dailySleepDTO"]
+                                    detailed_sleep = {
+                                        "sleep_start_time": IntegrationDataProcessor.normalize_timestamp(
+                                            sleep_dto.get("sleepStartTimestampLocal")
+                                        ) if sleep_dto.get("sleepStartTimestampLocal") else None,
+                                        "sleep_end_time": IntegrationDataProcessor.normalize_timestamp(
+                                            sleep_dto.get("sleepEndTimestampLocal")
+                                        ) if sleep_dto.get("sleepEndTimestampLocal") else None,
+                                        "deep_sleep": sleep_dto.get("deepSleepSeconds", 0) // 60,
+                                        "light_sleep": sleep_dto.get("lightSleepSeconds", 0) // 60,
+                                        "rem_sleep": sleep_dto.get("remSleepSeconds", 0) // 60,
+                                        "sleep_score": sleep_dto.get("overallSleepScore"),
+                                    }
+                    except Exception as e:
+                        self.logger.debug(f"詳細睡眠データ取得エラー {date_str}: {str(e)}")
+                    
+                    # 基本データと詳細データを統合
+                    result = {
+                        "sleep_duration": sleeping_seconds // 60 if sleeping_seconds > 0 else None,  # 分に変換
+                        "measurable_sleep_duration": measurable_sleep // 60 if measurable_sleep > 0 else None,
+                        "body_battery_during_sleep": body_battery_sleep if body_battery_sleep > 0 else None,
+                        **detailed_sleep  # 詳細データがあれば統合
+                    }
+                    
+                    # データが存在する場合のみ返す
+                    if any(v is not None and v > 0 for v in result.values() if isinstance(v, (int, float))):
+                        self.logger.debug(f"睡眠データ取得成功 {date_str}: {result}")
+                        return result
+                    else:
+                        self.logger.debug(f"睡眠データなし {date_str}")
+                        return {}
+                        
+                else:
+                    self.logger.debug(f"睡眠データAPI エラー {date_str}: {response.status}")
+                    
         except Exception as e:
             self.logger.debug(f"睡眠データ取得エラー {date_str}: {str(e)}")
 
