@@ -114,13 +114,16 @@ class IntegrationCommands(commands.Cog):
         # 設定から外部連携情報を読み込み（将来的に設定ファイル化）
         # 設定ファイルから外部連携設定を読み込み
         import json
+
         settings_path = "/app/.mindbridge/integrations/settings.json"
         file_settings = {}
         if os.path.exists(settings_path):
             try:
-                with open(settings_path, "r") as f:
+                with open(settings_path) as f:
                     file_settings = json.load(f)
-                logger.info(f"設定ファイルから {len(file_settings)} の連携設定を読み込み")
+                logger.info(
+                    f"設定ファイルから {len(file_settings)} の連携設定を読み込み"
+                )
                 logger.info(f"ファイル設定内容: {file_settings}")
             except Exception as e:
                 logger.warning(f"設定ファイル読み込みエラー: {e}")
@@ -173,10 +176,14 @@ class IntegrationCommands(commands.Cog):
         for name, config in file_settings.items():
             if name in default_integrations:
                 default_integrations[name].update(config)
-                logger.info(f"連携 {name} を更新: enabled={config.get('enabled', False)}")
+                logger.info(
+                    f"連携 {name} を更新: enabled={config.get('enabled', False)}"
+                )
             else:
                 default_integrations[name] = config
-                logger.info(f"連携 {name} を追加: enabled={config.get('enabled', False)}")
+                logger.info(
+                    f"連携 {name} を追加: enabled={config.get('enabled', False)}"
+                )
 
         for integration_name, config_data in default_integrations.items():
             integration_config = IntegrationConfig(
@@ -310,9 +317,11 @@ class IntegrationCommands(commands.Cog):
 
             # Integration Manager の状態
             if self.integration_manager:
-                status_data = await self.integration_manager.get_all_integration_status()
+                status_data = (
+                    await self.integration_manager.get_all_integration_status()
+                )
                 summary = status_data.get("_summary", {})
-                
+
                 embed.add_field(
                     name="🔗 連携",
                     value=f"**有効連携**: {summary.get('enabled_integrations', 0)}\n**総同期回数**: {summary.get('total_syncs', 0)}\n**エラー回数**: {summary.get('total_errors', 0)}",
@@ -384,7 +393,7 @@ class IntegrationCommands(commands.Cog):
                     title=f"🔄 {integration.title()} 同期実行中...",
                     color=discord.Color.orange(),
                 )
-                message = await interaction.followup.send(embed=embed)  # type: ignore[assignment,func-returns-value]
+                message = await interaction.followup.send(embed=embed)  # type: ignore[func-returns-value]  # type: ignore[assignment,func-returns-value]
 
                 if self.integration_manager is None:
                     await interaction.followup.send(
@@ -430,7 +439,7 @@ class IntegrationCommands(commands.Cog):
                 embed = discord.Embed(
                     title="🔄 全外部連携同期実行中...", color=discord.Color.orange()
                 )
-                message = await interaction.followup.send(embed=embed)  # type: ignore[assignment,func-returns-value]
+                message = await interaction.followup.send(embed=embed)  # type: ignore[func-returns-value]  # type: ignore[assignment,func-returns-value]
 
                 if self.integration_manager is None:
                     await interaction.followup.send(
@@ -1077,7 +1086,7 @@ class IntegrationCommands(commands.Cog):
     @discord.app_commands.command(
         name="garmin_sleep", description="Garmin 睡眠データを取得・表示"
     )
-    async def garmin_sleep(self, interaction: discord.Interaction):
+    async def garmin_sleep(self, interaction: discord.Interaction) -> None:
         """Garmin 睡眠データ表示"""
         await interaction.response.defer()
 
@@ -1103,7 +1112,7 @@ class IntegrationCommands(commands.Cog):
                 title="🛏️ Garmin 睡眠データ取得中...",
                 color=discord.Color.orange(),
             )
-            message = await interaction.followup.send(embed=embed)
+            message = await interaction.followup.send(embed=embed)  # type: ignore[func-returns-value]
 
             result = await self.integration_manager.sync_integration(
                 "garmin", force_sync=True
@@ -1111,9 +1120,10 @@ class IntegrationCommands(commands.Cog):
 
             if result.success:
                 # 睡眠データを取得
-                from datetime import date, timedelta
-                from garminconnect import Garmin
                 import os
+                from datetime import date, timedelta
+
+                from garminconnect import Garmin
 
                 email = os.getenv("GARMIN_EMAIL")
                 password = os.getenv("GARMIN_PASSWORD")
@@ -1131,71 +1141,83 @@ class IntegrationCommands(commands.Cog):
                     embed.description = ""
 
                     for test_date in [today, yesterday]:
-                        date_str = test_date.strftime('%Y-%m-%d')
-                        
+                        date_str = test_date.strftime("%Y-%m-%d")
+
                         # Wellness summary から睡眠データ取得
                         wellness = await asyncio.get_event_loop().run_in_executor(
                             None, client.get_user_summary, date_str
                         )
-                        
+
                         if wellness:
-                            sleeping_seconds = wellness.get('sleepingSeconds', 0)
-                            measurable_sleep = wellness.get('measurableAsleepDuration', 0)
-                            body_battery = wellness.get('bodyBatteryDuringSleep', 0)
-                            
+                            sleeping_seconds = wellness.get("sleepingSeconds", 0)
+                            measurable_sleep = wellness.get(
+                                "measurableAsleepDuration", 0
+                            )
+                            body_battery = wellness.get("bodyBatteryDuringSleep", 0)
+
                             if sleeping_seconds > 0:
                                 hours = sleeping_seconds // 3600
                                 minutes = (sleeping_seconds % 3600) // 60
-                                
+
                                 # 詳細睡眠データも取得
                                 try:
-                                    sleep_data = await asyncio.get_event_loop().run_in_executor(
-                                        None, client.get_sleep_data, date_str
+                                    sleep_data = (
+                                        await asyncio.get_event_loop().run_in_executor(
+                                            None, client.get_sleep_data, date_str
+                                        )
                                     )
-                                    
+
                                     sleep_score = "N/A"
                                     deep_sleep_mins = 0
                                     light_sleep_mins = 0
                                     rem_sleep_mins = 0
-                                    
-                                    if sleep_data and 'dailySleepDTO' in sleep_data:
-                                        sleep_dto = sleep_data['dailySleepDTO']
-                                        sleep_scores = sleep_dto.get('sleepScores', {})
-                                        overall_score = sleep_scores.get('overall', {})
-                                        sleep_score = overall_score.get('value', 'N/A')
-                                        
-                                        deep_sleep_mins = sleep_dto.get('deepSleepSeconds', 0) // 60
-                                        light_sleep_mins = sleep_dto.get('lightSleepSeconds', 0) // 60
-                                        rem_sleep_mins = sleep_dto.get('remSleepSeconds', 0) // 60
-                                        
-                                except Exception:
-                                    pass  # 詳細データが取得できない場合はスキップ
-                                
+
+                                    if sleep_data and "dailySleepDTO" in sleep_data:
+                                        sleep_dto = sleep_data["dailySleepDTO"]
+                                        sleep_scores = sleep_dto.get("sleepScores", {})
+                                        overall_score = sleep_scores.get("overall", {})
+                                        sleep_score = overall_score.get("value", "N/A")
+
+                                        deep_sleep_mins = (
+                                            sleep_dto.get("deepSleepSeconds", 0) // 60
+                                        )
+                                        light_sleep_mins = (
+                                            sleep_dto.get("lightSleepSeconds", 0) // 60
+                                        )
+                                        rem_sleep_mins = (
+                                            sleep_dto.get("remSleepSeconds", 0) // 60
+                                        )
+
+                                except Exception as sleep_error:
+                                    logger.debug(
+                                        f"詳細睡眠データ取得エラー: {sleep_error}"
+                                    )
+
                                 date_display = "今日" if test_date == today else "昨日"
                                 embed.add_field(
                                     name=f"📅 {date_display} ({test_date.strftime('%m/%d')})",
                                     value=(
                                         f"**総睡眠時間**: {hours}時間{minutes}分\n"
-                                        f"**測定可能睡眠**: {measurable_sleep//3600}時間{(measurable_sleep%3600)//60}分\n"
+                                        f"**測定可能睡眠**: {measurable_sleep // 3600}時間{(measurable_sleep % 3600) // 60}分\n"
                                         f"**睡眠スコア**: {sleep_score}点\n"
                                         f"**Body Battery**: {body_battery}\n"
                                         f"**深眠**: {deep_sleep_mins}分\n"
                                         f"**浅眠**: {light_sleep_mins}分\n"
                                         f"**REM**: {rem_sleep_mins}分"
                                     ),
-                                    inline=True
+                                    inline=True,
                                 )
                             else:
                                 date_display = "今日" if test_date == today else "昨日"
                                 embed.add_field(
                                     name=f"📅 {date_display} ({test_date.strftime('%m/%d')})",
                                     value="睡眠データなし",
-                                    inline=True
+                                    inline=True,
                                 )
 
                     if not embed.fields:
                         embed.description = "睡眠データが見つかりませんでした。"
-                        
+
                 else:
                     embed.colour = discord.Color.red()
                     embed.title = "❌ Garmin 認証エラー"
@@ -1206,7 +1228,7 @@ class IntegrationCommands(commands.Cog):
                 embed.title = "❌ Garmin 同期失敗"
                 embed.description = result.error_message or "不明なエラー"
 
-            if message:
+            if message is not None:
                 await message.edit(embed=embed)
             else:
                 await interaction.followup.send(embed=embed)
@@ -1214,11 +1236,12 @@ class IntegrationCommands(commands.Cog):
         except Exception as e:
             logger.error("Garmin 睡眠データ取得でエラー", error=str(e))
             await interaction.followup.send(f"❌ エラーが発生しました: {str(e)}")
+            return
 
     @discord.app_commands.command(
         name="garmin_today", description="Garmin 今日のアクティビティデータを表示"
     )
-    async def garmin_today(self, interaction: discord.Interaction):
+    async def garmin_today(self, interaction: discord.Interaction) -> None:
         """Garmin 今日のデータ表示"""
         await interaction.response.defer()
 
@@ -1240,9 +1263,10 @@ class IntegrationCommands(commands.Cog):
                 return
 
             # 直接 Garmin API にアクセス
-            from datetime import date
-            from garminconnect import Garmin
             import os
+            from datetime import date
+
+            from garminconnect import Garmin
 
             email = os.getenv("GARMIN_EMAIL")
             password = os.getenv("GARMIN_PASSWORD")
@@ -1258,13 +1282,13 @@ class IntegrationCommands(commands.Cog):
                 title="🏃‍♂️ Garmin 今日のデータ取得中...",
                 color=discord.Color.orange(),
             )
-            message = await interaction.followup.send(embed=embed)
+            message = await interaction.followup.send(embed=embed)  # type: ignore[func-returns-value]
 
             client = Garmin(email, password)
             await asyncio.get_event_loop().run_in_executor(None, client.login)
 
             today = date.today()
-            date_str = today.strftime('%Y-%m-%d')
+            date_str = today.strftime("%Y-%m-%d")
 
             # Wellness summary から健康データ取得
             wellness = await asyncio.get_event_loop().run_in_executor(
@@ -1275,10 +1299,10 @@ class IntegrationCommands(commands.Cog):
             embed.title = f"🏃‍♂️ Garmin 今日のデータ ({today.strftime('%Y-%m-%d')})"
 
             if wellness:
-                steps = wellness.get('totalSteps', 0)
-                distance = wellness.get('totalDistanceMeters', 0) / 1000  # km
-                calories = wellness.get('totalKilocalories', 0)
-                active_calories = wellness.get('activeKilocalories', 0)
+                steps = wellness.get("totalSteps", 0)
+                distance = wellness.get("totalDistanceMeters", 0) / 1000  # km
+                calories = wellness.get("totalKilocalories", 0)
+                active_calories = wellness.get("activeKilocalories", 0)
 
                 embed.add_field(
                     name="📊 基本データ",
@@ -1288,12 +1312,12 @@ class IntegrationCommands(commands.Cog):
                         f"**総消費カロリー**: {calories}kcal\n"
                         f"**アクティブカロリー**: {active_calories}kcal"
                     ),
-                    inline=False
+                    inline=False,
                 )
 
                 # 睡眠データも含める
-                sleeping_seconds = wellness.get('sleepingSeconds', 0)
-                body_battery = wellness.get('bodyBatteryDuringSleep', 0)
+                sleeping_seconds = wellness.get("sleepingSeconds", 0)
+                body_battery = wellness.get("bodyBatteryDuringSleep", 0)
 
                 if sleeping_seconds > 0:
                     hours = sleeping_seconds // 3600
@@ -1304,7 +1328,7 @@ class IntegrationCommands(commands.Cog):
                             f"**睡眠時間**: {hours}時間{minutes}分\n"
                             f"**Body Battery**: {body_battery}"
                         ),
-                        inline=True
+                        inline=True,
                     )
 
                 # 今日のアクティビティ
@@ -1316,9 +1340,11 @@ class IntegrationCommands(commands.Cog):
                     if activities:
                         activity_text = ""
                         for activity in activities[:3]:  # 最大 3 件
-                            name = activity.get('activityName', '不明')
-                            activity_type = activity.get('activityType', {}).get('typeKey', '不明')
-                            duration = activity.get('duration', 0)
+                            name = activity.get("activityName", "不明")
+                            activity_type = activity.get("activityType", {}).get(
+                                "typeKey", "不明"
+                            )
+                            duration = activity.get("duration", 0)
                             duration_mins = duration // 60 if duration else 0
 
                             activity_text += f"• **{name}** ({activity_type})"
@@ -1330,21 +1356,21 @@ class IntegrationCommands(commands.Cog):
                             embed.add_field(
                                 name="🏃‍♂️ 今日のアクティビティ",
                                 value=activity_text,
-                                inline=False
+                                inline=False,
                             )
                     else:
                         embed.add_field(
                             name="🏃‍♂️ 今日のアクティビティ",
                             value="アクティビティなし",
-                            inline=False
+                            inline=False,
                         )
-                except Exception:
-                    pass  # アクティビティデータが取得できない場合はスキップ
+                except Exception as activity_error:
+                    logger.debug(f"アクティビティデータ取得エラー: {activity_error}")
 
             else:
                 embed.description = "今日のデータが見つかりませんでした。"
 
-            if message:
+            if message is not None:
                 await message.edit(embed=embed)
             else:
                 await interaction.followup.send(embed=embed)
@@ -1352,6 +1378,7 @@ class IntegrationCommands(commands.Cog):
         except Exception as e:
             logger.error("Garmin 今日のデータ取得でエラー", error=str(e))
             await interaction.followup.send(f"❌ エラーが発生しました: {str(e)}")
+            return
 
     def _get_status_icon(self, status: str) -> str:
         """ステータスアイコンを取得"""
