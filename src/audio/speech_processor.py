@@ -316,11 +316,22 @@ class SpeechProcessor(LoggerMixin):
         try:
             # Google Cloud Speech API を使用（実際の実装）
             settings = get_settings()
+
+            self.logger.info(
+                "Checking API configuration",
+                has_api_key_attr=hasattr(settings, "google_cloud_speech_api_key"),
+                api_key_is_not_none=hasattr(settings, "google_cloud_speech_api_key")
+                and settings.google_cloud_speech_api_key is not None,
+            )
+
             if (
                 hasattr(settings, "google_cloud_speech_api_key")
                 and settings.google_cloud_speech_api_key
             ):
+                self.logger.info("Using REST API for transcription")
                 return await self._transcribe_with_rest_api(file_data, audio_format)
+
+            self.logger.info("Using client library for transcription")
             return await self._transcribe_with_client_library(file_data, audio_format)
 
         except (RetryableAPIError, NonRetryableAPIError) as e:
@@ -355,25 +366,157 @@ class SpeechProcessor(LoggerMixin):
     ) -> TranscriptionResult:
         """REST API を使用して音声を文字起こし（リトライ機能付き）"""
         import base64
+        from io import BytesIO
 
         start_time = datetime.now()
 
         try:
+            self.logger.info(
+                "Starting REST API transcription",
+                audio_format=audio_format.value,
+                file_size=len(file_data),
+            )
+
+            # OGG ファイルの場合は WAV に変換してから処理
+            if audio_format == AudioFormat.OGG:
+                try:
+                    from pydub import AudioSegment
+
+                    self.logger.info("Converting OGG to WAV for processing")
+
+                    # OGG を AudioSegment として読み込み
+                    audio_segment = AudioSegment.from_file(
+                        BytesIO(file_data), format="ogg"
+                    )
+
+                    # 音声品質を向上させるための前処理
+                    # ノーマライゼーション（音量調整）
+                    audio_segment = audio_segment.normalize()
+
+                    # 低周波ノイズ除去（ 100Hz 以下のカット）
+                    audio_segment = audio_segment.high_pass_filter(100)
+
+                    # ステレオの場合はモノラルに変換（音声認識精度向上）
+                    if audio_segment.channels > 1:
+                        audio_segment = audio_segment.set_channels(1)
+
+                    # サンプルレートを最適化（ 16kHz が音声認識に最適）
+                    if audio_segment.frame_rate != 16000:
+                        audio_segment = audio_segment.set_frame_rate(16000)
+
+                    # WAV 形式で出力（ Google Speech API の LINEAR16 要件に合わせて 16-bit PCM で出力）
+                    wav_buffer = BytesIO()
+                    audio_segment.export(
+                        wav_buffer,
+                        format="wav",
+                        parameters=["-acodec", "pcm_s16le"],  # 16-bit PCM Little Endian
+                    )
+                    file_data = wav_buffer.getvalue()
+
+                    # 処理用のフォーマットを WAV に変更
+                    processing_format = AudioFormat.WAV
+                    sample_rate = audio_segment.frame_rate
+                    channels = audio_segment.channels
+
+                    self.logger.info(
+                        "Audio preprocessing completed",
+                        original_format="ogg",
+                        target_format="wav",
+                        sample_rate=sample_rate,
+                        channels=channels,
+                        converted_size=len(file_data),
+                        normalized=True,
+                        high_pass_filtered=True,
+                    )
+                except Exception as convert_error:
+                    self.logger.error(
+                        "Failed to convert OGG to WAV",
+                        error=str(convert_error),
+                        exc_info=True,
+                    )
+                    # 変換に失敗した場合は元のデータで処理を続行
+                    processing_format = audio_format
+                    sample_rate, channels = self._get_audio_properties(
+                        file_data, audio_format
+                    )
+            else:
+                # その他のフォーマットは既存の処理
+                processing_format = audio_format
+                sample_rate, channels = self._get_audio_properties(
+                    file_data, audio_format
+                )
+
+            self.logger.info(
+                "Preparing API request",
+                processing_format=processing_format.value,
+                sample_rate=sample_rate,
+                channels=channels,
+            )
+
             # ファイルを Base64 エンコード
             encoded_audio = base64.b64encode(file_data).decode("utf-8")
 
-            # API リクエストペイロード
+            # 修正された API リクエストペイロード（不正フィールドを除去）
             request_data = {
                 "config": {
-                    "encoding": self._get_encoding_for_format(audio_format),
-                    "sampleRateHertz": 16000,
+                    "encoding": self._get_encoding_for_format(processing_format),
+                    "sampleRateHertz": sample_rate,
+                    "audioChannelCount": channels,
                     "languageCode": "ja-JP",
+                    # 代替言語コードを追加（多言語混在に対応）
+                    "alternativeLanguageCodes": ["en-US"],
+                    # より高精度な設定
                     "enableWordTimeOffsets": True,
                     "enableAutomaticPunctuation": True,
-                    "model": "latest_short",
+                    "enableWordConfidence": True,
+                    # enableSpeakerDiarization は削除（廃止されたフィールド）
+                    "model": "latest_long",  # より精度の高いモデルを使用
+                    "useEnhanced": True,  # 拡張モデルを使用
+                    # 音声認識精度向上のための設定
+                    "speechContexts": [
+                        {
+                            "phrases": [
+                                "音声テスト",
+                                "音声メモ",
+                                "マインドブリッジ",
+                                "MindBridge",
+                                "こんにちは",
+                                "ありがとう",
+                                "よろしく",
+                                "お疲れ様",
+                                "今日",
+                                "明日",
+                                "昨日",
+                                "時間",
+                                "分",
+                                "秒",
+                                "メール",
+                                "電話",
+                                "会議",
+                                "資料",
+                                "確認",
+                            ],
+                            "boost": 10.0,  # フレーズの認識優先度を上げる
+                        }
+                    ],
+                    "enableSeparateRecognitionPerChannel": channels > 1,
+                    "metadata": {
+                        "recordingDeviceType": "OTHER_OUTDOOR_DEVICE",
+                        "originalMediaType": "AUDIO",
+                        "recordingDeviceName": "discord_voice_message",
+                    },
                 },
                 "audio": {"content": encoded_audio},
             }
+
+            self.logger.info(
+                "Sending request to Google Cloud Speech API",
+                encoding=request_data["config"]["encoding"],
+                sample_rate=request_data["config"]["sampleRateHertz"],
+                channels=request_data["config"]["audioChannelCount"],
+                model=request_data["config"]["model"],
+                enhanced_model=request_data["config"]["useEnhanced"],
+            )
 
             # API キーを使用してリクエスト
             settings = get_settings()
@@ -384,13 +527,19 @@ class SpeechProcessor(LoggerMixin):
 
             async with (
                 aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=30)
+                    timeout=aiohttp.ClientTimeout(total=60)  # タイムアウトを延長
                 ) as session,
                 session.post(url, json=request_data) as response,
             ):
+                self.logger.info("Received API response", status_code=response.status)
+
                 # HTTP ステータスコードに基づく分岐処理
                 if response.status == 200:
                     result = await response.json()
+                    self.logger.info(
+                        "API response received successfully",
+                        has_results="results" in result and bool(result.get("results")),
+                    )
                 elif response.status == 429:  # Rate limit
                     self.logger.warning("API rate limit exceeded")
                     raise NonRetryableAPIError("API rate limit exceeded")
@@ -429,32 +578,63 @@ class SpeechProcessor(LoggerMixin):
 
             # レスポンスを解析
             if "results" in result and result["results"]:
-                alternative = result["results"][0]["alternatives"][0]
-                transcript = alternative.get("transcript", "")
-                confidence = alternative.get("confidence", 0.0)
+                # 複数の結果がある場合は最も信頼度の高いものを選択
+                best_result = None
+                best_confidence = 0.0
 
-                self.logger.info(
-                    "Speech API transcription successful",
-                    transcript_length=len(transcript),
-                    confidence=confidence,
-                    processing_time_ms=processing_time,
-                )
+                for speech_result in result["results"]:
+                    if (
+                        "alternatives" in speech_result
+                        and speech_result["alternatives"]
+                    ):
+                        for alternative in speech_result["alternatives"]:
+                            confidence = alternative.get("confidence", 0.0)
+                            if confidence > best_confidence:
+                                best_confidence = confidence
+                                best_result = alternative
 
-                return TranscriptionResult.create_from_confidence(
-                    transcript=transcript,
-                    confidence=confidence,
-                    processing_time_ms=processing_time,
-                    model_used="google-speech-latest_short",
-                    words=alternative.get("words", []),
-                    alternatives=result["results"][0].get("alternatives", []),
-                )
+                if best_result:
+                    transcript = best_result.get("transcript", "")
+                    confidence = best_result.get("confidence", 0.0)
+
+                    self.logger.info(
+                        "Speech API transcription successful",
+                        transcript_length=len(transcript),
+                        confidence=confidence,
+                        processing_time_ms=processing_time,
+                        sample_rate=sample_rate,
+                        channels=channels,
+                        original_format=audio_format.value,
+                        processing_format=processing_format.value,
+                        transcript_preview=transcript[:50] + "..."
+                        if len(transcript) > 50
+                        else transcript,
+                        model_used="latest_long_enhanced",
+                    )
+
+                    return TranscriptionResult.create_from_confidence(
+                        transcript=transcript,
+                        confidence=confidence,
+                        processing_time_ms=processing_time,
+                        model_used="google-speech-latest_long_enhanced",
+                        words=best_result.get("words", []),
+                        alternatives=result["results"][0].get("alternatives", []),
+                    )
+
             # 結果なし
-            self.logger.info("No speech detected in audio")
+            self.logger.info(
+                "No speech detected in audio",
+                sample_rate=sample_rate,
+                channels=channels,
+                original_format=audio_format.value,
+                processing_format=processing_format.value,
+                processing_time_ms=processing_time,
+            )
             return TranscriptionResult.create_from_confidence(
                 transcript="[音声が検出されませんでした]",
                 confidence=0.0,
                 processing_time_ms=processing_time,
-                model_used="google-speech-latest_short",
+                model_used="google-speech-latest_long_enhanced",
             )
 
         except (RetryableAPIError, NonRetryableAPIError):
