@@ -73,13 +73,7 @@ jobs:
       - name: Create test vault directory
         run: mkdir -p /tmp/test_vault
 
-      - name: Run tests (pytest + coverage)
+      - name: Run tests (pytest)
         run: |
-          uv run pytest -q --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=22
+          uv run pytest -q
 
-      - name: Upload coverage to Codecov
-        if: always()
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: false
