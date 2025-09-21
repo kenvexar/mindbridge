@@ -5,6 +5,7 @@ Garmin Connect 連携
 """
 
 import asyncio
+import os
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -128,23 +129,61 @@ class GarminIntegration(BaseIntegration):
             },
         }
 
+    async def validate_config(self) -> list[str]:
+        """Garmin 連携の設定検証（ access_token は不要）"""
+        errors = []
+
+        if not self.config.integration_name:
+            errors.append("連携名が設定されていません")
+
+        if self.config.sync_interval < 60:
+            errors.append("同期間隔は 60 秒以上である必要があります")
+
+        # Garmin Connect は username/password 認証のため access_token は不要
+        # OAuth2 トークンの検証はスキップ
+
+        return errors
+
     async def authenticate(self) -> bool:
         """Garmin Connect 認証"""
         try:
+            # 環境変数から認証情報を取得
+            garmin_email = os.getenv("GARMIN_EMAIL")
+            garmin_password = os.getenv("GARMIN_PASSWORD")
+
+            if not garmin_email or not garmin_password:
+                self.add_error(
+                    "Garmin 認証情報が設定されていません（ GARMIN_EMAIL, GARMIN_PASSWORD ）"
+                )
+                return False
+
             self.session = aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=30),
                 headers={"User-Agent": "MindBridge-Lifelog/1.0"},
             )
 
-            # OAuth2 または ユーザー名/パスワード認証
-            if self.config.access_token:
-                return await self._authenticate_oauth()
+            # GarminClient を使用した実際の認証テスト
+            from pathlib import Path
+
+            from src.garmin.client import GarminClient
+
+            cache_dir = Path(os.getenv("GARMIN_CACHE_DIR", "/app/.cache/garmin"))
+            client = GarminClient(cache_dir)
+
+            # 認証テスト
+            success = await client.authenticate()
+            if success:
+                self._authenticated = True
+                self.logger.info("Garmin integration authentication successful")
+                return True
             else:
-                # 認証情報が不完全
-                self.add_error("Garmin 認証情報が設定されていません")
+                self.add_error("Garmin Connect 認証に失敗しました")
                 return False
 
         except Exception as e:
+            self.logger.error(
+                f"Exception in authenticate: {type(e).__name__}: {str(e)}"
+            )
             self.add_error(f"Garmin 認証でエラー: {str(e)}")
             return False
 
@@ -223,25 +262,37 @@ class GarminIntegration(BaseIntegration):
 
     async def test_connection(self) -> bool:
         """接続テスト"""
-        if not self._authenticated:
-            return False
-
         try:
-            # 簡単なプロファイル取得でテスト
-            url = f"{self.base_url}/modern/proxy/userprofile-service/userprofile/personal-information"
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
+            # 環境変数から認証情報を取得
+            garmin_email = os.getenv("GARMIN_EMAIL")
+            garmin_password = os.getenv("GARMIN_PASSWORD")
 
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
+            if not garmin_email or not garmin_password:
+                self.add_error(
+                    "Garmin 認証情報が設定されていません（ GARMIN_EMAIL, GARMIN_PASSWORD ）"
+                )
                 return False
 
-            async with self.session.get(url, headers=headers) as response:
-                success = response.status == 200
-                if success:
-                    self.logger.info("Garmin 接続テスト成功")
-                else:
-                    self.add_error(f"Garmin 接続テスト失敗: HTTP {response.status}")
-                return success
+            # GarminClient を使用した実際の接続テスト
+            from pathlib import Path
+
+            from src.garmin.client import GarminClient
+
+            cache_dir = Path(os.getenv("GARMIN_CACHE_DIR", "/app/.cache/garmin"))
+            client = GarminClient(cache_dir)
+
+            # 接続テスト
+            connection_result = await client.test_connection()
+            success = connection_result.get("success", False)
+
+            if success:
+                self.logger.info("Garmin 接続テスト成功")
+                self._authenticated = True
+                return True
+            else:
+                error_msg = connection_result.get("message", "接続テストに失敗しました")
+                self.add_error(f"Garmin 接続テスト失敗: {error_msg}")
+                return False
 
         except Exception as e:
             self.add_error(f"Garmin 接続テストでエラー: {str(e)}")
@@ -499,9 +550,9 @@ class GarminIntegration(BaseIntegration):
         return {}
 
     async def _get_daily_sleep(self, date_str: str) -> dict[str, Any]:
-        """日別睡眠データ取得 - wellness summaryから取得"""
+        """日別睡眠データ取得 - wellness summary から取得"""
         try:
-            # まずwellnessサマリーから基本的な睡眠データを取得
+            # まず wellness サマリーから基本的な睡眠データを取得
             url = f"{self.base_url}/modern/proxy/usersummary-service/usersummary/daily/{self._get_user_uuid()}"
             params = {"calendarDate": date_str}
             headers = {"Authorization": f"Bearer {self.config.access_token}"}
@@ -517,7 +568,7 @@ class GarminIntegration(BaseIntegration):
                 if response.status == 200:
                     data = await response.json()
 
-                    # wellness summaryから睡眠データを抽出
+                    # wellness summary から睡眠データを抽出
                     sleeping_seconds = data.get("sleepingSeconds", 0)
                     measurable_sleep = data.get("measurableAsleepDuration", 0)
                     body_battery_sleep = data.get("bodyBatteryDuringSleep", 0)
@@ -593,7 +644,7 @@ class GarminIntegration(BaseIntegration):
 
                 else:
                     self.logger.debug(
-                        f"睡眠データAPI エラー {date_str}: {response.status}"
+                        f"睡眠データ API エラー {date_str}: {response.status}"
                     )
 
         except Exception as e:

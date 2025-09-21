@@ -293,8 +293,10 @@ class IntegrationCommands(commands.Cog):
             logger.error("外部連携状態確認でエラー", error=str(e))
             await interaction.followup.send(f"❌ エラーが発生しました: {str(e)}")
 
-    @discord.app_commands.command(name="status", description="システム全体の状態を確認")
-    async def status(self, interaction: discord.Interaction):
+    @discord.app_commands.command(
+        name="system_status", description="システム全体の状態を確認"
+    )
+    async def system_status(self, interaction: discord.Interaction):
         """システム全体の状態を表示"""
         await interaction.response.defer()
 

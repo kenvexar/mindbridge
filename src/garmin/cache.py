@@ -46,16 +46,27 @@ class GarminDataCache(LoggerMixin):
             health_data.is_cached_data = False  # 最新データとしてマーク
             health_data.cache_age_hours = 0.0
 
+            def json_serializer(obj):
+                """カスタム JSON シリアライザー"""
+                from datetime import date as date_type
+                from datetime import datetime as datetime_type
+
+                if isinstance(obj, (date_type, datetime_type)):
+                    return obj.isoformat()
+                raise TypeError(
+                    f"Object of type {type(obj).__name__} is not JSON serializable"
+                )
+
             with open(cache_file, "w", encoding="utf-8") as f:
                 # Convert HealthData to dict for JSON serialization
                 health_data_dict = health_data.model_dump()
-                # Handle date/datetime serialization
-                health_data_dict["date"] = health_data.date.isoformat()
-                if health_data.retrieved_at:
-                    health_data_dict["retrieved_at"] = (
-                        health_data.retrieved_at.isoformat()
-                    )
-                json.dump(health_data_dict, f, ensure_ascii=False, indent=2)
+                json.dump(
+                    health_data_dict,
+                    f,
+                    ensure_ascii=False,
+                    indent=2,
+                    default=json_serializer,
+                )
 
             self.logger.info(
                 "Health data cached successfully",
@@ -101,14 +112,39 @@ class GarminDataCache(LoggerMixin):
             # キャッシュデータの読み込み
             with open(cache_file, encoding="utf-8") as f:
                 health_data_dict = json.load(f)
-                # Convert date strings back to date objects
-                health_data_dict["date"] = datetime.fromisoformat(
-                    health_data_dict["date"]
-                ).date()
-                if health_data_dict.get("retrieved_at"):
-                    health_data_dict["retrieved_at"] = datetime.fromisoformat(
-                        health_data_dict["retrieved_at"]
-                    )
+
+                # 日付文字列を日付オブジェクトに復元
+                def restore_dates(obj):
+                    """再帰的に日付文字列を日付オブジェクトに復元"""
+                    if isinstance(obj, dict):
+                        result = {}
+                        for key, value in obj.items():
+                            if key == "date" and isinstance(value, str):
+                                try:
+                                    result[key] = datetime.fromisoformat(value).date()
+                                except ValueError:
+                                    result[key] = value
+                            elif key in ["bedtime", "wake_time"] and isinstance(
+                                value, str
+                            ):
+                                try:
+                                    result[key] = datetime.fromisoformat(value)
+                                except ValueError:
+                                    result[key] = value
+                            elif key == "retrieved_at" and isinstance(value, str):
+                                try:
+                                    result[key] = datetime.fromisoformat(value)
+                                except ValueError:
+                                    result[key] = value
+                            else:
+                                result[key] = restore_dates(value)
+                        return result
+                    elif isinstance(obj, list):
+                        return [restore_dates(item) for item in obj]
+                    else:
+                        return obj
+
+                health_data_dict = restore_dates(health_data_dict)
                 health_data = HealthData(**health_data_dict)
 
             # キャッシュメタデータを更新
