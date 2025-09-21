@@ -2,9 +2,10 @@
 Tests for the new handler modules
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import discord
+import pytest
 
 from src.bot.handlers.audio_handler import AudioHandler
 from src.bot.handlers.lifelog_handler import LifelogHandler
@@ -41,12 +42,14 @@ class TestAudioHandler:
             "filename": "test.wav",
             "file_category": "audio",
             "content_type": "audio/wav",
-            "file_extension": "wav"
+            "file_extension": "wav",
         }
         message_data = {"metadata": {"attachments": [attachment]}}
         channel_info = MagicMock(name="test-channel")
 
-        with patch.object(audio_handler, 'process_single_audio_attachment', new_callable=AsyncMock) as mock_process:
+        with patch.object(
+            audio_handler, "process_single_audio_attachment", new_callable=AsyncMock
+        ) as mock_process:
             await audio_handler.handle_audio_attachments(message_data, channel_info)
             mock_process.assert_called_once()
 
@@ -75,7 +78,7 @@ class TestLifelogHandler:
             lifelog_manager=MagicMock(),
             lifelog_analyzer=MagicMock(),
             lifelog_message_handler=MagicMock(),
-            lifelog_commands=MagicMock()
+            lifelog_commands=MagicMock(),
         )
 
     def test_is_lifelog_candidate_positive(self, lifelog_handler):
@@ -93,11 +96,13 @@ class TestLifelogHandler:
             "読書した",
             "散歩した",
             "会議があった",
-            "友人と電話した"
+            "友人と電話した",
         ]
 
         for message in test_cases:
-            assert lifelog_handler.is_lifelog_candidate(message), f"Failed for: {message}"
+            assert lifelog_handler.is_lifelog_candidate(message), (
+                f"Failed for: {message}"
+            )
 
     def test_is_lifelog_candidate_negative(self, lifelog_handler):
         """Test lifelog candidate detection with negative cases"""
@@ -106,11 +111,13 @@ class TestLifelogHandler:
             "今日は雨ですね",
             "プログラミングについて話しましょう",
             "音楽が好きです",
-            "明日の予定は何ですか"
+            "明日の予定は何ですか",
         ]
 
         for message in test_cases:
-            assert not lifelog_handler.is_lifelog_candidate(message), f"Failed for: {message}"
+            assert not lifelog_handler.is_lifelog_candidate(message), (
+                f"Failed for: {message}"
+            )
 
     @pytest.mark.asyncio
     async def test_handle_lifelog_auto_detection(self, lifelog_handler):
@@ -153,7 +160,7 @@ class TestNoteHandler:
             note_template=MagicMock(),
             daily_integration=MagicMock(),
             template_engine=MagicMock(),
-            note_analyzer=MagicMock()
+            note_analyzer=MagicMock(),
         )
 
     @pytest.mark.asyncio
@@ -176,7 +183,9 @@ class TestNoteHandler:
         ai_result = MagicMock()
 
         # Should complete without error (implementation is placeholder)
-        await note_handler.organize_note_by_ai_category(note_path, ai_category, ai_result)
+        await note_handler.organize_note_by_ai_category(
+            note_path, ai_category, ai_result
+        )
 
     @pytest.mark.asyncio
     async def test_handle_daily_note_integration(self, note_handler):
@@ -291,11 +300,15 @@ class TestMessageHandler:
             "content": "test message",
             "metadata": {
                 "attachments": [{"filename": "test.wav", "file_category": "audio"}]
-            }
+            },
         }
         channel_info = MagicMock()
 
-        with patch.object(message_handler.audio_handler, 'handle_audio_attachments', new_callable=AsyncMock) as mock_audio:
+        with patch.object(
+            message_handler.audio_handler,
+            "handle_audio_attachments",
+            new_callable=AsyncMock,
+        ) as mock_audio:
             await message_handler.process_message(message, message_data, channel_info)
             mock_audio.assert_called_once()
 
@@ -311,9 +324,15 @@ class TestMessageHandler:
         ai_result = MagicMock()
         message_handler.ai_processor.process_message = AsyncMock(return_value=ai_result)
 
-        with patch.object(message_handler.note_handler, 'handle_obsidian_note_creation', new_callable=AsyncMock) as mock_note:
+        with patch.object(
+            message_handler.note_handler,
+            "handle_obsidian_note_creation",
+            new_callable=AsyncMock,
+        ) as mock_note:
             await message_handler.process_message(message, message_data, channel_info)
-            mock_note.assert_called_once_with(message_data, channel_info, ai_result, message)
+            mock_note.assert_called_once_with(
+                message_data, channel_info, ai_result, message
+            )
 
     @pytest.mark.asyncio
     async def test_process_message_lifelog_candidate(self, message_handler):
@@ -323,7 +342,11 @@ class TestMessageHandler:
         message_data = {"content": "今日は美味しいラーメンを食べた"}
         channel_info = MagicMock()
 
-        with patch.object(message_handler.lifelog_handler, 'handle_lifelog_auto_detection', new_callable=AsyncMock) as mock_lifelog:
+        with patch.object(
+            message_handler.lifelog_handler,
+            "handle_lifelog_auto_detection",
+            new_callable=AsyncMock,
+        ) as mock_lifelog:
             await message_handler.process_message(message, message_data, channel_info)
             mock_lifelog.assert_called_once()
 
@@ -336,7 +359,9 @@ class TestMessageHandler:
         channel_info = MagicMock()
 
         # Make audio handler raise an exception
-        message_handler.audio_handler.handle_audio_attachments = AsyncMock(side_effect=Exception("Test error"))
+        message_handler.audio_handler.handle_audio_attachments = AsyncMock(
+            side_effect=Exception("Test error")
+        )
 
         # Should not raise exception despite error in audio handler
         await message_handler.process_message(message, message_data, channel_info)
@@ -350,7 +375,9 @@ class TestMessageHandler:
         original_message = MagicMock()
 
         # Should complete without error
-        await message_handler._handle_text_message(message_data, channel_info, original_message)
+        await message_handler._handle_text_message(
+            message_data, channel_info, original_message
+        )
 
     @pytest.mark.asyncio
     async def test_handle_text_message_no_ai_result(self, message_handler):
@@ -362,8 +389,14 @@ class TestMessageHandler:
         # Mock AI processor to return None
         message_handler.ai_processor.process_message = AsyncMock(return_value=None)
 
-        with patch.object(message_handler.note_handler, 'handle_obsidian_note_creation', new_callable=AsyncMock) as mock_note:
-            await message_handler._handle_text_message(message_data, channel_info, original_message)
+        with patch.object(
+            message_handler.note_handler,
+            "handle_obsidian_note_creation",
+            new_callable=AsyncMock,
+        ) as mock_note:
+            await message_handler._handle_text_message(
+                message_data, channel_info, original_message
+            )
             # Note creation should not be called when AI result is None
             mock_note.assert_not_called()
 
@@ -375,10 +408,14 @@ class TestMessageHandler:
         original_message = MagicMock()
 
         # Make AI processor raise an exception
-        message_handler.ai_processor.process_message = AsyncMock(side_effect=Exception("AI error"))
+        message_handler.ai_processor.process_message = AsyncMock(
+            side_effect=Exception("AI error")
+        )
 
         # Should not raise exception despite AI processor error
-        await message_handler._handle_text_message(message_data, channel_info, original_message)
+        await message_handler._handle_text_message(
+            message_data, channel_info, original_message
+        )
 
     @pytest.mark.asyncio
     async def test_legacy_compatibility_methods(self, message_handler):
@@ -386,16 +423,34 @@ class TestMessageHandler:
         # These methods should delegate to their respective handlers
 
         # Test audio handler compatibility
-        with patch.object(message_handler.audio_handler, 'handle_audio_attachments', new_callable=AsyncMock) as mock_audio:
-            await message_handler._handle_audio_attachments("arg1", "arg2", kwarg1="test")
+        with patch.object(
+            message_handler.audio_handler,
+            "handle_audio_attachments",
+            new_callable=AsyncMock,
+        ) as mock_audio:
+            await message_handler._handle_audio_attachments(
+                "arg1", "arg2", kwarg1="test"
+            )
             mock_audio.assert_called_once_with("arg1", "arg2", kwarg1="test")
 
         # Test note handler compatibility
-        with patch.object(message_handler.note_handler, 'handle_obsidian_note_creation', new_callable=AsyncMock) as mock_note:
-            await message_handler._handle_obsidian_note_creation("arg1", "arg2", kwarg1="test")
+        with patch.object(
+            message_handler.note_handler,
+            "handle_obsidian_note_creation",
+            new_callable=AsyncMock,
+        ) as mock_note:
+            await message_handler._handle_obsidian_note_creation(
+                "arg1", "arg2", kwarg1="test"
+            )
             mock_note.assert_called_once_with("arg1", "arg2", kwarg1="test")
 
         # Test lifelog handler compatibility
-        with patch.object(message_handler.lifelog_handler, 'handle_lifelog_auto_detection', new_callable=AsyncMock) as mock_lifelog:
-            await message_handler._handle_lifelog_auto_detection("arg1", "arg2", kwarg1="test")
+        with patch.object(
+            message_handler.lifelog_handler,
+            "handle_lifelog_auto_detection",
+            new_callable=AsyncMock,
+        ) as mock_lifelog:
+            await message_handler._handle_lifelog_auto_detection(
+                "arg1", "arg2", kwarg1="test"
+            )
             mock_lifelog.assert_called_once_with("arg1", "arg2", kwarg1="test")
