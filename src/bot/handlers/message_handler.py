@@ -101,7 +101,9 @@ class MessageHandler(LoggerMixin):
             # メッセージの重複処理チェック
             message_id = message.id
             if message_id in self._processed_messages:
-                self.logger.debug("Message already processed, skipping", message_id=message_id)
+                self.logger.debug(
+                    "Message already processed, skipping", message_id=message_id
+                )
                 return
 
             self._processed_messages.add(message_id)
@@ -120,7 +122,9 @@ class MessageHandler(LoggerMixin):
                 await self._handle_text_message(message_data, channel_info, message)
 
             # ライフログ自動検出
-            if self.lifelog_handler.is_lifelog_candidate(message_data.get("content", "")):
+            if self.lifelog_handler.is_lifelog_candidate(
+                message_data.get("content", "")
+            ):
                 await self.lifelog_handler.handle_lifelog_auto_detection(
                     message_data, channel_info, message
                 )
