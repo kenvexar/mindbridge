@@ -1515,9 +1515,26 @@ class MessageHandler(LoggerMixin):
                 self.logger.debug(
                     f"Processing audio attachment: {attachment.get('filename', 'N/A')}"
                 )
-                await self._process_single_audio_attachment(
-                    attachment, message_data, channel_info, original_message
-                )
+
+                # 個別音声処理を実行（エラーハンドリング強化）
+                try:
+                    self.logger.info(
+                        f"About to call _process_single_audio_attachment for {attachment.get('filename', 'N/A')}"
+                    )
+                    await self._process_single_audio_attachment(
+                        attachment, message_data, channel_info, original_message
+                    )
+                    self.logger.info(
+                        f"Completed _process_single_audio_attachment for {attachment.get('filename', 'N/A')}"
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        "Error in _process_single_audio_attachment",
+                        filename=attachment.get("filename", "N/A"),
+                        error=str(e),
+                        exc_info=True,
+                    )
+                    # 個別エラーでも他の音声ファイル処理を継続
 
         except Exception as e:
             self.logger.error(
@@ -1600,6 +1617,10 @@ class MessageHandler(LoggerMixin):
         feedback_message = None
 
         try:
+            self.logger.debug(
+                f"Starting _process_single_audio_attachment for {attachment.get('filename', 'unknown')}"
+            )
+
             attachment_url = attachment.get("url")
             filename = attachment.get("filename", "audio.mp3")
 
@@ -1609,34 +1630,48 @@ class MessageHandler(LoggerMixin):
                 )
                 return
 
+            self.logger.debug(f"Audio attachment URL: {attachment_url}")
+
             # Discord へのリアルタイムフィードバックを開始
             if original_message:
                 try:
                     feedback_message = await original_message.reply(
                         f"🎤 音声ファイル `{filename}` の文字起こしを開始します..."
                     )
+                    self.logger.debug("Feedback message sent successfully")
                 except Exception as e:
                     self.logger.warning("Failed to send feedback message", error=str(e))
 
             # 音声ファイルをダウンロード
+            self.logger.debug(f"Downloading audio file: {filename}")
             audio_data = await self._download_attachment(attachment_url)
             if not audio_data:
+                self.logger.error(f"Failed to download audio file: {filename}")
                 await self._update_feedback_message(
                     feedback_message,
                     f"❌ 音声ファイル `{filename}` のダウンロードに失敗しました。",
                 )
                 return
 
+            self.logger.debug(
+                f"Audio file downloaded successfully, size: {len(audio_data)} bytes"
+            )
+
             # 音声を文字起こし
             if not self.speech_processor:
+                self.logger.error("Speech processor not initialized")
                 await self._update_feedback_message(
                     feedback_message,
                     "❌ 音声処理システムが初期化されていません。",
                 )
                 return
 
+            self.logger.debug(f"Starting speech processing for: {filename}")
             audio_result = await self.speech_processor.process_audio_file(
                 file_data=audio_data, filename=filename, channel_name=channel_info.name
+            )
+            self.logger.debug(
+                f"Speech processing completed, success: {audio_result.success}"
             )
 
             # 結果に応じてフィードバックを更新
