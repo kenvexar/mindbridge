@@ -54,6 +54,12 @@ class MockAIProcessor(LoggerMixin):
 
         self.logger.info("Mock AI processor initialized")
 
+    async def process_message(self, message_data: dict[str, Any]) -> AIProcessingResult:
+        """Process message data (used by MessageHandler)"""
+        content = message_data.get("content", "")
+        message_id = message_data.get("id")
+        return await self.process_text(content, message_id)
+
     async def process_text(
         self, text: str, message_id: int | None = None, force_reprocess: bool = False
     ) -> AIProcessingResult:
