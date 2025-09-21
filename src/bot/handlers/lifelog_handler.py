@@ -61,7 +61,18 @@ class LifelogHandler(LoggerMixin):
         """メッセージがライフログ候補かどうかを判定"""
         # 簡単な判定ロジック（実際の実装は移動予定）
         lifelog_keywords = [
-            "食べた", "飲んだ", "寝た", "起きた", "運動", "勉強", "仕事",
-            "買い物", "映画", "読書", "散歩", "会議", "電話"
+            "食べた",
+            "飲んだ",
+            "寝た",
+            "起きた",
+            "運動",
+            "勉強",
+            "仕事",
+            "買い物",
+            "映画",
+            "読書",
+            "散歩",
+            "会議",
+            "電話",
         ]
         return any(keyword in message_content for keyword in lifelog_keywords)
