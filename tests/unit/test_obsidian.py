@@ -379,7 +379,6 @@ async def test_obsidian_integration_with_message_handler() -> None:
                 daily_integration=mock_daily_integration,
                 template_engine=mock_template_engine,
                 note_analyzer=mock_note_analyzer,
-                channel_config=channel_config,  # モックのチャンネル設定を渡す
             )
 
             # Verify Obsidian integration is available
@@ -462,8 +461,8 @@ async def test_obsidian_integration_with_message_handler() -> None:
 
                 # Mock note creation handler to avoid coroutine issues
                 with patch.object(
-                    handler,
-                    "_handle_obsidian_note_creation",
+                    handler.note_handler,
+                    "handle_obsidian_note_creation",
                     new_callable=AsyncMock,
                 ) as mock_note_creation:
                     mock_note_creation.return_value = {
@@ -471,30 +470,35 @@ async def test_obsidian_integration_with_message_handler() -> None:
                         "status": "created",
                     }
 
+                    # Create message data and channel info
+                    message_data = {
+                        "id": mock_message.id,
+                        "content": mock_message.content,
+                        "author": {
+                            "id": mock_message.author.id,
+                            "name": mock_message.author.display_name,
+                        },
+                    }
+                    channel_info = {
+                        "id": mock_message.channel.id,
+                        "name": mock_message.channel.name,
+                    }
+
                     # Process message
-                    result = await handler.process_message(mock_message)
+                    await handler.process_message(
+                        mock_message, message_data, channel_info
+                    )
 
-                    # Verify result
-                    assert result is not None
-                    assert result["status"] in [
-                        "success",
-                        "error",
-                    ]  # Accept either based on mock setup
-                    assert "message_id" in result
-                    assert "processed_content" in result
-                    # Note: "note" key is not included in current message_data structure
-                    assert "metadata" in result  # Check for actual available keys
+                    # Verify process completed without error (no exception raised)
 
-                    # AI processing call verification is not required for this integration test
+                    # AI processing call verification
                     # The test focuses on the successful integration between components
                     print(
                         f"✓ AI processing was called: {mock_ai_process.call_count} times"
                     )
 
-                    # Check that Obsidian note should be created
-                    # (We can't easily verify file creation in this test without more complex setup)
-                    if "ai_processing" in result:
-                        assert result["ai_processing"] is not None
+                    # Check that note creation handler was called
+                    mock_note_creation.assert_called_once()
 
 
 def test_obsidian_models_validation() -> None:

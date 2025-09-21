@@ -199,13 +199,12 @@ class TestCompleteMessageProcessingFlow:
                             daily_integration=mock_daily_integration,
                             template_engine=mock_template_engine,
                             note_analyzer=mock_note_analyzer,
-                            channel_config=mock_channel_config,  # モックのチャンネル設定を渡す
                         )
 
                         # note_creation_handler をモック
                         with patch.object(
-                            handler,
-                            "_handle_obsidian_note_creation",
+                            handler.note_handler,
+                            "handle_obsidian_note_creation",
                             new_callable=AsyncMock,
                         ) as mock_note_creation:
                             mock_note_creation.return_value = {
@@ -213,20 +212,29 @@ class TestCompleteMessageProcessingFlow:
                                 "status": "created",
                             }
 
+                            # Create message data and channel info
+                            message_data = {
+                                "id": test_message.id,
+                                "content": test_message.content,
+                                "author": {
+                                    "id": test_message.author.id,
+                                    "name": test_message.author.display_name,
+                                },
+                            }
+                            channel_info = {
+                                "id": test_message.channel.id,
+                                "name": test_message.channel.name,
+                            }
+
                             # メッセージ処理の実行
-                            result = await handler.process_message(
-                                cast(discord.Message, test_message)
+                            await handler.process_message(
+                                cast(discord.Message, test_message),
+                                message_data,
+                                channel_info,
                             )
 
-                            # 結果の検証
-                            assert result is not None
-                            assert result.get("status") == "success"
-                            assert result.get("message_id") is not None
-                            assert result.get("processed_content") is not None
-                            # Note: "note" key is not currently included in message_data
-                            assert (
-                                result.get("metadata") is not None
-                            )  # Check for actual available data
+                            # 結果の検証 (処理が正常に完了していることを確認)
+                            # Note: process_message returns None
 
                             # AI 処理の呼び出し確認は統合テストでは必須ではない
                             # (モック環境では実際の AI 呼び出しは発生しない場合がある)
@@ -275,7 +283,6 @@ class TestCompleteMessageProcessingFlow:
             daily_integration=mock_daily_integration,
             template_engine=mock_template_engine,
             note_analyzer=mock_note_analyzer,
-            channel_config=mock_channel_config,  # モックのチャンネル設定を渡す
         )
 
         test_message = MockMessage("テストメッセージ", author_id=123)
@@ -288,27 +295,39 @@ class TestCompleteMessageProcessingFlow:
         ):
             # note_creation_handler をモック
             with patch.object(
-                handler, "_handle_obsidian_note_creation", new_callable=AsyncMock
+                handler.note_handler,
+                "handle_obsidian_note_creation",
+                new_callable=AsyncMock,
             ) as mock_note_creation:
                 mock_note_creation.return_value = {
                     "note_path": "test.md",
                     "status": "created",
                 }
 
+                # Create message data and channel info
+                message_data = {
+                    "id": test_message.id,
+                    "content": test_message.content,
+                    "author": {
+                        "id": test_message.author.id,
+                        "name": test_message.author.display_name,
+                    },
+                }
+                channel_info = {
+                    "id": test_message.channel.id,
+                    "name": test_message.channel.name,
+                }
+
                 # エラーハンドリングのテスト
-                result = await handler.process_message(
-                    cast(discord.Message, test_message)
+                await handler.process_message(
+                    cast(discord.Message, test_message), message_data, channel_info
                 )
 
                 # フォールバック処理の確認（ AI エラーでも graceful に処理継続）
-                assert result is not None
-                assert result.get("status") == "success"
-                assert result.get("message_id") is not None
-                assert result.get("processed_content") is not None
-                # Note: "note" key is not included in current message_data structure
-                assert (
-                    result.get("metadata") is not None
-                )  # Check for actual available data
+                # process_message should complete without raising exception
+
+                # Check that note creation handler was NOT called due to AI error
+                mock_note_creation.assert_not_called()
 
         print("✓ API 制限エラーハンドリングが正常に動作")
 

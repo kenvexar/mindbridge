@@ -1,17 +1,23 @@
 """
-Enhanced YAML Frontmatter Generator のテストケース
+Template System Tests - YAML Generator and Template Engine
 
-新しく追加された包括的な機能をテスト：
-- 60+ のフィールド対応
+統合された機能をテスト：
+- YAML Frontmatter Generator (60+ フィールド対応)
+- Template Engine (テンプレート読み込み・処理)
 - コンテンツタイプ別のメタデータ生成
 - AI 結果の詳細統合
 - 自動データ型変換
 - Obsidian 特化機能
 """
 
+import tempfile
 from datetime import date, datetime
+from pathlib import Path
 from unittest.mock import Mock
 
+import pytest
+
+from src.obsidian.template_system import TemplateEngine
 from src.obsidian.template_system.yaml_generator import YAMLFrontmatterGenerator
 
 
@@ -71,7 +77,7 @@ class TestEnhancedYAMLFrontmatterGenerator:
         assert "difficulty_level:" in result  # 自動判定される
 
     def test_content_type_specific_metadata(self) -> None:
-        """代表ケース（task）のみ検証"""
+        """代表ケース（ task ）のみ検証"""
         result = self.generator.create_comprehensive_frontmatter(
             title="プロジェクト完了",
             content_type="task",
@@ -82,7 +88,7 @@ class TestEnhancedYAMLFrontmatterGenerator:
         assert "due_date:" in result
 
     def test_automatic_data_type_conversion(self):
-        """最小限（int/float/bool）の変換のみ検証"""
+        """最小限（ int/float/bool ）の変換のみ検証"""
         data = {
             "title": "t",
             "word_count": "1500",
@@ -310,6 +316,58 @@ class TestEnhancedYAMLFrontmatterGenerator:
             frontmatter_data, custom_template=custom_template
         )
 
-        # 実際の出力に合わせてテスト（実際の出力形式に一致）
+        # 実際の出力に合わせてテスト（正確なフォーマット）
         assert "2024 年12 月08 日 15 時30 分" in result
         assert 'custom_field: "カスタム: テスト値"' in result
+
+
+@pytest.mark.asyncio
+class TestTemplateEngine:
+    """Template Engine 統合テスト"""
+
+    def setup_method(self) -> None:
+        """Setup test fixtures"""
+        self.temp_dir = Path(tempfile.mkdtemp())
+        self.template_engine = TemplateEngine(self.temp_dir)
+
+    async def test_template_directory_creation(self) -> None:
+        """Test template directory creation"""
+        success = self.template_engine.ensure_template_directory()
+        assert success is True
+        assert self.template_engine.template_path.exists()
+        assert self.template_engine.template_path.is_dir()
+
+    async def test_create_default_templates(self) -> None:
+        """Test default template creation (essential templates only)"""
+        success = await self.template_engine.create_default_templates()
+        assert success is True
+
+        # Check core templates exist
+        templates = await self.template_engine.list_available_templates()
+        core_templates = {"base_note", "daily_note", "voice_memo"}
+        assert core_templates.issubset(set(templates))
+
+    async def test_template_loading(self) -> None:
+        """Test template loading functionality"""
+        # Create test template
+        test_template = self.template_engine.template_path / "test_template.md"
+        test_template.parent.mkdir(parents=True, exist_ok=True)
+
+        test_content = """---
+title: Test Template
+tags: [test]
+---
+
+# Test Template
+
+Hello, {{author_name}}!
+
+Content: {{content}}
+"""
+
+        with open(test_template, "w", encoding="utf-8") as f:
+            f.write(test_content)
+
+        # Load template
+        loaded_content = await self.template_engine.load_template("test_template")
+        assert loaded_content == test_content

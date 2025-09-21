@@ -41,8 +41,8 @@ class DiscordBot(LoggerMixin):
             note_analyzer=note_analyzer,
             speech_processor=speech_processor,
         )
-        # Set channel config after initialization
-        self.message_handler.channel_config = self.channel_config
+        # Channel config is handled in bot initialization, not in message handler
+        # self.message_handler.channel_config = self.channel_config
 
         self.settings = get_settings()
 
@@ -123,7 +123,7 @@ class DiscordBot(LoggerMixin):
 
                     # Initialize lifelog system
                     try:
-                        await self.message_handler.initialize_lifelog(self.settings)
+                        await self.message_handler.initialize_lifelog()
 
                         # Register lifelog commands if available
                         if self.message_handler.lifelog_commands:
@@ -228,8 +228,28 @@ class DiscordBot(LoggerMixin):
                     message_id=message.id,
                     channel_id=message.channel.id,
                 )
+                # Create message data and channel info for handler
+                message_data = {
+                    "id": message.id,
+                    "content": message.content,
+                    "author": {
+                        "id": message.author.id,
+                        "name": message.author.display_name,
+                        "bot": message.author.bot,
+                    },
+                    "created_at": message.created_at,
+                }
+
+                channel_info = {
+                    "id": message.channel.id,
+                    "name": getattr(message.channel, "name", "direct_message"),
+                    "type": str(message.channel.type),
+                }
+
                 # Process message through the message handler
-                await self.message_handler.process_message(message)
+                await self.message_handler.process_message(
+                    message, message_data, channel_info
+                )
                 self.system_metrics.increment_ai_success()
                 self.logger.debug(
                     "Message processed successfully", message_id=message.id
