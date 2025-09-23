@@ -289,7 +289,7 @@ class BasicCommands(commands.Cog, CommandMixin):
             from src.config.settings import get_settings
 
             settings = get_settings()
-            # SecretStrの場合は.get_secret_value()を使用
+            # SecretStr の場合は.get_secret_value() を使用
             api_key = (
                 settings.gemini_api_key.get_secret_value()
                 if settings.gemini_api_key
@@ -403,7 +403,7 @@ class BasicCommands(commands.Cog, CommandMixin):
                 logger.warning("ボルトパスが存在しません", path=str(vault_path))
                 return None
 
-            # .mdファイルをすべて検索
+            # .md ファイルをすべて検索
             md_files = list(vault_path.rglob("*.md"))
 
             # システムファイルやテンプレートを除外
@@ -432,7 +432,7 @@ class BasicCommands(commands.Cog, CommandMixin):
                 return None
 
             # ランダムにファイルを選択
-            random_file = random.choice(filtered_files)
+            random_file = random.choice(filtered_files)  # nosec B311
 
             try:
                 # ファイル内容を読み取り
@@ -442,7 +442,7 @@ class BasicCommands(commands.Cog, CommandMixin):
                 # タイトルを抽出（ファイル名から）
                 title = random_file.stem
 
-                # プレビューテキストを作成（最初の300文字）
+                # プレビューテキストを作成（最初の 300 文字）
                 preview = content[:300].replace("\n", " ").strip() if content else ""
 
                 # メタデータ抽出（簡易版）
@@ -475,7 +475,7 @@ class BasicCommands(commands.Cog, CommandMixin):
                     "title": title,
                     "preview": preview,
                     "file_path": relative_path_str,
-                    "tags": tags[:5],  # 最大5個まで
+                    "tags": tags[:5],  # 最大 5 個まで
                     "created_date": created_date,
                     "content_length": len(content),
                 }
