@@ -25,8 +25,14 @@ pre-commit:
 
 clean:
 	rm -rf .venv .mypy_cache .ruff_cache .pytest_cache
+	find . -name "*.pyc" -delete
+	find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+	find . -name "*.backup" -delete 2>/dev/null || true
+	find . -name "*.bak" -delete 2>/dev/null || true
+	find . -name "*~" -delete 2>/dev/null || true
+	find . -name ".DS_Store" -delete 2>/dev/null || true
 
-# Artifact Registry の古いイメージをクリーンアップ（DRY-RUN）
+# Artifact Registry の古いイメージをクリーンアップ（ DRY-RUN ）
 ar-clean:
 	./scripts/manage.sh ar-clean $(PROJECT_ID) $(REGION) mindbridge mindbridge 10 30
 

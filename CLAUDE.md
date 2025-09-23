@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Clean Project Commands
+
+### Project Cleanup
+```bash
+# Clean all cache files and temporary data
+make clean
+
+# Clean Python cache files only
+find . -name "*.pyc" -delete && find . -name "__pycache__" -type d -exec rm -rf {} +
+
+# Clean all build artifacts
+rm -rf .pytest_cache .mypy_cache .ruff_cache
+```
+
 ## Development Commands
 
 ### Setup and Environment
@@ -63,7 +77,7 @@ make pre-commit
 # Full automatic deployment to Google Cloud Run
 ./scripts/manage.sh full-deploy YOUR_PROJECT_ID [--with-optional]
 
-# Individual deployment steps
+# Manual deployment steps (if needed)
 make env PROJECT_ID=your-project
 make secrets PROJECT_ID=your-project
 make deploy PROJECT_ID=your-project
@@ -101,13 +115,20 @@ MindBridge is an AI-powered Discord bot that captures messages and voice memos, 
 
 **Health & Life Logging** (`src/health_analysis/`, `src/lifelog/`):
 - `HealthAnalysisScheduler` - Automated health data processing
+- `LifelogManager` - Comprehensive life logging system
 - Garmin Connect integration for fitness data
 - Google Calendar integration for activity tracking
 
-**External Integrations** (`src/integrations/`, `src/garmin/`):
+**Task & Finance Management** (`src/tasks/`, `src/finance/`):
+- `TaskManager` - Task creation, tracking, and productivity review
+- `ExpenseManager` - Expense tracking and budget management
+- `SubscriptionManager` - Subscription monitoring and alerts
+- Financial reporting and analysis tools
+
+**External Integrations** (`src/garmin/`, `src/lifelog/integrations/`):
 - Garmin Connect (OAuth-free via python-garminconnect)
-- Google Calendar sync
-- Financial tracking and subscription management
+- Google Calendar sync with automated event import
+- Integration scheduler for automated data sync
 
 ### Key Patterns
 

@@ -84,15 +84,41 @@ cp .env.example .env
 nano .env  # またはお好みのエディタで
 ```
 
-## Discord セットアップ
+## Discord Bot セットアップ
 
-Discord Bot の作成手順は [クイックスタートガイド](quick-start.md#discord-bot-setup) を参照してください。
+### 1. Discord Bot を作成
+
+1. [Discord Developer Portal](https://discord.com/developers/applications) にアクセス
+2. **New Application** → アプリ名を入力（例: MindBridge ）
+3. **Bot** タブ → **Add Bot** をクリック
+4. **Token** をコピー（`.env` の `DISCORD_BOT_TOKEN`）
+
+### 2. Bot の権限設定
+
+**Bot** タブで以下を有効化：
+- **Message Content Intent** ✅（必須）
+- **Server Members Intent** ✅（推奨）
+
+### 3. Bot をサーバーに招待
+
+**OAuth2** → **URL Generator** で：
+- **Scopes**: `bot`, `applications.commands`
+- **Bot Permissions**:
+  - Send Messages
+  - Read Message History
+  - Attach Files
+  - Use Slash Commands
+  - Manage Messages （オプション）
+
+生成された URL でサーバーに招待。
 
 ## API 設定
 
 ### 1. Google Gemini API
 
-Gemini API キーの取得手順は [クイックスタートガイド](quick-start.md#gemini-api-setup) を参照してください。
+1. [Google AI Studio](https://makersuite.google.com/app/apikey) にアクセス
+2. **Create API key** をクリック
+3. 取得したキーを `.env` の `GEMINI_API_KEY` に設定
 
 ### 2. Google Cloud Speech-to-Text (Optional)
 
@@ -175,25 +201,44 @@ echo "OBSIDIAN_VAULT_PATH=/path/to/your/existing/vault" >> .env
 
 ## 環境変数
 
-完全な `.env` 設定:
+完全な `.env` 設定例（実際のコードに合わせて修正）:
 
 ```env
-# Required
+# 必須設定
 DISCORD_BOT_TOKEN=your_discord_bot_token
 DISCORD_GUILD_ID=your_guild_id
 GEMINI_API_KEY=your_gemini_api_key
 OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 
-# Optional: Speech-to-Text
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+# 基本設定
+ENVIRONMENT=personal
+LOG_LEVEL=INFO
+LOG_FORMAT=json
 
-# Optional: Garmin Connect
+# オプション: 音声認識
+GOOGLE_CLOUD_SPEECH_API_KEY=your_speech_api_key
+
+# オプション: Garmin Connect
 GARMIN_EMAIL=your_email@example.com
-GARMIN_USERNAME=your_username
 GARMIN_PASSWORD=your_password
+GARMIN_CACHE_HOURS=24
 
-# Optional: Security
-USE_SECRET_MANAGER=false  # Usually false for local setup
+# オプション: Google Calendar
+GOOGLE_CALENDAR_ID=primary
+GOOGLE_CALENDAR_CLIENT_ID=your_client_id
+GOOGLE_CALENDAR_CLIENT_SECRET=your_client_secret
+
+# オプション: GitHub バックアップ
+GITHUB_TOKEN=your_github_token
+OBSIDIAN_BACKUP_REPO=username/repo-name
+OBSIDIAN_BACKUP_BRANCH=main
+
+# API クォータ管理
+GEMINI_API_DAILY_LIMIT=1500
+GEMINI_API_MINUTE_LIMIT=15
+SPEECH_API_MONTHLY_LIMIT_MINUTES=60
+
+# セキュリティ
 ENABLE_ACCESS_LOGGING=true
 ```
 
