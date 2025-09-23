@@ -299,8 +299,10 @@ class NoteHandler(LoggerMixin):
                             else:
                                 pass  # Fall back to local
 
-                except Exception:
-                    pass  # Fall back to local
+                except Exception as e:
+                    self.logger.debug(
+                        "GitHub upload failed, falling back to local", error=str(e)
+                    )
 
             # STEP 2: Local file creation fallback
             local_file_created = False
@@ -324,8 +326,10 @@ class NoteHandler(LoggerMixin):
 
                     local_file_created = True
 
-                except Exception:
-                    pass  # Failed
+                except Exception as e:
+                    self.logger.warning(
+                        "Failed to create local note file", error=str(e)
+                    )
 
             # STEP 3: GitHub sync (only if local file was created)
             if local_file_created:
@@ -342,8 +346,10 @@ class NoteHandler(LoggerMixin):
                             commit_message=f"Auto-sync Enhanced YAML: {title_preview}"
                         )
 
-                except Exception:
-                    pass  # Sync failed but note is saved locally
+                except Exception as e:
+                    self.logger.debug(
+                        "GitHub sync failed but note is saved locally", error=str(e)
+                    )
 
             return {
                 "status": "success",

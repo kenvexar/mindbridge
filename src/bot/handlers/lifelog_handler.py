@@ -87,8 +87,10 @@ class LifelogHandler(LoggerMixin):
                         await original_message.add_reaction(
                             "📝"
                         )  # ライフログ記録を示すリアクション
-                    except Exception:
-                        pass  # リアクション追加は必須ではない
+                    except Exception as e:
+                        self.logger.debug(
+                            "Failed to add reaction", error=str(e)
+                        )  # リアクション追加は必須ではない
 
         except Exception as e:
             self.logger.warning("ライフログ自動検出でエラー", error=str(e))
