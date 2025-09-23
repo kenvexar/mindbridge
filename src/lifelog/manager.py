@@ -275,7 +275,7 @@ class LifelogManager:
             return False
 
         habit = self._habits[habit_id]
-        date.today()
+        today = date.today()
 
         if completed:
             # 完了記録を作成
@@ -293,12 +293,61 @@ class LifelogManager:
 
             # 習慣統計を更新
             habit.total_completions += 1
-            # TODO: ストリーク計算ロジックを実装
+
+            # ストリーク計算ロジック
+            await self._update_habit_streak(habit, today, completed=True)
+
+        else:
+            # 未完了の場合もストリークをリセット
+            await self._update_habit_streak(habit, today, completed=False)
 
         habit.updated_at = datetime.now()
         await self._save_data()
 
         return True
+
+    async def _update_habit_streak(
+        self, habit: HabitTracker, target_date: date, completed: bool
+    ) -> None:
+        """習慣のストリーク情報を更新"""
+        from datetime import timedelta
+
+        if not habit.id:
+            return
+
+        if completed:
+            # 前日までの連続記録をチェック
+            yesterday = target_date - timedelta(days=1)
+            was_previous_day_completed = await self._was_habit_completed_on_date(
+                habit.id, yesterday
+            )
+
+            if was_previous_day_completed or habit.current_streak == 0:
+                # 連続記録を延長 or 新規開始
+                habit.current_streak += 1
+            else:
+                # 前日が未完了だった場合は新規開始
+                habit.current_streak = 1
+
+            # ベストストリークを更新
+            if habit.current_streak > habit.best_streak:
+                habit.best_streak = habit.current_streak
+
+        else:
+            # 未完了の場合はストリークをリセット
+            habit.current_streak = 0
+
+    async def _was_habit_completed_on_date(
+        self, habit_id: str, target_date: date
+    ) -> bool:
+        """指定日に習慣が完了していたかチェック"""
+        entries = await self.get_entries_by_date_range(target_date, target_date)
+
+        for entry in entries:
+            if entry.type == LifelogType.HABIT and entry.related_habit_id == habit_id:
+                return True
+
+        return False
 
     async def get_habit(self, habit_id: str) -> HabitTracker | None:
         """習慣を取得"""

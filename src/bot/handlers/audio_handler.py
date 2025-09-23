@@ -105,15 +105,276 @@ class AudioHandler(LoggerMixin):
         original_message: discord.Message | None = None,
     ) -> None:
         """単一の音声添付ファイルを処理"""
-        # この実装は元のメソッドから移動予定
-        # TODO: MessageHandler から_process_single_audio_attachment を移動
-        pass
+        feedback_message = None
+
+        try:
+            attachment_url = attachment.get("url")
+            filename = attachment.get("filename", "audio.mp3")
+
+            if not attachment_url:
+                self.logger.warning(
+                    "No URL found for audio attachment", filename=filename
+                )
+                return
+
+            # Discord へのリアルタイムフィードバックを開始
+            if original_message:
+                try:
+                    feedback_message = await original_message.reply(
+                        f"🎤 音声ファイル `{filename}` の文字起こしを開始します..."
+                    )
+                except Exception as e:
+                    self.logger.warning("Failed to send feedback message", error=str(e))
+
+            # 音声ファイルをダウンロード
+            audio_data = await self.download_attachment(attachment_url)
+            if not audio_data:
+                self.logger.error(f"Failed to download audio file: {filename}")
+                await self.update_feedback_message(
+                    feedback_message,
+                    f"❌ 音声ファイル `{filename}` のダウンロードに失敗しました。",
+                )
+                return
+
+            # 音声を文字起こし
+            if not self.speech_processor:
+                self.logger.error("Speech processor not initialized")
+                await self.update_feedback_message(
+                    feedback_message,
+                    "❌ 音声処理システムが初期化されていません。",
+                )
+                return
+
+            audio_result = await self.speech_processor.process_audio_file(
+                file_data=audio_data, filename=filename, channel_name=channel_info.name
+            )
+
+            # 結果に応じてフィードバックを更新
+            if audio_result.success and audio_result.transcription:
+                success_msg = (
+                    f"音声文字起こしが完了しました！\n"
+                    f"📝 **ファイル**: `{filename}`\n"
+                    f"📊 **信頼度**: {audio_result.transcription.confidence:.2f}\n"
+                    f"📄 ノートが Obsidian に保存されました。"
+                )
+                await self.update_feedback_message(feedback_message, success_msg)
+
+                # 文字起こし結果をメッセージデータに統合
+                await self._integrate_audio_transcription(
+                    message_data, audio_result, channel_info
+                )
+            else:
+                if audio_result.fallback_used:
+                    fallback_msg = (
+                        f"⚠️ 音声文字起こしが制限されました\n"
+                        f"📝 **ファイル**: `{filename}`\n"
+                        f"📊 **理由**: {audio_result.fallback_reason}\n"
+                        f"📁 音声ファイルは Obsidian に保存されました。"
+                    )
+                    await self.update_feedback_message(feedback_message, fallback_msg)
+                else:
+                    error_msg = (
+                        f"❌ 音声文字起こしに失敗しました\n"
+                        f"📝 **ファイル**: `{filename}`\n"
+                        f"⚠️ **エラー**: {audio_result.error_message or '不明なエラー'}"
+                    )
+                    await self.update_feedback_message(feedback_message, error_msg)
+
+        except Exception as e:
+            self.logger.error(
+                "Error processing single audio attachment",
+                filename=attachment.get("filename", "unknown"),
+                error=str(e),
+                exc_info=True,
+            )
+
+            error_msg = (
+                f"❌ 音声処理中に予期しないエラーが発生しました\n"
+                f"📝 **ファイル**: `{attachment.get('filename', 'unknown')}`\n"
+                f"⚠️ **エラー**: {str(e)}"
+            )
+            await self.update_feedback_message(feedback_message, error_msg)
+
+    async def _integrate_audio_transcription(
+        self, message_data: dict[str, Any], audio_result: Any, channel_info: Any
+    ) -> None:
+        """音声転写結果をメッセージデータに統合"""
+        try:
+            if "metadata" not in message_data:
+                message_data["metadata"] = {}
+            if "content" not in message_data["metadata"]:
+                message_data["metadata"]["content"] = {}
+
+            # 音声転写データを追加
+            message_data["metadata"]["content"]["audio_transcription_data"] = {
+                "transcript": audio_result.transcription.transcript,
+                "confidence": audio_result.transcription.confidence,
+                "confidence_level": audio_result.transcription.confidence_level,
+                "fallback_used": audio_result.fallback_used,
+                "fallback_reason": audio_result.fallback_reason,
+                "saved_file_path": getattr(audio_result, "saved_file_path", None),
+            }
+
+        except Exception as e:
+            self.logger.error("Failed to integrate audio transcription", error=str(e))
 
     async def download_attachment(self, attachment_url: str) -> bytes | None:
-        """添付ファイルをダウンロード"""
-        # この実装は元のメソッドから移動予定
-        # TODO: MessageHandler から_download_attachment を移動
-        pass
+        """添付ファイルをダウンロード（セキュリティ強化版）"""
+        try:
+            from urllib.parse import urlparse
+
+            import aiohttp
+
+            # セキュリティ: URL の検証
+            if not attachment_url or not isinstance(attachment_url, str):
+                self.logger.warning(
+                    "Invalid URL provided for attachment download", url=attachment_url
+                )
+                return None
+
+            # セキュリティ: Discord CDN URL の検証
+            allowed_domains = {
+                "cdn.discordapp.com",
+                "media.discordapp.net",
+                "discord.com",
+            }
+
+            parsed_url = urlparse(attachment_url)
+            if parsed_url.hostname not in allowed_domains:
+                self.logger.warning(
+                    "Rejected attachment download from unauthorized domain",
+                    url=attachment_url,
+                    domain=parsed_url.hostname,
+                )
+                return None
+
+            # 個人使用向けセキュリティ設定（緩和）
+            MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB 制限（個人使用では緩和）
+            TIMEOUT = 60  # 60 秒タイムアウト（個人使用では緩和）
+
+            connector = aiohttp.TCPConnector(
+                limit=10, limit_per_host=5, ttl_dns_cache=300, use_dns_cache=True
+            )
+
+            timeout = aiohttp.ClientTimeout(total=TIMEOUT, connect=10)
+
+            async with aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout,
+                headers={"User-Agent": "MindBridge-Bot/1.0"},
+            ) as session:
+                async with session.get(attachment_url) as response:
+                    if response.status != 200:
+                        self.logger.error(
+                            "Failed to download attachment",
+                            url=attachment_url,
+                            status=response.status,
+                        )
+                        return None
+
+                    # セキュリティ: Content-Length チェック
+                    content_length = response.headers.get("Content-Length")
+                    if content_length and int(content_length) > MAX_FILE_SIZE:
+                        self.logger.warning(
+                            "Rejected attachment download due to size limit",
+                            url=attachment_url,
+                            size=content_length,
+                            max_size=MAX_FILE_SIZE,
+                        )
+                        return None
+
+                    # セキュリティ: Content-Type の検証
+                    content_type = response.headers.get("Content-Type", "").lower()
+                    allowed_content_types = {
+                        "audio/ogg",
+                        "audio/mpeg",
+                        "audio/mp3",
+                        "audio/wav",
+                        "audio/webm",
+                        "audio/mp4",
+                        "audio/m4a",
+                        "audio/x-wav",
+                        "audio/vnd.wave",
+                        "audio/wave",
+                    }
+
+                    if content_type and not any(
+                        ct in content_type for ct in allowed_content_types
+                    ):
+                        self.logger.warning(
+                            "Rejected attachment download due to invalid content type",
+                            url=attachment_url,
+                            content_type=content_type,
+                        )
+                        return None
+
+                    # セキュリティ: ストリーミングダウンロードでサイズ制限
+                    data = bytearray()
+                    async for chunk in response.content.iter_chunked(
+                        8192
+                    ):  # 8KB チャンク
+                        data.extend(chunk)
+                        if len(data) > MAX_FILE_SIZE:
+                            self.logger.warning(
+                                "Rejected attachment download due to size limit during download",
+                                url=attachment_url,
+                                downloaded_size=len(data),
+                                max_size=MAX_FILE_SIZE,
+                            )
+                            return None
+
+                    # セキュリティ: マジックバイト検証
+                    if len(data) < 12:
+                        self.logger.warning(
+                            "Rejected attachment download due to insufficient data",
+                            url=attachment_url,
+                            size=len(data),
+                        )
+                        return None
+
+                    # 音声ファイルのマジックバイト検証
+                    audio_magic_bytes = [
+                        b"OggS",  # OGG
+                        b"\xff\xfb",
+                        b"\xff\xf3",
+                        b"\xff\xf2",  # MP3
+                        b"RIFF",  # WAV
+                        b"\x1a\x45\xdf\xa3",  # WebM/Matroska
+                        b"ftypM4A",  # M4A
+                        b"ftypisom",  # MP4
+                    ]
+
+                    header = bytes(data[:12])
+                    is_valid_audio = any(
+                        header.startswith(magic) or magic in header[:12]
+                        for magic in audio_magic_bytes
+                    )
+
+                    if not is_valid_audio:
+                        self.logger.warning(
+                            "Rejected attachment download due to invalid audio format",
+                            url=attachment_url,
+                            header=header.hex()[:24],  # 最初の 12 バイトの hex 表示
+                        )
+                        return None
+
+                    self.logger.info(
+                        "Successfully downloaded and validated audio attachment",
+                        url=attachment_url,
+                        size=len(data),
+                        content_type=content_type,
+                    )
+
+                    return bytes(data)
+
+        except Exception as e:
+            self.logger.error(
+                "Error downloading attachment",
+                url=attachment_url,
+                error=str(e),
+                exc_info=True,
+            )
+            return None
 
     async def update_feedback_message(
         self, feedback_message: discord.Message | None, content: str

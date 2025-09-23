@@ -84,8 +84,9 @@ class MessageHandler(LoggerMixin):
 
     async def initialize_lifelog(self) -> None:
         """ライフログ機能の初期化"""
-        # TODO: 必要に応じてライフログ初期化ロジックを実装
-        pass
+        if self.lifelog_manager:
+            await self.lifelog_manager.initialize()
+            self.logger.info("ライフログ機能を初期化しました")
 
     async def process_message(
         self,
