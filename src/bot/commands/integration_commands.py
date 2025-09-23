@@ -197,6 +197,55 @@ class IntegrationCommands(commands.Cog):
                 integration_name, integration_config
             )
 
+    async def _save_integration_settings(self):
+        """統合設定をファイルに保存"""
+        if self.integration_manager is None:
+            logger.warning("IntegrationManager未初期化のため設定保存をスキップ")
+            return False
+
+        try:
+            import json
+            from pathlib import Path
+
+            import aiofiles
+
+            # 設定ディレクトリの確保
+            settings_dir = Path("/app/.mindbridge/integrations")
+            settings_dir.mkdir(parents=True, exist_ok=True)
+            settings_path = settings_dir / "settings.json"
+
+            # 現在の設定を辞書形式で取得
+            current_settings = {}
+            for (
+                integration_name,
+                integration_obj,
+            ) in self.integration_manager.integrations.items():
+                config = integration_obj.config
+                current_settings[integration_name] = {
+                    "enabled": config.enabled,
+                    "sync_interval": config.sync_interval,
+                    "custom_settings": config.custom_settings,
+                    "last_sync": config.last_sync.isoformat()
+                    if config.last_sync
+                    else None,
+                    "auth_type": config.auth_type,
+                }
+
+            # 非同期でファイルに保存
+            async with aiofiles.open(settings_path, "w") as f:
+                await f.write(
+                    json.dumps(current_settings, indent=2, ensure_ascii=False)
+                )
+
+            logger.info(
+                f"統合設定を保存しました: {len(current_settings)}件の設定をファイルに保存"
+            )
+            return True
+
+        except Exception as e:
+            logger.error("統合設定の保存でエラー", error=str(e))
+            return False
+
     @discord.app_commands.command(
         name="integration_status", description="外部連携の状態を確認"
     )
@@ -420,9 +469,56 @@ class IntegrationCommands(commands.Cog):
                     )
 
                     # ライフログに統合
-                    if result.records_synced > 0:
-                        # 同期データをライフログに統合（実装予定）
-                        pass
+                    if result.records_synced > 0 and self.lifelog_manager:
+                        try:
+                            # IntegrationManagerから統合データを取得
+                            integration_obj = self.integration_manager.integrations.get(
+                                integration
+                            )
+                            if integration_obj:
+                                # 最新のデータを取得してライフログに統合
+                                from datetime import datetime, timedelta
+
+                                end_date = datetime.now()
+                                start_date = end_date - timedelta(days=1)  # 過去1日分
+
+                                base_integration_data = await integration_obj.sync_data(
+                                    start_date, end_date
+                                )
+
+                                if base_integration_data:
+                                    # base.IntegrationData を models.IntegrationData に変換
+                                    from ...lifelog.integrations.models import (
+                                        IntegrationData as ModelsIntegrationData,
+                                    )
+
+                                    models_integration_data = []
+                                    for base_data in base_integration_data:
+                                        models_data = ModelsIntegrationData(
+                                            integration_type=base_data.integration_name,
+                                            source_id=base_data.external_id,
+                                            timestamp=base_data.timestamp,
+                                            data=base_data.raw_data,
+                                            metadata=base_data.processed_data,
+                                        )
+                                        models_integration_data.append(models_data)
+
+                                    integrated_count = await self.lifelog_manager.integrate_external_data(
+                                        models_integration_data
+                                    )
+                                    if integrated_count > 0:
+                                        embed.add_field(
+                                            name="ライフログ統合",
+                                            value=f"✅ {integrated_count}件のデータをライフログに統合しました",
+                                            inline=False,
+                                        )
+                        except Exception as e:
+                            logger.error("ライフログ統合でエラー", error=str(e))
+                            embed.add_field(
+                                name="ライフログ統合",
+                                value="⚠️ ライフログ統合でエラーが発生しました",
+                                inline=False,
+                            )
 
                 else:
                     embed.colour = discord.Color.red()
@@ -495,19 +591,66 @@ class IntegrationCommands(commands.Cog):
                     await interaction.followup.send(embed=embed)
 
                 # ライフログ統合（成功した分のみ）
-                integration_count = 0
-                for result in results:
-                    if result.success and result.records_synced > 0:
-                        # 実際の統合処理（実装予定）
-                        integration_count += 1
+                if self.lifelog_manager:
+                    total_integrated = 0
+                    for result in results:
+                        if result.success and result.records_synced > 0:
+                            try:
+                                # IntegrationManagerから統合データを取得
+                                integration_obj = (
+                                    self.integration_manager.integrations.get(
+                                        result.integration_name
+                                    )
+                                )
+                                if integration_obj:
+                                    # 最新のデータを取得してライフログに統合
+                                    from datetime import datetime, timedelta
 
-                if integration_count > 0:
-                    integration_embed = discord.Embed(
-                        title="📝 ライフログ統合完了",
-                        description=f"{integration_count}個の連携データをライフログに統合しました",
-                        color=discord.Color.green(),
-                    )
-                    await interaction.followup.send(embed=integration_embed)
+                                    end_date = datetime.now()
+                                    start_date = end_date - timedelta(
+                                        days=1
+                                    )  # 過去1日分
+
+                                    base_integration_data = (
+                                        await integration_obj.sync_data(
+                                            start_date, end_date
+                                        )
+                                    )
+
+                                    if base_integration_data:
+                                        # base.IntegrationData を models.IntegrationData に変換
+                                        from ...lifelog.integrations.models import (
+                                            IntegrationData as ModelsIntegrationData,
+                                        )
+
+                                        models_integration_data = []
+                                        for base_data in base_integration_data:
+                                            models_data = ModelsIntegrationData(
+                                                integration_type=base_data.integration_name,
+                                                source_id=base_data.external_id,
+                                                timestamp=base_data.timestamp,
+                                                data=base_data.raw_data,
+                                                metadata=base_data.processed_data,
+                                            )
+                                            models_integration_data.append(models_data)
+
+                                        integrated_count = await self.lifelog_manager.integrate_external_data(
+                                            models_integration_data
+                                        )
+                                        total_integrated += integrated_count
+                            except Exception as e:
+                                logger.error(
+                                    f"{result.integration_name}のライフログ統合でエラー",
+                                    error=str(e),
+                                )
+
+                    if total_integrated > 0:
+                        integration_embed = discord.Embed(
+                            title="📝 ライフログ統合完了",
+                            description=f"{total_integrated}件のデータをライフログに統合しました",
+                            color=discord.Color.green(),
+                        )
+                        await interaction.followup.send(embed=integration_embed)
 
         except Exception as e:
             logger.error("手動同期でエラー", error=str(e))
@@ -565,8 +708,11 @@ class IntegrationCommands(commands.Cog):
                 config.sync_interval = interval
                 changed = True
 
-            # 変更を保存（実際の設定永続化は実装予定）
+            # 変更を保存
             if changed:
+                # 設定ファイルに保存
+                save_success = await self._save_integration_settings()
+
                 # スケジューラー更新
                 if self.scheduler:
                     if config.enabled:
@@ -613,11 +759,18 @@ class IntegrationCommands(commands.Cog):
                     )
 
             if changed:
-                embed.add_field(
-                    name="✅ 変更完了",
-                    value="設定が正常に更新されました。",
-                    inline=False,
-                )
+                if save_success:
+                    embed.add_field(
+                        name="✅ 変更完了",
+                        value="設定が正常に更新され、ファイルに保存されました。",
+                        inline=False,
+                    )
+                else:
+                    embed.add_field(
+                        name="⚠️ 部分的完了",
+                        value="設定は更新されましたが、ファイル保存でエラーが発生しました。\n再起動時に設定が失われる可能性があります。",
+                        inline=False,
+                    )
 
             await interaction.followup.send(embed=embed)
 

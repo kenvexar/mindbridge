@@ -265,18 +265,108 @@ class BasicCommands(commands.Cog, CommandMixin):
 
     async def _check_service_status(self) -> dict[str, str]:
         """Check status of various services."""
-        # This would check actual service status
-        return {
-            "Obsidian": "🟢 利用可能",
-            "AI 処理": "🟢 利用可能",
-            "音声認識": "🟢 利用可能",
-        }
+        status = {}
+
+        try:
+            # Obsidian FileManager チェック
+            from src.config.settings import Settings
+            from src.obsidian.file_manager import ObsidianFileManager
+
+            settings = Settings()
+            file_manager = ObsidianFileManager(settings.obsidian_vault_path)
+
+            # ボルトパスの存在確認
+            if file_manager.vault_path.exists():
+                status["Obsidian"] = "🟢 利用可能"
+            else:
+                status["Obsidian"] = "🔴 ボルトパスが見つかりません"
+
+        except Exception as e:
+            status["Obsidian"] = f"🔴 エラー: {str(e)[:50]}"
+
+        try:
+            # AI 処理システムチェック
+            from src.config.settings import get_settings
+
+            settings = get_settings()
+            # SecretStrの場合は.get_secret_value()を使用
+            api_key = (
+                settings.gemini_api_key.get_secret_value()
+                if settings.gemini_api_key
+                else ""
+            )
+            if api_key and api_key.strip():
+                status["AI 処理"] = "🟢 利用可能"
+            else:
+                status["AI 処理"] = "🔴 API キーが設定されていません"
+
+        except Exception as e:
+            status["AI 処理"] = f"🔴 エラー: {str(e)[:50]}"
+
+        try:
+            # 音声認識システムチェック
+            import os
+
+            google_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            if google_creds and os.path.exists(google_creds):
+                status["音声認識"] = "🟢 利用可能"
+            else:
+                status["音声認識"] = "🔴 認証情報が設定されていません"
+
+        except Exception as e:
+            status["音声認識"] = f"🔴 エラー: {str(e)[:50]}"
+
+        return status
 
     async def _search_notes(self, query: str, limit: int) -> list[dict[str, Any]]:
         """Search notes in Obsidian vault."""
-        # This would integrate with the actual search functionality
-        # For now, return placeholder data
-        return []
+        try:
+            from src.config.settings import Settings
+            from src.obsidian.file_manager import ObsidianFileManager
+
+            settings = Settings()
+            file_manager = ObsidianFileManager(settings.obsidian_vault_path)
+
+            # 検索実行
+            search_results = await file_manager.search_notes(query, limit=limit)
+
+            if not search_results:
+                return []
+
+            # 結果をフォーマット
+            formatted_results = []
+            for result in search_results:
+                # ファイルパスからタイトルを抽出
+                file_path = result.get("path", "")
+                title = (
+                    file_path.replace(".md", "").split("/")[-1] if file_path else "無題"
+                )
+
+                # プレビューテキストを作成
+                content = result.get("content", "")
+                preview = content[:200].replace("\n", " ").strip() if content else ""
+
+                # メタデータを取得
+                metadata = result.get("metadata", {})
+
+                formatted_result = {
+                    "title": title,
+                    "preview": preview,
+                    "file_path": file_path,
+                    "score": result.get("score", 0),
+                    "tags": metadata.get("tags", [])
+                    if isinstance(metadata.get("tags"), list)
+                    else [],
+                    "created_date": metadata.get("created", ""),
+                }
+
+                formatted_results.append(formatted_result)
+
+            return formatted_results
+
+        except Exception as e:
+            logger.error("検索処理でエラー", error=str(e))
+            return []
 
     def _format_search_results(self, results: list[dict[str, Any]], query: str) -> str:
         """Format search results for display."""
@@ -296,6 +386,106 @@ class BasicCommands(commands.Cog, CommandMixin):
 
     async def _get_random_note(self) -> dict[str, Any] | None:
         """Get a random note from the vault."""
-        # This would integrate with the actual file manager
-        # For now, return placeholder data
-        return None
+        try:
+            import random
+
+            import aiofiles
+
+            from src.config.settings import Settings
+            from src.obsidian.file_manager import ObsidianFileManager
+
+            settings = Settings()
+            file_manager = ObsidianFileManager(settings.obsidian_vault_path)
+
+            # ボルト内の全マークダウンファイルを取得
+            vault_path = file_manager.vault_path
+            if not vault_path.exists():
+                logger.warning("ボルトパスが存在しません", path=str(vault_path))
+                return None
+
+            # .mdファイルをすべて検索
+            md_files = list(vault_path.rglob("*.md"))
+
+            # システムファイルやテンプレートを除外
+            filtered_files = []
+            for file_path in md_files:
+                relative_path_obj = file_path.relative_to(vault_path)
+
+                # 除外パターン
+                exclude_patterns = [
+                    ".obsidian/",
+                    "templates/",
+                    "Template",
+                    ".trash/",
+                    "_archive/",
+                ]
+
+                should_exclude = any(
+                    pattern in str(relative_path_obj) for pattern in exclude_patterns
+                )
+
+                if not should_exclude and file_path.is_file():
+                    filtered_files.append(file_path)
+
+            if not filtered_files:
+                logger.info("ランダム表示用のノートが見つかりません")
+                return None
+
+            # ランダムにファイルを選択
+            random_file = random.choice(filtered_files)
+
+            try:
+                # ファイル内容を読み取り
+                async with aiofiles.open(random_file, encoding="utf-8") as f:
+                    content = await f.read()
+
+                # タイトルを抽出（ファイル名から）
+                title = random_file.stem
+
+                # プレビューテキストを作成（最初の300文字）
+                preview = content[:300].replace("\n", " ").strip() if content else ""
+
+                # メタデータ抽出（簡易版）
+                tags = []
+                created_date = ""
+
+                # タグを抽出（#で始まる単語）
+                import re
+
+                tag_matches = re.findall(r"#(\w+)", content)
+                tags = list(set(tag_matches))  # 重複除去
+
+                # 作成日を推定（ファイル作成日時）
+                try:
+                    import os
+
+                    created_timestamp = os.path.getctime(random_file)
+                    from datetime import datetime
+
+                    created_date = datetime.fromtimestamp(created_timestamp).strftime(
+                        "%Y-%m-%d"
+                    )
+                except Exception:
+                    created_date = "不明"
+
+                # 相対パスを作成（文字列として）
+                relative_path_str = str(random_file.relative_to(vault_path))
+
+                return {
+                    "title": title,
+                    "preview": preview,
+                    "file_path": relative_path_str,
+                    "tags": tags[:5],  # 最大5個まで
+                    "created_date": created_date,
+                    "content_length": len(content),
+                }
+
+            except Exception as e:
+                logger.error(
+                    "ファイル読み取りでエラー", file_path=str(random_file), error=str(e)
+                )
+                return None
+
+        except Exception as e:
+            logger.error("ランダムノート取得でエラー", error=str(e))
+            return None
