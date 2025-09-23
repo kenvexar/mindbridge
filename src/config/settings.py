@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     google_calendar_service_account: str | None = None
 
     # Obsidian Personal Vault
-    obsidian_vault_path: Path
+    obsidian_vault_path: Path = Path("./vault")  # Docker と互換性のため相対パス
 
     # Personal Cache Directory
     garmin_cache_dir: Path | None = None
@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     obsidian_backup_branch: str = "main"
     git_user_name: str = "Personal MindBridge"
     git_user_email: str = "mindbridge@personal.local"
+
+    # AI Model Configuration
+    model_name: str = "gemini-1.5-flash"
+    ai_temperature: float = 0.3
+    ai_max_tokens: int = 1024
 
     # Development Configuration
     enable_mock_mode: bool = False

@@ -88,25 +88,27 @@ class SecureSettingsManager:
 
     def _validate_discord_token(self, token: str) -> tuple[bool, str]:
         """Discord トークンの形式を検証"""
-        if not token or len(token) < 50:
-            return False, "Discord token too short (minimum 50 characters)"
+        if not token or len(token) < 40:
+            return False, "Discord token too short (minimum 40 characters)"
 
-        # Discord bot token は通常 "Bot " または "Bearer" で始まる
-        if not (token.startswith("Bot ") or len(token) > 70):
-            return False, "Discord token format appears invalid"
+        # Discord bot token は通常 "Bot " または長いランダム文字列
+        # 実際のトークンは 59-70 文字程度
+        if len(token) >= 40 and re.match(r"^[A-Za-z0-9._-]+$", token):
+            return True, "Valid Discord token format"
 
-        return True, "Valid Discord token format"
+        return False, "Discord token format appears invalid"
 
     def _validate_gemini_key(self, key: str) -> tuple[bool, str]:
         """Gemini API キーの形式を検証"""
-        if not key or len(key) < 30:
+        if not key or len(key) < 20:
             return False, "Gemini API key too short"
 
-        # Gemini API key は通常英数字の組み合わせ
-        if not re.match(r"^[A-Za-z0-9_-]+$", key):
-            return False, "Gemini API key contains invalid characters"
+        # Gemini API key は通常英数字とハイフン、アンダースコアの組み合わせ
+        # 実際のキーは 39 文字程度
+        if re.match(r"^[A-Za-z0-9_-]+$", key):
+            return True, "Valid Gemini API key format"
 
-        return True, "Valid Gemini API key format"
+        return False, "Gemini API key contains invalid characters"
 
     def _validate_github_token(self, token: str) -> tuple[bool, str]:
         """GitHub トークンの形式を検証"""
@@ -118,7 +120,9 @@ class SecureSettingsManager:
             return True, "Valid GitHub personal access token format"
         elif token.startswith("gho_") and len(token) >= 36:
             return True, "Valid GitHub OAuth token format"
-        elif len(token) == 40 and re.match(r"^[a-f0-9]+$", token):
+        elif token.startswith("github_pat_") and len(token) >= 82:
+            return True, "Valid GitHub fine-grained token format"
+        elif len(token) >= 30 and re.match(r"^[a-f0-9]+$", token):
             return True, "Valid GitHub classic token format"
 
         return False, "GitHub token format appears invalid"
