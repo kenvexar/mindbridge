@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Development guide for Claude Code when working with the MindBridge project.
 
 ## Clean Project Commands
 
@@ -91,7 +91,7 @@ docker compose up -d
 
 ## Architecture Overview
 
-MindBridge is an AI-powered Discord bot that captures messages and voice memos, processes them with Google Gemini AI, and saves structured notes to Obsidian with automatic categorization.
+Discord → AI → Obsidian automated memo system.
 
 ### Core Components
 
@@ -175,15 +175,3 @@ All changes must pass:
 - Components registered with `ComponentManager` for lazy loading
 - Separate concerns: AI processing, file operations, external APIs
 - Interface-based design for pluggability (especially integrations)
-
-## Production Considerations
-
-**Cloud Run Deployment**: Automatic via `./scripts/manage.sh full-deploy` with:
-- Health server on port 8080 for container health checks
-- GitHub sync for vault persistence across container restarts
-- Google Cloud Speech-to-Text credentials auto-generation
-- Comprehensive error handling and retry mechanisms
-
-**Monitoring**: Health server provides status endpoints. Structured logs via `structlog` for observability.
-
-**Security**: All credentials encrypted in Secret Manager. Access logging for security events. No hardcoded secrets in code.
