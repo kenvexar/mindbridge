@@ -1,59 +1,76 @@
 # クイックスタート
 
-最短 3 ステップでローカル実行できます。
+MindBridge を最短 3 ステップでローカル実行できます。
 
-## 1. 依存関係
+> 📚 **より詳細な手順**: [インストールガイド](installation.md) を参照してください。
 
-```
+## 前提条件
+
+- **Python 3.13+** がインストール済み
+- **uv パッケージマネージャー** がインストール済み
+- **Discord アカウント** と **Google Gemini API キー**
+
+## 1. 依存関係インストール
+
+```bash
 uv sync --dev
 ```
 
 ## 2. 環境設定
 
-対話式セットアップ:
+### 対話式セットアップ（推奨）
 
-```
+```bash
 ./scripts/manage.sh init
 ```
 
-または `.env.example` をコピーして必須項目を記入:
+### 手動セットアップ
 
-```
+```bash
 cp .env.example .env
-# 必須: DISCORD_BOT_TOKEN / GEMINI_API_KEY / OBSIDIAN_VAULT_PATH
+# .env ファイルを編集して以下を設定：
+# - DISCORD_BOT_TOKEN
+# - GEMINI_API_KEY
+# - OBSIDIAN_VAULT_PATH
 ```
 
 ## 3. 起動
 
-```
+```bash
+# 通常起動
 uv run python -m src.main
-# Debug mode
+
+# デバッグモード
 uv run python -m src.main --debug
 ```
 
-## 追加機能（任意）
+## 使用開始
 
-- 音声認識（ Google Cloud Speech-to-Text ）: `.env.example` のキーを追記
-- Garmin/Google Calendar 連携: 必要なキーを `.env` に追記
+起動後、 Discord で以下のチャンネルを作成：
 
-## よくある質問
+- **#memo** - メイン入力チャンネル（テキスト・音声・ファイル）
+- **#notifications** - システム通知
+- **#commands** - Bot コマンド
 
-- Discord チャンネルは最低 `#memo`, `#notifications`, `#commands` を作成してください。
-- Vault パスは存在しない場合、自動作成されます。
-- ログレベルを上げる場合は `.env` の `LOG_LEVEL=DEBUG` に変更してください。
+**#memo** にメッセージを投稿すると、 AI が自動的に分析して Obsidian ノートを生成します！
 
-## 参考: API キー取得手順（アンカー）
+## トラブルシューティング
 
-<a id="discord-bot-setup"></a>
-### Discord Bot セットアップ
+| 問題 | 解決策 |
+|------|--------|
+| Bot が起動しない | `LOG_LEVEL=DEBUG` に設定して詳細ログを確認 |
+| チャンネルが見つからない | チャンネル名が正確か確認（`memo`, `notifications`, `commands`） |
+| Obsidian ファイルが作成されない | `OBSIDIAN_VAULT_PATH` のパスと権限を確認 |
 
-1. Discord Developer Portal で新規アプリ作成 → Bot 追加
-2. Bot Token をコピー（`.env` の `DISCORD_BOT_TOKEN`）
-3. OAuth2 → URL Generator で `bot` と `applications.commands` を選択し招待
-4. 権限: Send Messages / Read Message History / Attach Files / Use Slash Commands / Message Content Intent
+## 次のステップ
 
-<a id="gemini-api-setup"></a>
-### Gemini API セットアップ
+- **[基本的な使用方法](basic-usage.md)** - 日常の使い方
+- **[コマンドリファレンス](commands-reference.md)** - 利用可能なコマンド
+- **[インストールガイド](installation.md)** - 詳細なセットアップ手順
 
-1. Google AI Studio で API Key を作成
-2. 取得したキーを `.env` の `GEMINI_API_KEY` に設定
+## API キー取得（詳細手順）
+
+Discord Bot と Gemini API キーの詳細な取得手順は [インストールガイド](installation.md) の各セクションを参照してください：
+
+- **[Discord Bot セットアップ](installation.md#discord-bot-セットアップ)** - Bot 作成・権限設定・招待
+- **[Gemini API 設定](installation.md#api-設定)** - API キー取得手順

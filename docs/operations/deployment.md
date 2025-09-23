@@ -147,7 +147,7 @@ docker compose up -d
 
 ```bash
 # ログ確認
-docker compose logs -f
+docker compose logs -f personal-mindbridge
 
 # ヘルスチェック
 curl http://localhost:8080/health
@@ -260,7 +260,7 @@ ENVIRONMENT=production
 ```bash
 # cron ジョブでバックアップ
 # 毎日 2:00 AM に実行
-0 2 * * * cd /path/to/mindbridge && docker compose exec mindbridge-bot python -c "from src.obsidian.backup import backup_vault; backup_vault()"
+0 2 * * * cd /path/to/mindbridge && docker compose exec personal-mindbridge python -c "from src.obsidian.backup import backup_vault; backup_vault()"
 ```
 
 ### ログローテーション
@@ -302,10 +302,10 @@ docker compose ps
 docker stats
 
 # ログ確認
-docker compose logs --tail=100 mindbridge-bot
+docker compose logs --tail=100 personal-mindbridge
 
 # コンテナ内シェル
-docker compose exec mindbridge-bot /bin/bash
+docker compose exec personal-mindbridge /bin/bash
 
 # 強制再起動
 docker compose down --remove-orphans

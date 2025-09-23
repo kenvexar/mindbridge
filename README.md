@@ -44,53 +44,44 @@ Obsidian 統合
 
 ## クイックスタート
 
-### ローカル（最短）
+### ローカル実行（最短 3 ステップ）
 
-```
+```bash
+# 1. 依存関係インストール
 uv sync --dev
-./scripts/manage.sh init   # 対話で .env を生成
+
+# 2. 環境設定（対話式）
+./scripts/manage.sh init
+
+# 3. 起動
 uv run python -m src.main
 ```
 
-詳細: docs/user/quick-start.md
+📖 **詳細手順**: [クイックスタートガイド](docs/user/quick-start.md)
 
-### Google Cloud Run デプロイ（推奨）
+### クラウドデプロイ（推奨）
 
-**完全自動デプロイスクリプト**で 5 分でデプロイ完了：
+**月額約 8 円**で本格運用。完全自動デプロイスクリプトで 5 分完了：
 
 ```bash
 # リポジトリをクローン
 git clone https://github.com/kenvexar/mindbridge.git
 cd mindbridge
 
-# 完全自動デプロイ（推奨）
+# 完全自動デプロイ（音声認識・健康データ統合含む）
 ./scripts/manage.sh full-deploy YOUR_PROJECT_ID --with-optional
 
 # 基本機能のみデプロイ
 ./scripts/manage.sh full-deploy YOUR_PROJECT_ID
 ```
 
-主な特徴：
+🚀 **主な特徴**：
 - Google Cloud 環境の自動セットアップ
 - Speech-to-Text 認証情報の自動生成
-- Garmin Connect 統合（ OAuth 不要）
 - GitHub 同期によるデータ永続化
-- エラー処理とリトライ機能
+- 無料枠活用で最小費用運用
 
-### ローカル開発
-
-```bash
-# 依存関係をインストール
-uv sync
-
-# 環境設定
-cp .env.example .env
-# API キーで .env ファイルを編集
-
-# ボットを開始 / デバッグ
-uv run python -m src.main
-uv run python -m src.main --debug  # 任意
-```
+📖 **詳細手順**: [デプロイメントガイド](docs/operations/deployment.md)
 
 ### 使用方法
 
@@ -100,43 +91,30 @@ uv run python -m src.main --debug  # 任意
 
 ## 開発
 
-詳細な開発コマンドとアーキテクチャについては [開発ガイド](docs/developer/development-guide.md) を参照してください。
-
 ### 開発クイックリファレンス
 
 ```bash
 # セットアップ
 uv sync --dev
 
-# 実行（ローカル）
+# 実行
 uv run python -m src.main
 
-# テスト / カバレッジ
-uv run pytest -q
-uv run pytest --cov=src --cov-report=term-missing
-
-# Lint / Format / 型
-uv run ruff check . --fix && uv run ruff format .
-uv run mypy src
-
-# フック（ pre-commit ）
-uv run pre-commit run --all-files
+# テスト・品質チェック
+uv run pytest -q                                      # テスト実行
+uv run pytest --cov=src --cov-report=term-missing    # カバレッジ
+uv run ruff check . --fix && uv run ruff format .    # Lint ・ Format
+uv run mypy src                                       # 型チェック
+uv run pre-commit run --all-files                    # Pre-commit
 
 # コンテナ
 docker compose up -d
 ```
 
-#### Manual Tests （任意実行）
-
-CI 対象外の手動テストは必要時に個別実行してください：
-
-- 音声テスト（簡易）: `uv run python tests/manual/quick_voice_test.py`
-- 実音声テスト: `uv run python tests/manual/test_real_voice.py`
-- 音声メモ総合: `uv run python tests/manual/test_voice_memo.py`
-- Garmin 統合: `uv run python tests/manual/test_garmin_integration.py`
-- CLI 動作検証: `bash tests/manual/test_manage.sh`
-
-より詳細な運用ルールは [リポジトリ運用ガイドライン](docs/developer/repository-guidelines.md) を参照してください。
+📖 **詳細情報**:
+- **[開発ガイド](docs/developer/development-guide.md)** - 包括的な開発手順
+- **[アーキテクチャ](docs/developer/architecture.md)** - システム設計
+- **[ローカルテストガイド](docs/developer/local-testing.md)** - テスト戦略
 
 ## ドキュメント
 
@@ -178,11 +156,12 @@ MIT ライセンス - 詳細は [LICENSE](LICENSE) ファイルを参照して�
 
 ## サポート
 
-- **Issues**：[GitHub Issues](https://github.com/kenvexar/mindbridge/issues) でバグ報告と機能要求
-- **ドキュメント**：包括的なドキュメントが利用可能
-  - [外部統合ガイド](docs/integrations/external-integrations.md) - Garmin 、 Google Calendar 、金融データ統合
+- **🐛 Issues**: [GitHub Issues](https://github.com/kenvexar/mindbridge/issues) でバグ報告と機能要求
+- **📖 ドキュメント**: 包括的なドキュメントが利用可能
+  - [外部統合ガイド](docs/integrations/external-integrations.md) - Garmin ・ Google Calendar ・金融データ統合
   - [Garmin 統合ガイド](docs/integrations/garmin-integration.md) - Garmin Connect の詳細設定
-- **ディスカッション**：プロジェクトディスカッションとコミュニティサポート
+  - [トラブルシューティング](docs/operations/troubleshooting.md) - よくある問題と解決策
+- **💬 ディスカッション**: プロジェクトディスカッションとコミュニティサポート
 
 ---
 
