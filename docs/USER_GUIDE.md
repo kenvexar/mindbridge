@@ -1,564 +1,242 @@
 # MindBridge ユーザーガイド
 
-AI 駆動の知識管理システム「 MindBridge 」の使い方ガイドです。 Discord を通じて音声メモやメッセージを AI で処理し、自動的に Obsidian ノートに整理するシステムです。
+AI が Discord のメッセージや添付ファイルを整理し、 Obsidian ノートに保存するワークフローの利用手順をまとめています。
 
-## 📋 目次
+## 目次
 
-- [1. 概要](#1-概要)
-- [2. セットアップ](#2-セットアップ)
-- [3. 基本的な使い方](#3-基本的な使い方)
-- [4. Discord コマンド](#4-discord-コマンド)
-- [5. 音声メモ機能](#5-音声メモ機能)
-- [6. タスク・財務管理](#6-タスク財務管理)
-- [7. 健康・ライフログ](#7-健康ライフログ)
-- [8. 設定・カスタマイズ](#8-設定カスタマイズ)
-- [9. トラブルシューティング](#9-トラブルシューティング)
+1. [概要](#1-概要)
+2. [初期セットアップ](#2-初期セットアップ)
+   - [必要な環境](#21-必要な環境)
+   - [インストール手順](#22-インストール手順)
+   - [主要な環境変数](#23-主要な環境変数)
+   - [Discord Bot 準備](#24-discord-bot-準備)
+3. [基本的な使い方](#3-基本的な使い方)
+4. [利用可能な Slash コマンド](#4-利用可能な-slash-コマンド)
+5. [外部サービス連携](#5-外部サービス連携)
+6. [音声メモの処理](#6-音声メモの処理)
+7. [カスタマイズのヒント](#7-カスタマイズのヒント)
+8. [トラブルシューティング](#8-トラブルシューティング)
+
+---
 
 ## 1. 概要
 
-### ✨ 主要機能
+MindBridge は以下の処理を自動で実行します。
 
-- **AI メッセージ処理** - Discord メッセージを自動分析・分類してノート生成
-- **音声メモ変換** - 音声ファイルを自動でテキスト化して構造化ノート作成
-- **Obsidian 統合** - 自動的に Daily Note や専用ノートに整理
-- **タスク管理** - TODO の作成・追跡・プロジェクト管理
-- **財務管理** - 支出追跡・サブスクリプション管理・予算分析
-- **健康ログ** - Garmin Connect 連携で自動ヘルスデータ取得
-- **外部連携** - Google Calendar 、 GitHub 同期
+- Discord の `#memo` チャンネルからテキストや添付ファイルを取得
+- Google Gemini を用いた要約・タグ付け・カテゴリ分類
+- 生成結果を Obsidian Vault の Markdown ノートとして保存
+- Garmin Connect や Google Calendar から取得したデータを日次ノートに統合
+- GitHub リポジトリに Vault を同期（クラウド環境向け）
 
-### 🏗️ システム構成
+---
 
-```
-Discord → AI 処理 (Google Gemini) → Obsidian ノート生成
-    ↓
-外部サービス連携 (Garmin/Google Calendar) → ライフログ統合
-```
-
-## 2. セットアップ
+## 2. 初期セットアップ
 
 ### 2.1 必要な環境
 
-- Python 3.13 以上
-- Discord アカウント・サーバー
-- Google Cloud アカウント（ AI ・音声認識用）
-- Obsidian Vault （推奨）
+- Python 3.13
+- [uv](https://github.com/astral-sh/uv) パッケージマネージャー
+- Discord アカウント（Bot 用）
+- Google Gemini API Key
+- Obsidian Vault のローカルパス
 
-### 2.2 インストール
+### 2.2 インストール手順
 
 ```bash
-# 1. リポジトリをクローン
+# リポジトリを取得
 git clone https://github.com/your-username/mindbridge.git
 cd mindbridge
 
-# 2. 依存関係をインストール
+# 依存関係をインストール
 uv sync --dev
 
-# 3. 環境設定（対話式）
+# .env を対話式で作成
 ./scripts/manage.sh init
 
-# 4. ローカル実行
+# ローカル起動
 uv run python -m src.main
 ```
 
-### 2.3 基本設定
+### 2.3 主要な環境変数
 
-初回セットアップで以下の情報が必要です：
+`.env` または `.env.docker` に設定する主なキーは以下のとおりです。
 
-#### 必須設定
-- **Discord Bot Token** - Discord Developer Portal で取得
-- **Google AI API Key** - Google AI Studio で取得
-- **Obsidian Vault Path** - ローカルの Obsidian Vault パス
+| 変数 | 用途 |
+| --- | --- |
+| `DISCORD_BOT_TOKEN` | Discord Bot のトークン |
+| `DISCORD_GUILD_ID`  | Slash コマンドを同期するサーバー ID |
+| `GEMINI_API_KEY`    | Google Gemini API キー |
+| `OBSIDIAN_VAULT_PATH` | ノートを保存するディレクトリ |
+| `ENVIRONMENT` | `personal` / `development` / `production` |
+| `LOG_LEVEL`, `LOG_FORMAT` | ログ出力制御 |
+| `ENABLE_ACCESS_LOGGING` | セキュリティイベントロギングの有効/無効 |
 
-#### オプション設定
-- **Garmin Connect** - ユーザー名・パスワード（健康データ取得用）
-- **Google Calendar** - サービスアカウント認証情報
-- **GitHub Token** - Vault 同期用（推奨）
+### オプションの環境変数
 
-### 2.4 Discord Bot セットアップ
+| 変数 | 用途 |
+| --- | --- |
+| `GOOGLE_CLOUD_SPEECH_API_KEY` または `GOOGLE_CLOUD_SPEECH_CREDENTIALS` | 音声文字起こし用の認証情報 |
+| `GARMIN_EMAIL`, `GARMIN_PASSWORD` | Garmin Connect 連携用資格情報 |
+| `GITHUB_TOKEN`, `OBSIDIAN_BACKUP_REPO` | GitHub 同期設定 |
+| `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` | Google Calendar OAuth 用クライアント情報 |
+| `GOOGLE_CALENDAR_ACCESS_TOKEN`, `GOOGLE_CALENDAR_REFRESH_TOKEN` | 既存のトークンを再利用する場合 |
+| `ENABLE_MOCK_MODE`, `MOCK_*_ENABLED` | モック環境でのテスト設定 |
 
-1. [Discord Developer Portal](https://discord.com/developers/applications) でアプリケーション作成
-2. Bot トークンを取得
-3. 必要な権限を設定：
-   - Send Messages
-   - Read Message History
-   - Attach Files
-   - Use Slash Commands
-4. サーバーに Bot を招待
+### 2.4 Discord Bot 準備
+
+1. [Discord Developer Portal](https://discord.com/developers/applications) でアプリケーションを作成
+2. **Bot** タブでトークンを発行し、必要な権限に `Send Messages`, `Read Message History`, `Use Slash Commands` を含める
+3. OAuth2 → URL Generator で `bot` と `applications.commands` を選択し、サーバーへ招待
+4. `.env` に `DISCORD_BOT_TOKEN` と `DISCORD_GUILD_ID` を記入
+
+---
 
 ## 3. 基本的な使い方
 
-### 3.1 Discord でのメッセージ処理
+### 3.1 テキストメッセージ
 
-普通にメッセージを送信するだけで AI が自動処理します：
+Discord の `#memo` チャンネルに文章を投稿すると、以下の処理が走ります。
 
-```
-[あなた] 今日のミーティングでプロジェクトの進捗について話し合った。
-来週までにデザインを完成させる必要がある。
+1. Gemini で要約・タグ・カテゴリを推定
+2. `vault/` 配下に Markdown ノートを作成
+3. Daily Note に概要を反映（`Daily Note Integration` が有効な場合）
 
-[Bot] 📝 メッセージを処理しました
-✅ ノート作成: "2024-01-15 ミーティング議事録"
-🏷️ タグ: #会議 #プロジェクト #デザイン
-📅 期限: 2024-01-22 (デザイン完成)
-```
+### 3.2 URL を含むメッセージ
 
-### 3.2 URL の自動要約
+本文に URL がある場合は自動でコンテンツを取得し、ノート末尾に「URL 要約」セクションを追加します。同じ URL は重複整理されます。
 
-URL を含むメッセージは自動で要約されます：
+### 3.3 音声ファイル
 
-```
-[あなた] この記事が面白い https://example.com/article
-
-[Bot] 📰 記事を要約しました
-📄 タイトル: "AI の最新動向について"
-📝 要約: AI の発展により...
-🏷️ カテゴリ: #AI #技術
-```
-
-### 3.3 音声メモの処理
-
-音声ファイルを添付するだけで自動処理：
-
-```
-[あなた] [音声ファイル添付]
-
-[Bot] 🎤 音声メモを処理しました
-📝 内容: "明日のプレゼンテーションの準備で..."
-🏷️ タグ: #プレゼン #準備
-⏰ 推定時間: 45 分
-```
-
-## 4. Discord コマンド
-
-### 4.1 基本コマンド
-
-#### `/help` - ヘルプ表示
-利用可能なコマンド一覧を表示
-
-#### `/status` - システム状態確認
-```
-/status
-```
-- Bot の動作状況
-- AI プロセッサーの状態
-- 外部サービス接続状況
-
-#### `/stats` - 統計情報
-```
-/stats [period]
-```
-- `daily` - 本日の処理件数
-- `weekly` - 今週の処理件数
-- `monthly` - 今月の処理件数
-
-### 4.2 ノート管理
-
-#### `/search` - ノート検索
-```
-/search query:検索キーワード [limit:件数]
-```
-
-#### `/daily` - Daily Note 表示
-```
-/daily [date:2024-01-15]
-```
-指定日（デフォルト：今日）の Daily Note を表示
-
-#### `/recent` - 最近のノート
-```
-/recent [limit:10]
-```
-最近作成されたノートを表示
-
-### 4.3 タスク管理
-
-#### `/task create` - タスク作成
-```
-/task create title:タスク名 [due:2024-01-20] [priority:high]
-```
-
-#### `/task list` - タスク一覧
-```
-/task list [status:pending] [project:プロジェクト名]
-```
-
-#### `/task complete` - タスク完了
-```
-/task complete id:task_123
-```
-
-### 4.4 財務管理
-
-#### `/expense add` - 支出記録
-```
-/expense add amount:1500 category:食費 [description:ランチ代]
-```
-
-#### `/expense report` - 支出レポート
-```
-/expense report [period:monthly] [category:食費]
-```
-
-#### `/subscription` - サブスクリプション管理
-```
-/subscription list
-/subscription add name:Netflix amount:1200 billing_cycle:monthly
-```
-
-### 4.5 健康・ライフログ
-
-#### `/health sync` - 健康データ同期
-```
-/health sync [date:2024-01-15]
-```
-Garmin Connect から健康データを取得
-
-#### `/health report` - 健康レポート
-```
-/health report [period:weekly]
-```
-
-#### `/lifelog` - ライフログエントリ
-```
-/lifelog add content:今日は良い一日だった mood:good energy:high
-```
-
-## 5. 音声メモ機能
-
-### 5.1 対応フォーマット
-
-- MP3 、 WAV 、 FLAC 、 OGG 、 M4A 、 WEBM
-- 最大ファイルサイズ： 25MB （ Discord 制限）
-- 最大音声長： 10 分
-
-### 5.2 音声処理の流れ
-
-1. **音声ファイル添付** - Discord チャンネルに音声ファイルをアップロード
-2. **音声認識** - Google Cloud Speech-to-Text で自動転写
-3. **AI 分析** - Google Gemini で内容分析・構造化
-4. **ノート生成** - Obsidian 形式で自動保存
-
-### 5.3 音声メモのカスタマイズ
-
-`.env` ファイルで設定可能：
-
-```env
-# 音声認識設定
-SPEECH_LANGUAGE_CODE=ja-JP
-SPEECH_ALTERNATIVE_LANGUAGE_CODES=en-US
-SPEECH_PROFANITY_FILTER=false
-
-# 音声品質設定
-SPEECH_ENHANCED_MODELS=true
-SPEECH_PUNCTUATION=true
-```
-
-### 5.4 音声メモテンプレート
-
-生成されるノートの構造：
-
-```markdown
----
-type: voice_memo
-date: 2024-01-15
-tags: [音声メモ, 自動生成]
-duration: "2:45"
-confidence: 0.92
----
-
-# 音声メモ - 2024-01-15 14:30
-
-## 📝 内容
-
-[転写されたテキスト]
-
-## 🏷️ 分析結果
-
-- **カテゴリ**: 会議
-- **感情**: ポジティブ
-- **緊急度**: 中
-- **関連トピック**: プロジェクト管理
-
-## ✅ アクションアイテム
-
-- [ ] デザイン資料の準備
-- [ ] 来週のミーティング設定
-```
-
-## 6. タスク・財務管理
-
-### 6.1 タスク管理機能
-
-#### プロジェクト管理
-```
-/task project create name:新プロジェクト description:説明
-/task project list
-/task project archive name:プロジェクト名
-```
-
-#### タスクの詳細管理
-- **優先度設定**： low, medium, high, urgent
-- **期限設定**：自然言語での日付指定対応
-- **タグ機能**：自動タグ付けとカスタムタグ
-- **進捗追跡**：進捗率の記録
-
-#### 定期タスク
-```
-/task recurring create title:定期報告 frequency:weekly day:friday
-```
-
-### 6.2 財務管理機能
-
-#### 支出追跡
-- **カテゴリ自動分類**： AI による支出カテゴリの自動判定
-- **レシート処理**：画像添付でのレシート情報抽出（将来実装予定）
-- **月次・年次レポート**：自動集計とグラフ生成
-
-#### 予算管理
-```
-/budget set category:食費 amount:50000 period:monthly
-/budget status [category]
-```
-
-#### サブスクリプション監視
-- **更新通知**：期限前の自動アラート
-- **コスト分析**：月次・年次のサブスクリプション費用集計
-- **重複検出**：類似サービスの重複チェック
-
-## 7. 健康・ライフログ
-
-### 7.1 Garmin Connect 連携
-
-#### セットアップ
-```env
-GARMIN_USERNAME=your_username
-GARMIN_PASSWORD=your_password
-```
-
-#### 自動データ取得
-- **活動データ**：歩数、距離、カロリー、心拍数
-- **睡眠データ**：睡眠時間、睡眠質、深い睡眠時間
-- **ストレス**：ストレスレベルの記録
-- **体重・体組成**：対応デバイスからの自動取得
-
-#### 健康レポート生成
-週次・月次で自動生成される健康レポート：
-
-```markdown
-# 健康レポート - 2024 年 1 月第 3 週
-
-## 📊 活動サマリー
-- 平均歩数: 8,543 歩/日
-- 総距離: 45.2 km
-- 活動カロリー: 12,450 kcal
-
-## 😴 睡眠分析
-- 平均睡眠時間: 7 時間 15 分
-- 平均睡眠質: 76%
-- 深い睡眠: 平均 1 時間 45 分
-
-## 💪 フィットネス目標
-- ✅ 週間歩数目標達成 (60,000 歩)
-- ⚠️ 運動回数目標未達成 (2/4 回)
-```
-
-### 7.2 Google Calendar 連携
-
-#### 会議・イベント自動インポート
-- 会議時間とタイトルの自動記録
-- 移動時間の考慮
-- 繰り返しイベントの処理
-
-#### ライフログとの統合
-カレンダーイベントとの組み合わせで詳細なライフログを生成：
-
-```markdown
-## 2024-01-15 のタイムライン
-
-### 09:00-10:00 朝のジョギング
-- 距離: 5.2 km
-- 心拍数: 平均 145 bpm
-- カロリー: 287 kcal
-
-### 10:30-12:00 プロジェクト会議
-- 参加者: 5 名
-- 議題: Q1 計画の確認
-- アクション: デザイン資料の準備
-
-### 12:00-13:00 ランチ
-- 支出: ¥1,200 (カテゴリ: 食費)
-- 場所: オフィス近くのレストラン
-```
-
-## 8. 設定・カスタマイズ
-
-### 8.1 環境変数設定
-
-主要な設定項目：
-
-```env
-# Discord Bot
-DISCORD_TOKEN=your_bot_token
-DISCORD_GUILD_ID=your_guild_id
-
-# AI 処理
-GOOGLE_AI_API_KEY=your_api_key
-AI_MODEL=gemini-pro
-AI_TEMPERATURE=0.7
-
-# Obsidian
-OBSIDIAN_VAULT_PATH=/path/to/your/vault
-OBSIDIAN_DAILY_NOTE_FOLDER=Daily Notes
-OBSIDIAN_TEMPLATE_FOLDER=Templates
-
-# 外部サービス
-GARMIN_USERNAME=your_username
-GARMIN_PASSWORD=your_password
-GOOGLE_CALENDAR_CREDENTIALS_PATH=/path/to/credentials.json
-
-# GitHub 同期
-GITHUB_TOKEN=your_token
-GITHUB_REPO=username/obsidian-vault
-```
-
-### 8.2 ノートテンプレートのカスタマイズ
-
-`{OBSIDIAN_VAULT_PATH}/Templates/` フォルダにカスタムテンプレートを配置：
-
-#### `voice_memo_template.md`
-```markdown
----
-type: voice_memo
-date: {{date}}
-tags: {{tags}}
-duration: {{duration}}
----
-
-# {{title}}
-
-## 内容
-{{content}}
-
-## 分析
-{{analysis}}
-
-## 次のアクション
-{{action_items}}
-```
-
-### 8.3 AI プロンプトのカスタマイズ
-
-`src/ai/prompts/` フォルダのプロンプトテンプレートを編集して AI の動作をカスタマイズ可能。
-
-### 8.4 通知設定
-
-```env
-# Discord 通知
-DISCORD_NOTIFY_CHANNELS=general,private-log
-DISCORD_NOTIFY_LEVEL=info
-
-# システム通知
-HEALTH_CHECK_INTERVAL=300
-ERROR_NOTIFICATION_WEBHOOK=your_webhook_url
-```
-
-## 9. トラブルシューティング
-
-### 9.1 よくある問題
-
-#### Bot が応答しない
-```bash
-# 1. Bot の状態確認
-/status
-
-# 2. ログ確認
-uv run python -m src.main --debug
-
-# 3. 権限確認（ Discord サーバー設定）
-```
-
-#### 音声認識が失敗する
-- ファイル形式を確認（対応形式： MP3, WAV, FLAC など）
-- ファイルサイズを確認（ 25MB 以下）
-- 音声品質を確認（ノイズが多い場合は失敗しやすい）
-
-#### Obsidian ノートが生成されない
-```bash
-# Vault パスの確認
-echo $OBSIDIAN_VAULT_PATH
-
-# 権限確認
-ls -la $OBSIDIAN_VAULT_PATH
-```
-
-### 9.2 ログレベルの設定
-
-```env
-# デバッグレベルのログ出力
-LOG_LEVEL=DEBUG
-STRUCTLOG_LEVEL=DEBUG
-
-# 特定コンポーネントのログ
-AI_PROCESSOR_LOG_LEVEL=DEBUG
-DISCORD_BOT_LOG_LEVEL=INFO
-```
-
-### 9.3 パフォーマンス最適化
-
-#### メモリ使用量の監視
-```bash
-# システム状態確認
-/status
-
-# 詳細メモリ情報
-uv run python -c "from src.utils.memory_tracker import MemoryTracker; MemoryTracker.get_detailed_usage()"
-```
-
-#### キャッシュ設定の調整
-```env
-# コンポーネントキャッシュ時間
-AI_PROCESSOR_CACHE_TTL=3600  # 1 時間
-GARMIN_CLIENT_CACHE_TTL=1800  # 30 分
-```
-
-### 9.4 バックアップとリストア
-
-#### Obsidian Vault のバックアップ
-```bash
-# 手動バックアップ
-cp -r $OBSIDIAN_VAULT_PATH ~/backups/vault-$(date +%Y%m%d)
-
-# GitHub 同期でのバックアップ
-git -C $OBSIDIAN_VAULT_PATH add .
-git -C $OBSIDIAN_VAULT_PATH commit -m "Auto backup $(date)"
-git -C $OBSIDIAN_VAULT_PATH push
-```
-
-#### 設定のバックアップ
-```bash
-# 環境設定のバックアップ
-cp .env .env.backup.$(date +%Y%m%d)
-```
-
-### 9.5 サポート・フィードバック
-
-問題が解決しない場合：
-
-1. **ログファイルの確認**：`logs/` フォルダの最新ログを確認
-2. **GitHub Issues**：バグレポートや機能要求を投稿
-3. **デバッグモード**：`--debug` フラグでの詳細ログ出力
+MP3 / WAV / FLAC / OGG / M4A / WEBM を添付すると Speech-to-Text で文字起こしを実行します。認証情報が設定されていない場合はファイルを保存し、処理待ちとして記録します。
 
 ---
 
-## 🎯 次のステップ
+## 4. 利用可能な Slash コマンド
 
-1. **基本機能を試す**： Discord でメッセージや音声メモを送信
-2. **外部サービス連携**： Garmin や Google Calendar の設定
-3. **カスタマイズ**：テンプレートやプロンプトの調整
-4. **自動化**：定期タスクやヘルスチェックの設定
+### 基本コマンド
 
-MindBridge を使って効率的な知識管理とライフログを始めましょう！
+| コマンド | 説明 |
+| --- | --- |
+| `/help` | 利用可能なコマンドの概要を表示 |
+| `/status` | Bot の稼働状況と接続状態を表示 |
+| `/search query:<キーワード> [limit]` | Obsidian ノートを検索 |
+| `/random` | ランダムなノートを表示 |
+
+### 統計コマンド
+
+| コマンド | 説明 |
+| --- | --- |
+| `/bot` | Bot の稼働統計 (uptime, メモリ等) |
+| `/obsidian` | ノート総数や最新更新などの統計 |
+| `/finance` | 家計関連統計 (今月の支出など) |
+| `/tasks` | タスク統計 (アクティブ数、完了率など) |
+
+### 外部連携・ヘルスチェック
+
+| コマンド | 説明 |
+| --- | --- |
+| `/integration_status` | 外部連携モジュールの状態一覧 |
+| `/system_status` | スケジューラや監視メトリクスの状況 |
+| `/manual_sync name:<連携名>` | 指定連携の手動同期 (`garmin` など) |
+| `/integration_config` | 現在の連携設定を確認 |
+| `/scheduler_status` | 実行中ジョブと次回実行予定を確認 |
+| `/lifelog_stats` | ライフログの要約レポートを表示 |
+| `/garmin_today` | 当日の Garmin アクティビティサマリー |
+| `/garmin_sleep` | Garmin 睡眠データの要約 |
+| `/calendar_auth` | Google Calendar OAuth を開始 |
+| `/calendar_token code:<認証コード>` | OAuth で取得したコードを登録 |
+| `/calendar_test` | Google Calendar 接続テスト |
+
+### 設定コマンド
+
+| コマンド | 説明 |
+| --- | --- |
+| `/show [setting]` | 既知の設定値を表示（現在は検出済みチャンネル数を返答） |
+| `/set setting:<キー> value:<値>` | 設定更新リクエスト（永続化は順次実装中） |
+| `/history` | 設定変更履歴（履歴が無い場合は案内のみ） |
+
+> **補足:** Slash コマンドはギルド専用同期です。 Bot を再起動した直後は反映まで数秒〜1分程度かかる場合があります。
 
 ---
 
-*最終更新: 2024-01-15*
-*バージョン: 1.0*
+## 5. 外部サービス連携
+
+### 5.1 Garmin Connect
+
+1. `.env` に `GARMIN_EMAIL` と `GARMIN_PASSWORD` を設定
+2. Bot 起動後 `/integration_status` で `garmin` が有効になっているか確認
+3. `/garmin_today` や `/garmin_sleep` で同期結果を確認
+
+Garmin 連携は `HealthAnalysisScheduler` によりバックグラウンドで実行され、 Daily Note にアクティビティレポートが追記されます。
+
+### 5.2 Google Calendar
+
+1. `.env` に `GOOGLE_CALENDAR_CLIENT_ID` と `GOOGLE_CALENDAR_CLIENT_SECRET` を設定
+2. `/calendar_auth` で表示される URL にブラウザからアクセスし、 Google アカウントで認証
+3. 取得したコードを `/calendar_token code:<...>` で登録
+4. `/calendar_test` で接続を検証
+
+Calendar イベントはライフログの一部として日次ノートに統合されます。
+
+### 5.3 GitHub バックアップ
+
+- `GITHUB_TOKEN` と `OBSIDIAN_BACKUP_REPO` を設定すると、 GitHub リポジトリに Vault を保存できます。
+- `ENVIRONMENT=production` のとき、起動時にリモートから pull、終了時に push を試行します。
+
+---
+
+## 6. 音声メモの処理
+
+| 項目 | 内容 |
+| --- | --- |
+| 対応フォーマット | MP3 / WAV / FLAC / OGG / M4A / WEBM |
+| 最大ファイルサイズ | Discord 制限に準拠 (25MB) |
+| 認証情報 | `GOOGLE_CLOUD_SPEECH_API_KEY` もしくは JSON を `GOOGLE_CLOUD_SPEECH_CREDENTIALS` に設定 |
+| フォールバック | 認証情報が無い場合はファイルを保存して再処理待ちにする |
+
+処理結果は通常ノートと同じフォーマットで作成され、音声トラックのメタデータや AI 要約が追記されます。
+
+---
+
+## 7. カスタマイズのヒント
+
+- **テンプレート**: `vault/90_Meta/Templates/` にカスタムテンプレートを配置すると `TemplateEngine` が読み込みます。
+- **ログ**: `LOG_LEVEL=DEBUG` や `LOG_FORMAT=text` を設定すると詳細なログを確認できます。
+- **モックモード**: `ENABLE_MOCK_MODE=true` と `MOCK_GEMINI_ENABLED=true` などを組み合わせると外部 API へ接続せずに開発できます。
+- **Vault パス**: デフォルトでは `./vault`。別ディレクトリを指定する場合は `.env` の `OBSIDIAN_VAULT_PATH` を更新してください。
+
+---
+
+## 8. トラブルシューティング
+
+### Bot が応答しない
+
+1. `/status` で稼働確認
+2. `.env` のトークン/ギルド ID を再確認
+3. `uv run python -m src.main` を再実行し、コンソールログでエラーを確認
+
+### Slash コマンドが表示されない
+
+- Bot を招待する際に `applications.commands` 権限が付与されているか確認
+- `DISCORD_GUILD_ID` が正しく設定されているか確認
+- Bot を再起動して Discord 側の同期を待つ
+
+### 音声文字起こしに失敗する
+
+- `GOOGLE_CLOUD_SPEECH_API_KEY` または `GOOGLE_CLOUD_SPEECH_CREDENTIALS` が設定されているか確認
+- Google Cloud Console で Speech-to-Text API が有効か確認
+
+### Obsidian ノートが生成されない
+
+- `OBSIDIAN_VAULT_PATH` が存在し、書き込み権限があるか確認
+- `/integration_status` で関連する連携にエラーがないか確認
+
+### GitHub 同期に失敗する
+
+- `GITHUB_TOKEN` に `repo` 権限があるか確認
+- Bot 実行ユーザーが Vault ディレクトリで `git` コマンドを利用できるか確認
+
+---
+
+必要に応じて `logs/` ディレクトリを参照すると詳細なデバッグ情報を取得できます。追加の質問があれば Issue やサポートチャンネルで共有してください。

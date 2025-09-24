@@ -1,10 +1,10 @@
-# 🚀 MindBridge 安全デプロイ手順書
+# MindBridge 安全デプロイ手順書
 
-## **📋 今後の完全手順ガイド**
+## **今後の完全手順ガイド**
 
 ---
 
-## **🚨 STEP 1: 緊急認証情報対応（即座実行）**
+## **STEP 1: 緊急認証情報対応（即座実行）**
 
 ### **1.1 Discord Bot Token 更新**
 ```bash
@@ -48,21 +48,21 @@
 
 ---
 
-## **⚡ STEP 2: ローカル環境設定（ 15 分）**
+## **STEP 2: ローカル環境設定（ 15 分）**
 
 ### **2.1 環境変数ファイル作成**
 ```bash
-# .env.docker を .env.docker.local にコピーして編集
-cp .env.docker .env.docker.local
+# サンプルを複製して Docker 用設定ファイルを作成
+cp .env.docker.example .env.docker
 
-# 以下の値を新しい認証情報に更新
-DISCORD_BOT_TOKEN=新しい Discord トークン
-GEMINI_API_KEY=新しい GeminiAPI キー
-GOOGLE_CLOUD_SPEECH_API_KEY=新しい SpeechAPI キー
-GITHUB_TOKEN=新しい GitHub トークン
-GARMIN_EMAIL=あなたの Garmin メール
-GARMIN_PASSWORD=新しい Garmin パスワード
-OBSIDIAN_BACKUP_REPO=あなたのリポジトリ URL
+# 以下の値を最新の認証情報に更新
+DISCORD_BOT_TOKEN=<Discord の新しい Bot Token>
+GEMINI_API_KEY=<Google Gemini API Key>
+GOOGLE_CLOUD_SPEECH_API_KEY=<Speech-to-Text API Key>
+GITHUB_TOKEN=<GitHub Personal Access Token>
+GARMIN_EMAIL=<Garmin ログインメール>
+GARMIN_PASSWORD=<Garmin パスワード>
+OBSIDIAN_BACKUP_REPO=<Vault を保存する GitHub リポジトリ URL>
 ```
 
 ### **2.2 ローカル動作確認**
@@ -83,7 +83,7 @@ uv run python -m src.main
 
 ---
 
-## **☁️ STEP 3: Google Cloud 環境準備（ 30 分）**
+## **STEP 3: Google Cloud 環境準備（ 30 分）**
 
 ### **3.1 プロジェクト設定**
 ```bash
@@ -128,16 +128,17 @@ gcloud projects get-iam-policy $PROJECT_ID \
 
 ---
 
-## **🧪 STEP 4: デプロイ前テスト（ 20 分）**
+## **STEP 4: デプロイ前テスト（ 20 分）**
 
 ### **4.1 ローカル本番モード確認**
 ```bash
 # 本番モードでローカル起動
 ENVIRONMENT=production uv run python -m src.main
 
-# Discord コマンド動作確認:
-# - !ping → Pong! 応答確認
-# - !health → システム状態確認
+# Discord Slash コマンド動作確認:
+# - /status → Bot 稼働確認
+# - /system_status → スケジューラと外部連携の状態
+# - /garmin_today → Garmin データ取得確認（オプション）
 # - 音声メモアップロード → 文字起こし動作確認
 ```
 
@@ -153,7 +154,7 @@ gcloud secrets versions access latest --secret="github-token" --project=$PROJECT
 
 ---
 
-## **🚀 STEP 5: Cloud Run デプロイ（ 15 分）**
+## **STEP 5: Cloud Run デプロイ（ 15 分）**
 
 ### **5.1 一括デプロイ実行**
 ```bash
@@ -187,14 +188,14 @@ curl -f "$SERVICE_URL/health"
 
 ---
 
-## **✅ STEP 6: 本番動作確認（ 10 分）**
+## **STEP 6: 本番動作確認（ 10 分）**
 
 ### **6.1 Discord Bot 動作確認**
 ```bash
 # Discord サーバーで以下をテスト:
-!ping              # → Pong! 応答確認
-!health            # → システム状態確認
-!stats             # → 統計情報確認
+/status             # → Bot の状態確認
+/integration_status # → 外部連携サマリー
+/garmin_sleep       # → Garmin 睡眠データ確認（設定済みの場合）
 ```
 
 ### **6.2 主要機能テスト**
@@ -215,7 +216,7 @@ gcloud logging read "resource.type=cloud_run_revision AND severity>=ERROR" \
 
 ---
 
-## **🔄 STEP 7: 運用開始後の監視（継続）**
+## **STEP 7: 運用開始後の監視（継続）**
 
 ### **7.1 日次チェック項目**
 ```bash
@@ -241,7 +242,7 @@ uv sync --upgrade
 
 ---
 
-## **⚠️ トラブルシューティング**
+## **トラブルシューティング**
 
 ### **よくある問題と解決方法**
 
@@ -277,24 +278,24 @@ gcloud run services describe mindbridge --region=us-central1 --project=$PROJECT_
 
 ---
 
-## **🎯 成功確認チェックリスト**
+## **成功確認チェックリスト**
 
-- [ ] ✅ 全ての認証情報を新規作成・設定完了
-- [ ] ✅ ローカル環境で正常動作確認
-- [ ] ✅ Google Cloud 環境設定完了
-- [ ] ✅ Secret Manager にシークレット保存完了
-- [ ] ✅ Cloud Run デプロイ成功
-- [ ] ✅ ヘルスチェック正常応答
-- [ ] ✅ Discord Bot 応答確認
-- [ ] ✅ 主要機能動作確認
-- [ ] ✅ エラーログなし
-- [ ] ✅ 監視体制構築完了
+- [ ] 全ての認証情報を新規作成・設定完了
+- [ ] ローカル環境で正常動作確認
+- [ ] Google Cloud 環境設定完了
+- [ ] Secret Manager にシークレット保存完了
+- [ ] Cloud Run デプロイ成功
+- [ ] ヘルスチェック正常応答
+- [ ] Discord Bot 応答確認
+- [ ] 主要機能動作確認
+- [ ] エラーログなし
+- [ ] 監視体制構築完了
 
 **全項目完了後、安全にサービス運用開始可能です！**
 
 ---
 
-## **📞 緊急時の対応**
+## **緊急時の対応**
 
 ### **サービス停止が必要な場合**
 ```bash
@@ -315,7 +316,7 @@ gcloud run services update mindbridge --region=us-central1 --project=$PROJECT_ID
 
 ---
 
-## **📚 関連ドキュメント**
+## **関連ドキュメント**
 
 - [プロジェクト README](../README.md)
 - [開発ガイド](../CLAUDE.md)

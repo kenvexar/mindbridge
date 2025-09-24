@@ -35,10 +35,14 @@ bash tests/manual/test_manage.sh
 
 ## モック設定
 
-開発時は `.env` で以下を設定：
+開発時に外部サービスへ接続したくない場合は `.env` に以下を追加します。
 
 ```env
-MOCK_DISCORD=true
-MOCK_GEMINI=true
-MOCK_GARMIN=true
+ENABLE_MOCK_MODE=true
+MOCK_DISCORD_ENABLED=true
+MOCK_GEMINI_ENABLED=true
+MOCK_GARMIN_ENABLED=true
+MOCK_SPEECH_ENABLED=true
 ```
+
+`ENABLE_MOCK_MODE` を `true` にするとモック設定が優先され、 Discord 接続も安全にスキップできます。
