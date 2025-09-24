@@ -38,17 +38,10 @@ jobs:
           echo "🔍 Running Bandit security linter..."
           uv run bandit -r src/ -f txt
 
-      - name: Security - Safety (Dependency Vulnerability Scanner)
-        env:
-          SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
+      - name: Security - pip-audit (Dependency Vulnerability Scanner)
         run: |
-          echo "🔍 Checking for known vulnerabilities in dependencies..."
-          if [ -n "${SAFETY_API_KEY}" ]; then
-            uv run safety scan --stage cicd --output screen --disable-optional-telemetry
-          else
-            echo '::warning::SAFETY_API_KEY が設定されていないため、deprecated な safety check にフォールバックします。'
-            uv run safety check --full-report
-          fi
+          echo "🔍 Checking for known vulnerabilities in dependencies (pip-audit)..."
+          uv run pip-audit --progress-spinner off
 
       - name: Security - gitleaks (Secrets Detection)
         uses: gitleaks/gitleaks-action@v2
