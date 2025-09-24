@@ -77,6 +77,8 @@ dev = [
 security = [
     "bandit>=1.7.5",        # Python セキュリティリンター
     "safety>=3.0.0",        # 依存関係脆弱性チェック
+    "typer<0.12",           # Safety CLI が旧Typer APIに依存
+    "marshmallow<4",        # Safety CLI のスキーマ互換維持
 ]
 
 [project.optional-dependencies]
