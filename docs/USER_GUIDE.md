@@ -177,6 +177,8 @@ Garmin 連携は `HealthAnalysisScheduler` によりバックグラウンドで�
 3. 取得したコードを `/calendar_token code:<...>` で登録
 4. `/calendar_test` で接続を検証
 
+> **セキュリティメモ:** `/callback` エンドポイントで受け取ったコードは `logs/google_calendar_auth_code.enc` に暗号化して保存されます。32 バイト(または URL-safe Base64)の `ENCRYPTION_KEY` が未設定の場合、コードは保存されないため手動で控えてください。
+
 Calendar イベントはライフログの一部として日次ノートに統合されます。
 
 ### 5.3 GitHub バックアップ
