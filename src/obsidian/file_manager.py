@@ -81,6 +81,27 @@ class ObsidianFileManager(LoggerMixin):
             local_data_enabled=enable_local_data,
         )
 
+    def _resolve_note_path(
+        self, note: ObsidianNote, subfolder: str | None = None
+    ) -> Path:
+        """Resolve the absolute path for a note within the vault."""
+        if note.file_path and note.file_path != Path():
+            return (
+                note.file_path
+                if note.file_path.is_absolute()
+                else self.vault_path / note.file_path
+            )
+
+        base_folder = self.vault_path / subfolder if subfolder else self.vault_path
+        base_folder.mkdir(parents=True, exist_ok=True)
+
+        filename = (
+            note.filename
+            if note.filename
+            else f"{self.file_operations._sanitize_filename(note.title)}.md"
+        )
+        return base_folder / filename
+
     # Vault Management
     async def initialize_vault(self) -> bool:
         """Initialize vault structure and templates."""
@@ -92,7 +113,19 @@ class ObsidianFileManager(LoggerMixin):
     ) -> Path | None:
         """Save a note to the vault."""
         try:
-            # For now, ignore the overwrite parameter as the file_operations doesn't support it
+            if overwrite:
+                target_path = self._resolve_note_path(note, subfolder)
+                if target_path.exists():
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    if await self.file_operations.update_note(target_path, note):
+                        self.statistics.invalidate_cache()
+                        return target_path
+                    return None
+                self.logger.warning(
+                    "Overwrite requested but existing file was not found",
+                    target=str(target_path),
+                )
+
             saved_path = await self.file_operations.save_note(note, subfolder)
             # Invalidate stats cache when adding new notes
             self.statistics.invalidate_cache()

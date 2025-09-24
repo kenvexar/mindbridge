@@ -249,6 +249,44 @@ class TestObsidianFileManager:
 
         assert "This is a test note content" in loaded_note.content
 
+    async def test_note_overwrite(self) -> None:
+        """Existing note is overwritten when requested."""
+        await self.file_manager.initialize_vault()
+
+        original_frontmatter = NoteFrontmatter(
+            obsidian_folder=VaultFolder.INBOX.value,
+            tags=["original"],
+        )
+        note_path = self.temp_dir / VaultFolder.INBOX.value / "overwrite_test.md"
+        original_note = ObsidianNote(
+            filename="overwrite_test.md",
+            file_path=note_path,
+            frontmatter=original_frontmatter,
+            content="# Original\n\nFirst version",
+        )
+
+        await self.file_manager.save_note(original_note)
+        assert note_path.exists()
+
+        updated_frontmatter = NoteFrontmatter(
+            obsidian_folder=VaultFolder.INBOX.value,
+            tags=["updated"],
+        )
+        updated_note = ObsidianNote(
+            filename="overwrite_test.md",
+            file_path=note_path,
+            frontmatter=updated_frontmatter,
+            content="# Updated\n\nSecond version",
+        )
+
+        result_path = await self.file_manager.save_note(updated_note, overwrite=True)
+        assert result_path == note_path
+
+        reloaded = await self.file_manager.load_note(note_path)
+        assert reloaded is not None
+        assert "Second version" in reloaded.content
+        assert "updated" in reloaded.frontmatter.tags
+
     async def test_note_search(self) -> None:
         """Test note search functionality"""
         # Initialize vault and create test notes
