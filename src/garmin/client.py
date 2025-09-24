@@ -3,6 +3,7 @@ Garmin Connect client for health data retrieval
 """
 
 import asyncio
+import os
 import socket
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -85,6 +86,16 @@ class GarminClient(LoggerMixin):
                 else:
                     self.email = str(settings.garmin_email)
 
+            if (
+                not self.email
+                and hasattr(settings, "garmin_username")
+                and settings.garmin_username
+            ):
+                if hasattr(settings.garmin_username, "get_secret_value"):
+                    self.email = settings.garmin_username.get_secret_value()
+                else:
+                    self.email = str(settings.garmin_username)
+
             if hasattr(settings, "garmin_password") and settings.garmin_password:
                 if hasattr(settings.garmin_password, "get_secret_value"):
                     self.password = settings.garmin_password.get_secret_value()
@@ -93,6 +104,16 @@ class GarminClient(LoggerMixin):
 
         except Exception as e:
             self.logger.error("Error checking Garmin credentials", error=str(e))
+
+        if not self.email:
+            username_env = os.getenv("GARMIN_USERNAME") or os.getenv("GARMIN_EMAIL")
+            if username_env:
+                self.email = username_env
+
+        if not self.password:
+            password_env = os.getenv("GARMIN_PASSWORD")
+            if password_env:
+                self.password = password_env
 
         if not (self.email and self.password):
             self.logger.warning(
