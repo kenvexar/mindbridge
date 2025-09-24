@@ -41,3 +41,4 @@ make full-deploy PROJECT_ID=...  # Scripted cloud deployment
 - Run `./scripts/manage.sh init` to scaffold `.env`; never commit generated secrets under `vault/` or `logs/`.
 - Check `mise.toml` and the `Makefile` for existing task aliases before adding CLI entry points.
 - Document new external dependencies in `docs/` and extend Secret Manager hooks in `scripts/manage.sh` when credentials are required.
+- Configure the `SAFETY_API_KEY` GitHub secret so the security workflow can run `safety scan` without fallback.
