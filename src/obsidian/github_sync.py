@@ -157,6 +157,10 @@ class GitHubObsidianSync(LoggerMixin):
         await self._run_git_command(["config", "user.email", self.git_user_email])
         self.logger.debug("Git user configuration set")
 
+    def _build_credential_helper(self) -> str:
+        """Return a credential helper that pulls token from env."""
+        return "!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f"
+
     async def _setup_gitignore(self) -> None:
         """.gitignore の設定"""
         gitignore_path = self.vault_path / ".gitignore"
@@ -180,20 +184,16 @@ Thumbs.db
             self.logger.info("Created .gitignore file")
 
     def _get_authenticated_repo_url(self) -> str:
-        """トークン埋め込み URL 生成（最も確実な認証方式）"""
+        """Return repository URL without embedding secrets."""
         if self.github_repo_url is None:
             raise GitHubSyncError("GitHub repository URL is not configured")
 
-        if self.github_repo_url.startswith("https://github.com/") and self.github_token:
-            # URL にトークンを直接埋め込む（最も確実な方式）
-            repo_path = self.github_repo_url.replace("https://github.com/", "")
-            authenticated_url = f"https://{self.github_token}@github.com/{repo_path}"
-            self.logger.info("Using token-embedded URL for GitHub authentication")
-            return authenticated_url
-
-        self.logger.info(
-            f"Using original repo URL (not HTTPS or no token): {self.github_repo_url}"
-        )
+        if not self.github_repo_url.startswith("https://"):
+            self.logger.warning(
+                "Non-HTTPS repository URL detected; consider using HTTPS for security"
+            )
+        else:
+            self.logger.debug("Using repository URL without embedding token")
         return self.github_repo_url
 
     async def sync_to_github(self, commit_message: str | None = None) -> bool:
@@ -381,10 +381,19 @@ Thumbs.db
             self.vault_path.mkdir(parents=True, exist_ok=True)
             self.logger.debug(f"Created vault directory: {self.vault_path}")
 
-        cmd = ["git", "-C", str(self.vault_path)] + args
+        cmd = ["git", "-C", str(self.vault_path)]
+
+        if self.github_token:
+            helper = self._build_credential_helper()
+            cmd += ["-c", f"credential.helper={helper}"]
+
+        cmd += args
 
         # 環境変数をコピー（シンプルな実装）
         env = os.environ.copy()
+        if self.github_token:
+            env["GITHUB_TOKEN"] = self.github_token
+            env.setdefault("GIT_TERMINAL_PROMPT", "0")
 
         try:
             if capture_output:

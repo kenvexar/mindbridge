@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from pydantic import SecretStr
 
 # Set up test environment variables before importing modules
 os.environ.update(
@@ -29,6 +30,7 @@ os.environ.update(
 
 from src.ai.models import AIProcessingResult
 from src.obsidian.file_manager import ObsidianFileManager
+from src.obsidian.github_sync import GitHubObsidianSync
 from src.obsidian.models import (
     FolderMapping,
     NoteFilename,
@@ -37,6 +39,16 @@ from src.obsidian.models import (
     VaultFolder,
 )
 from src.obsidian.template_system import TemplateEngine
+
+
+class DummyGitHubSettings:
+    def __init__(self, vault_path: Path, token: str, repo_url: str):
+        self.obsidian_vault_path = vault_path
+        self.github_token = SecretStr(token)
+        self.obsidian_backup_repo = repo_url
+        self.obsidian_backup_branch = "main"
+        self.git_user_name = "MindBridge Bot"
+        self.git_user_email = "bot@example.com"
 
 
 class TestObsidianModels:
@@ -234,6 +246,7 @@ class TestObsidianFileManager:
         assert loaded_note is not None
         assert loaded_note.filename == "test_note.md"
         assert loaded_note.frontmatter.discord_message_id == 123456789
+
         assert "This is a test note content" in loaded_note.content
 
     async def test_note_search(self) -> None:
@@ -550,3 +563,55 @@ def test_note_markdown_generation() -> None:
     # Check that content is included
     assert "# Test Note" in markdown
     assert "This is test content." in markdown
+
+
+class TestGitHubSyncCredentials:
+    """Tests for GitHubObsidianSync credential handling"""
+
+    def test_repository_url_without_token(self, tmp_path):
+        repo_url = "https://github.com/example/repo.git"
+        settings = DummyGitHubSettings(tmp_path / "vault", "secret-token", repo_url)
+
+        with patch("src.obsidian.github_sync.get_settings", return_value=settings):
+            sync = GitHubObsidianSync()
+
+        assert sync._get_authenticated_repo_url() == repo_url
+
+    @pytest.mark.asyncio
+    async def test_run_git_command_uses_credential_helper(self, tmp_path):
+        repo_url = "https://github.com/example/repo.git"
+        settings = DummyGitHubSettings(tmp_path / "vault", "secret-token", repo_url)
+
+        with patch("src.obsidian.github_sync.get_settings", return_value=settings):
+            sync = GitHubObsidianSync()
+
+        sync.vault_path.mkdir(parents=True, exist_ok=True)
+
+        captured = {}
+
+        async def fake_exec(*cmd, **kwargs):
+            captured["cmd"] = cmd
+            captured["env"] = kwargs.get("env", {})
+
+            class _Proc:
+                returncode = 0
+
+                async def communicate(self):
+                    return b"", b""
+
+                async def wait(self):
+                    return 0
+
+            return _Proc()
+
+        with patch(
+            "src.obsidian.github_sync.asyncio.create_subprocess_exec",
+            side_effect=fake_exec,
+        ):
+            result = await sync._run_git_command(["status"], capture_output=True)
+
+        assert "-c" in captured["cmd"]
+        helper_arg = captured["cmd"][captured["cmd"].index("-c") + 1]
+        assert "$GITHUB_TOKEN" in helper_arg
+        assert captured["env"]["GITHUB_TOKEN"] == "secret-token"
+        assert result.returncode == 0
