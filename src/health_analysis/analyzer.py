@@ -77,7 +77,7 @@ class HealthDataAnalyzer(LoggerMixin):
             trends = await self._analyze_trends(health_data_list, period_days=7)
 
             # 重要な変化を検出
-            changes = await self._detect_significant_changes(health_data_list)
+            changes = await self.detect_significant_changes(health_data_list)
 
             # AI による洞察生成
             insights = await self._generate_ai_insights(
@@ -388,6 +388,12 @@ class HealthDataAnalyzer(LoggerMixin):
             base_interpretation += f"（{intensity}変化: {change_percentage:.1f}%）"
 
         return base_interpretation
+
+    async def detect_significant_changes(
+        self, health_data_list: list[HealthData]
+    ) -> list[ChangeDetection]:
+        """Public interface for significant change detection."""
+        return await self._detect_significant_changes(health_data_list)
 
     async def _detect_significant_changes(
         self, health_data_list: list[HealthData]

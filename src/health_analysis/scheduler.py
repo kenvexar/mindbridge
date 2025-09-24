@@ -424,7 +424,7 @@ class HealthAnalysisScheduler:
 
             if len(health_data_list) >= 5:  # 最低5日のデータが必要
                 # 重要な変化を検出
-                changes = await self.analyzer._detect_significant_changes(
+                changes = await self.analyzer.detect_significant_changes(
                     health_data_list
                 )
 
