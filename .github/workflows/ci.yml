@@ -73,6 +73,6 @@ jobs:
       - name: Create test vault directory
         run: mkdir -p /tmp/test_vault
 
-      - name: Run tests (pytest)
+      - name: Run tests (pytest + coverage)
         run: |
-          uv run pytest -q
+          uv run pytest --cov=src --cov-report=term-missing
