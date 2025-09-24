@@ -2,14 +2,78 @@
 Health check server for Cloud Run
 """
 
+import base64
 import json
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from threading import Thread
 from typing import Any
 
+from cryptography.fernet import Fernet
+
 from src import __version__
+from src.config.secure_settings import get_secure_settings
 from src.utils import get_logger
+
+
+class OAuthCodeVault:
+    """Secure storage helper for OAuth authorization codes."""
+
+    def __init__(
+        self,
+        storage_path: Path | None = None,
+        secure_settings: Any | None = None,
+    ) -> None:
+        self.logger = get_logger("oauth_code_vault")
+        self.secure_settings = secure_settings or get_secure_settings()
+        self.storage_path = (
+            storage_path or Path("logs") / "google_calendar_auth_code.enc"
+        )
+        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def store_code(self, code: str) -> Path | None:
+        """Encrypt and persist the OAuth code if possible."""
+        encryption_key = self.secure_settings.get_secure_setting("encryption_key")
+        if not encryption_key:
+            self.logger.warning(
+                "Encryption key not configured; OAuth code will not be persisted"
+            )
+            return None
+
+        try:
+            fernet = Fernet(self._normalize_key(encryption_key))
+            encrypted_code = fernet.encrypt(code.encode("utf-8")).decode("utf-8")
+            record = {
+                "timestamp": datetime.now().isoformat(),
+                "payload": encrypted_code,
+            }
+            with self.storage_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record) + "\n")
+
+            self.logger.info(
+                "Encrypted OAuth code stored",
+                storage=str(self.storage_path),
+            )
+            return self.storage_path
+        except Exception as exc:
+            self.logger.error("Failed to store OAuth code securely", error=str(exc))
+            return None
+
+    def _normalize_key(self, key: str) -> bytes:
+        """Normalize incoming key strings to a Fernet-compatible key."""
+        try:
+            decoded = base64.urlsafe_b64decode(key)
+            if len(decoded) == 32:
+                return base64.urlsafe_b64encode(decoded)
+        except Exception:
+            pass
+
+        raw = key.encode("utf-8")
+        if len(raw) == 32:
+            return base64.urlsafe_b64encode(raw)
+
+        raise ValueError("Encryption key must be 32 bytes or valid base64")
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -18,6 +82,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def __init__(self, *args: Any, bot_instance: Any = None, **kwargs: Any) -> None:
         self.bot_instance = bot_instance
         self.logger = get_logger("health_server")
+        self.oauth_vault = OAuthCodeVault()
         super().__init__(*args, **kwargs)
 
     def do_GET(self) -> None:
@@ -135,8 +200,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def _handle_callback(self) -> None:
         """Handle OAuth callback to capture 'code' and show a friendly page"""
         try:
-            import os
-            from datetime import datetime
             from urllib.parse import parse_qs, urlparse
 
             parsed = urlparse(self.path)
@@ -155,14 +218,16 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 )
                 return
 
-            # Persist the code to logs for convenience
-            logs_dir = os.path.join(os.getcwd(), "logs")
-            os.makedirs(logs_dir, exist_ok=True)
-            out_path = os.path.join(logs_dir, "google_calendar_auth_code.txt")
-            with open(out_path, "a", encoding="utf-8") as f:
-                f.write(f"{datetime.now().isoformat()}\t{code}\n")
+            storage_path = self.oauth_vault.store_code(code)
+            persisted_message = (
+                f"Encrypted record saved to: {storage_path}"
+                if storage_path
+                else "Secure storage unavailable. Please store the code manually and configure ENCRYPTION_KEY."
+            )
 
-            self.logger.info("Received OAuth code", path=self.path)
+            self.logger.info(
+                "Received OAuth code", path=self.path, persisted=bool(storage_path)
+            )
 
             self._send_html(
                 200,
@@ -172,7 +237,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 <p>Copy this code and paste it in Discord using:<br>
                 <code>/calendar_token code:&lt;paste-code-here&gt;</code></p>
                 <p><strong>Code:</strong> <code>{code}</code></p>
-                <p>Saved to: logs/google_calendar_auth_code.txt</p>
+                <p>{persisted_message}</p>
                 </body></html>
                 """,
             )

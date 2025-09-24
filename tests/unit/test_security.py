@@ -1,12 +1,79 @@
 """Tests for security components"""
 
+import json
 import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from cryptography.fernet import Fernet
+from pydantic import SecretStr
 
+from src.config.secure_settings import SecureSettingsManager
+from src.monitoring.health_server import OAuthCodeVault
 from src.security.access_logger import AccessLogger, SecurityEvent, SecurityEventType
 from src.security.secret_manager import PersonalConfigManager, PersonalSecretManager
+
+
+class DummySecureSettingsManager:
+    def __init__(self, encryption_key: str | None):
+        self._encryption_key = encryption_key
+
+    def get_secure_setting(self, key: str, default: str | None = None) -> str | None:
+        if key == "encryption_key":
+            return self._encryption_key
+        return default
+
+
+class DummySettings:
+    def __init__(self, value):
+        self.discord_bot_token = value
+
+
+class TestSecureSettingsManager:
+    """Tests for SecureSettingsManager secret handling"""
+
+    def test_secretstr_is_unwrapped(self):
+        secret = SecretStr("plain-token")
+
+        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": ""}, clear=False):
+            with patch("src.config.secure_settings.get_settings") as mock_settings:
+                mock_settings.return_value = DummySettings(secret)
+                manager = SecureSettingsManager()
+
+            assert manager.get_secure_setting("discord_bot_token") == "plain-token"
+            # Cache should return raw value even after SecretStr is gone
+            assert manager.get_secure_setting("discord_bot_token") == "plain-token"
+
+
+class TestOAuthCodeVault:
+    """Test secure storage of OAuth codes"""
+
+    def test_store_code_encrypted(self, tmp_path):
+        key = Fernet.generate_key().decode()
+        storage_path = tmp_path / "oauth.enc"
+        vault = OAuthCodeVault(
+            storage_path=storage_path, secure_settings=DummySecureSettingsManager(key)
+        )
+
+        stored_path = vault.store_code("sensitive-code")
+        assert stored_path == storage_path
+
+        contents = stored_path.read_text().strip()
+        assert "sensitive-code" not in contents
+        record = json.loads(contents)
+
+        decrypted = Fernet(key).decrypt(record["payload"].encode()).decode()
+        assert decrypted == "sensitive-code"
+
+    def test_store_code_without_key(self, tmp_path):
+        storage_path = tmp_path / "oauth.enc"
+        vault = OAuthCodeVault(
+            storage_path=storage_path, secure_settings=DummySecureSettingsManager(None)
+        )
+
+        result = vault.store_code("code")
+        assert result is None
+        assert not storage_path.exists()
 
 
 class TestPersonalSecretManager:

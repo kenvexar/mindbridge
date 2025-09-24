@@ -5,8 +5,10 @@ Secure settings loader with enhanced validation for personal use.
 
 import os
 import re
+from typing import Any
 
 import structlog
+from pydantic import SecretStr
 
 from src.config.settings import get_settings
 
@@ -42,9 +44,10 @@ class SecureSettingsManager:
         # Fall back to base settings
         try:
             value = getattr(self.base_settings, key, default)
-            if value:
-                self._secrets_cache[key] = str(value)
-                return str(value)
+            normalized = self._normalize_secret_value(value)
+            if normalized:
+                self._secrets_cache[key] = normalized
+                return normalized
         except Exception as e:
             self.logger.warning(
                 "Failed to get setting",
@@ -53,6 +56,28 @@ class SecureSettingsManager:
             )
 
         return default
+
+    def _normalize_secret_value(self, value: Any) -> str | None:
+        """Convert supported secret types to plain string."""
+        if value is None:
+            return None
+
+        if isinstance(value, SecretStr):
+            return value.get_secret_value()
+
+        get_secret = getattr(value, "get_secret_value", None)
+        if callable(get_secret):
+            try:
+                return get_secret()
+            except Exception as exc:  # pragma: no cover - defensive logging
+                self.logger.warning(
+                    "Failed to unwrap secret value",
+                    error=str(exc),
+                    value_type=type(value).__name__,
+                )
+                return None
+
+        return str(value)
 
     def get_discord_token(self) -> str:
         """Get Discord bot token securely with validation"""
