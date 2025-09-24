@@ -79,8 +79,7 @@ class AIProcessor(LoggerMixin):
         text_length = len(text.strip())
         stripped_text = text.strip()
 
-        # 🔧 FORCE FIX: 最小長を強制的に 3 に設定して設定の問題を回避
-        min_length = 3  # self.settings.min_text_length の代わりに直接指定
+        min_length = max(1, getattr(self.settings, "min_text_length", 3))
         max_length = getattr(self.settings, "max_text_length", 8000)
 
         self.logger.debug(
