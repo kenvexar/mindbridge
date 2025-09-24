@@ -4,6 +4,7 @@ Speech processing and transcription using Google Cloud Speech-to-Text API
 
 import json
 import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -133,8 +134,16 @@ class SpeechProcessor(LoggerMixin):
             return
 
         try:
-            temp_path = Path("/tmp/google-speech-credentials.json")
-            temp_path.write_text(json.dumps(parsed), encoding="utf-8")
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                prefix="mb-speech-",
+                suffix=".json",
+                delete=False,
+                encoding="utf-8",
+            ) as credentials_file:
+                credentials_file.write(json.dumps(parsed))
+                temp_path = Path(credentials_file.name)
+
             temp_path.chmod(0o600)
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(temp_path)
             self._credential_path = temp_path
