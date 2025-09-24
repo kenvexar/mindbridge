@@ -3,6 +3,7 @@ Health check server for Cloud Run
 """
 
 import base64
+import binascii
 import json
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -66,8 +67,8 @@ class OAuthCodeVault:
             decoded = base64.urlsafe_b64decode(key)
             if len(decoded) == 32:
                 return base64.urlsafe_b64encode(decoded)
-        except Exception:
-            pass
+        except (binascii.Error, ValueError) as exc:
+            self.logger.debug("Failed to base64 decode encryption key", error=str(exc))
 
         raw = key.encode("utf-8")
         if len(raw) == 32:
