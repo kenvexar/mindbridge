@@ -148,12 +148,12 @@ class GarminIntegration(BaseIntegration):
         """Garmin Connect 認証"""
         try:
             # 環境変数から認証情報を取得
-            garmin_email = os.getenv("GARMIN_EMAIL")
+            garmin_login = os.getenv("GARMIN_EMAIL") or os.getenv("GARMIN_USERNAME")
             garmin_password = os.getenv("GARMIN_PASSWORD")
 
-            if not garmin_email or not garmin_password:
+            if not garmin_login or not garmin_password:
                 self.add_error(
-                    "Garmin 認証情報が設定されていません（ GARMIN_EMAIL, GARMIN_PASSWORD ）"
+                    "Garmin 認証情報が設定されていません（ GARMIN_EMAIL または GARMIN_USERNAME, GARMIN_PASSWORD ）"
                 )
                 return False
 
@@ -264,12 +264,12 @@ class GarminIntegration(BaseIntegration):
         """接続テスト"""
         try:
             # 環境変数から認証情報を取得
-            garmin_email = os.getenv("GARMIN_EMAIL")
+            garmin_login = os.getenv("GARMIN_EMAIL") or os.getenv("GARMIN_USERNAME")
             garmin_password = os.getenv("GARMIN_PASSWORD")
 
-            if not garmin_email or not garmin_password:
+            if not garmin_login or not garmin_password:
                 self.add_error(
-                    "Garmin 認証情報が設定されていません（ GARMIN_EMAIL, GARMIN_PASSWORD ）"
+                    "Garmin 認証情報が設定されていません（ GARMIN_EMAIL または GARMIN_USERNAME, GARMIN_PASSWORD ）"
                 )
                 return False
 
