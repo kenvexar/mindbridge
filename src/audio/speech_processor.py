@@ -41,7 +41,11 @@ class SpeechProcessor(LoggerMixin):
 
     def __init__(self) -> None:
         """初期化処理"""
-        self.usage_tracker = SpeechAPIUsage()
+        self.settings = get_settings()
+        self.usage_tracker = SpeechAPIUsage(
+            monthly_limit_minutes=self.settings.speech_api_monthly_limit_minutes
+        )
+        self._speech_usage_alerted_month: tuple[int, int] | None = None
         self.supported_formats = {
             "mp3": AudioFormat.MP3,
             "wav": AudioFormat.WAV,
@@ -259,7 +263,10 @@ class SpeechProcessor(LoggerMixin):
             )
 
             # API 制限の確認
-            if self.usage_tracker.is_limit_exceeded:
+            if (
+                self.settings.enable_quota_protection
+                and self.usage_tracker.is_limit_exceeded
+            ):
                 return await self._handle_fallback(
                     file_data=file_data,
                     filename=filename,
@@ -290,6 +297,7 @@ class SpeechProcessor(LoggerMixin):
             if estimated_duration:
                 duration_minutes = estimated_duration / 60.0
                 self.usage_tracker.add_usage(duration_minutes, success=True)
+                self._maybe_warn_speech_usage()
 
             return AudioProcessingResult(
                 success=True,
@@ -361,13 +369,37 @@ class SpeechProcessor(LoggerMixin):
             self.logger.warning("Failed to estimate audio duration", error=str(e))
             return None
 
+    def _maybe_warn_speech_usage(self) -> None:
+        """無料枠使用量が閾値を超えた際に警告を記録"""
+        if not self.settings.enable_usage_alerts:
+            return
+
+        limit = self.usage_tracker.monthly_limit_minutes
+        if limit <= 0:
+            return
+
+        usage = self.usage_tracker.monthly_usage_minutes
+        threshold = limit * self.settings.usage_alert_threshold
+
+        current_month = (datetime.now().year, datetime.now().month)
+
+        if usage >= threshold and self._speech_usage_alerted_month != current_month:
+            remaining = max(0.0, limit - usage)
+            self.logger.warning(
+                "Speech API usage approaching monthly free tier",
+                monthly_usage_minutes=round(usage, 2),
+                monthly_limit_minutes=limit,
+                remaining_minutes=round(remaining, 2),
+            )
+            self._speech_usage_alerted_month = current_month
+
     async def _transcribe_audio(
         self, file_data: bytes, audio_format: AudioFormat
     ) -> TranscriptionResult:
         """Google Cloud Speech-to-Text API で音声を文字起こし"""
         try:
             # Google Cloud Speech API を使用（実際の実装）
-            settings = get_settings()
+            settings = self.settings
 
             self.logger.info(
                 "Checking API configuration",
@@ -823,8 +855,8 @@ class SpeechProcessor(LoggerMixin):
                 enable_automatic_punctuation=True,
                 enable_word_time_offsets=True,
                 enable_word_confidence=True,
-                model="latest_long",  # より汎用的なモデルに変更
-                use_enhanced=True,  # 高品質モデルを使用
+                model="default",  # スタンダードモデルを使用
+                use_enhanced=False,  # 強化モデルを無効化
             )
 
             # 音声認識を実行
