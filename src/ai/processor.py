@@ -8,6 +8,8 @@ import time
 from datetime import datetime, timedelta
 from typing import Any
 
+from pydantic import ValidationError
+
 from src.ai.gemini_client import GeminiAPIError, GeminiClient
 from src.ai.models import (
     AIModelConfig,
@@ -185,6 +187,91 @@ class AIProcessor(LoggerMixin):
     async def cleanup_expired(self) -> int:
         """メモリマネージャーから呼び出される清理メソッド"""
         return self._clean_expired_cache()
+
+    async def process_message(
+        self, message_data: dict[str, Any]
+    ) -> AIProcessingResult | None:
+        """MessageHandler 互換のエントリポイント"""
+
+        message_id = message_data.get("message_id", 0)
+        try:
+            message_id = int(message_id)
+        except (TypeError, ValueError):
+            message_id = 0
+
+        existing_result = message_data.get("ai_processing")
+
+        if isinstance(existing_result, AIProcessingResult):
+            if message_id and existing_result.message_id != message_id:
+                existing_result.message_id = message_id
+            return existing_result
+
+        if isinstance(existing_result, dict):
+            try:
+                result = AIProcessingResult.model_validate(existing_result)
+                if message_id and result.message_id != message_id:
+                    result.message_id = message_id
+                return result
+            except ValidationError as exc:  # pragma: no cover - defensive
+                self.logger.warning(
+                    "Failed to parse cached AI processing result",
+                    error=str(exc),
+                    message_id=message_id,
+                )
+
+        processed_content = message_data.get("processed_content")
+        if not processed_content:
+            metadata = message_data.get("metadata")
+            if isinstance(metadata, dict):
+                content_meta = metadata.get("content")
+                if isinstance(content_meta, dict):
+                    processed_content = (
+                        content_meta.get("cleaned_content")
+                        or content_meta.get("raw_content")
+                        or content_meta.get("original_content")
+                    )
+
+        if not processed_content:
+            content_value = message_data.get("content")
+            if isinstance(content_value, str):
+                processed_content = content_value
+
+        if not processed_content:
+            content_value = message_data.get("text")
+            if isinstance(content_value, str):
+                processed_content = content_value
+
+        if not isinstance(processed_content, str) or not processed_content.strip():
+            self.logger.debug(
+                "No processable content found in message data",
+                message_id=message_id,
+            )
+            return None
+
+        # Ensure metadata structure contains processed content for downstream handlers
+        metadata = message_data.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+            message_data["metadata"] = metadata
+
+        content_meta = metadata.get("content")
+        if not isinstance(content_meta, dict):
+            content_meta = {}
+            metadata["content"] = content_meta
+
+        content_meta.setdefault("raw_content", processed_content)
+        content_meta.setdefault("cleaned_content", processed_content.strip())
+        message_data.setdefault("processed_content", processed_content)
+
+        result = await self.process_text(
+            text=processed_content,
+            message_id=message_id or 0,
+        )
+
+        if isinstance(result, AIProcessingResult):
+            message_data.setdefault("ai_processing", result.model_dump())
+
+        return result
 
     async def process_text(
         self, text: str, message_id: int, force_reprocess: bool = False

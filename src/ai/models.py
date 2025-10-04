@@ -35,7 +35,7 @@ class ProcessingPriority(Enum):
 class AIModelConfig(BaseModel):
     """AI モデル設定"""
 
-    model_name: str = "gemini-1.5-flash"
+    model_name: str = "models/gemini-2.5-flash"
     temperature: float = Field(default=0.3, ge=0.0, le=2.0)
     max_tokens: int = Field(default=1024, ge=1, le=8192)
     top_p: float = Field(default=0.8, ge=0.0, le=1.0)

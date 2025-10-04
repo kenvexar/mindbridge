@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     git_user_email: str = "mindbridge@personal.local"
 
     # AI Model Configuration
-    model_name: str = "gemini-1.5-flash"
+    model_name: str = "models/gemini-2.5-flash"
     ai_temperature: float = 0.3
     ai_max_tokens: int = 1024
 
