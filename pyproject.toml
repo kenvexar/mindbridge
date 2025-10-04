@@ -77,6 +77,7 @@ dev = [
 security = [
     "bandit>=1.7.5",        # Python セキュリティリンター
     "pip-audit>=2.7.3",     # 個人利用向けの依存脆弱性チェック
+    "pip @ git+https://github.com/pypa/pip@f2b92314da012b9fffa36b3f3e67748a37ef464a",
 ]
 
 [project.optional-dependencies]
@@ -89,3 +90,7 @@ google-api = [
     "google-auth-oauthlib>=1.2.2",
     "google-auth-httplib2>=0.2.0",
 ]
+
+[tool.uv.sources]
+# pip 25.2 までに存在する CVE-2025-8869 の修正コミットを明示指定
+pip = { git = "https://github.com/pypa/pip", rev = "f2b92314da012b9fffa36b3f3e67748a37ef464a" }
