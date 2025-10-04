@@ -77,10 +77,10 @@ MindBridge では Discord で受信したメッセージや外部連携データ
 
 ```yaml
 ---
-discord_message_id: 123456789012345678
+discord_message_id: DISCORD_MESSAGE_ID_PLACEHOLDER
 discord_channel: memo
 discord_author: user#1234
-discord_author_id: 987654321098765432
+discord_author_id: DISCORD_AUTHOR_ID_PLACEHOLDER
 discord_timestamp: 2024-05-20T07:32:11+09:00
 discord_guild: MindBridge Lab
 ai_processed: true
