@@ -4,6 +4,8 @@ Google Gemini API クライアント
 
 import asyncio
 import time
+from collections import deque
+from datetime import datetime
 from typing import Any
 
 try:
@@ -97,15 +99,19 @@ class GeminiClient(LoggerMixin):
         Args:
             model_config: AI モデル設定
         """
+        self.settings = get_settings()
         self.model_config = model_config or AIModelConfig()
         self.api_usage = APIUsageInfo()
         self._client: Any | None = None
-        self._last_request_time = 0
+        self._last_request_time = 0.0
         self._min_request_interval = 4.0  # 15 RPM = 4 秒間隔
+        self._daily_request_count = 0
+        self._daily_reset_date = datetime.now().date()
+        self._minute_request_times: deque[float] = deque()
+        self._daily_alert_triggered = False
 
         # API キーの検証
-        settings = get_settings()
-        if not settings.gemini_api_key:
+        if not self.settings.gemini_api_key:
             raise ValueError("GEMINI_API_KEY is not set in environment variables")
 
         self._initialize_client()
@@ -120,8 +126,7 @@ class GeminiClient(LoggerMixin):
 
         try:
             # API クライアント初期化
-            settings = get_settings()
-            api_key = settings.gemini_api_key.get_secret_value()
+            api_key = self.settings.gemini_api_key.get_secret_value()
 
             self.logger.info("Initializing Gemini client", api_key_length=len(api_key))
 
@@ -146,15 +151,118 @@ class GeminiClient(LoggerMixin):
 
     async def _rate_limit_check(self) -> None:
         """レート制限チェックと待機"""
+        self._reset_usage_counters_if_needed()
+
         current_time = time.time()
+
+        if self.settings.enable_quota_protection:
+            self._check_daily_quota()
+            await self._wait_for_minute_slot(current_time)
+            current_time = time.time()
+        else:
+            self._prune_minute_window(current_time)
+
         time_since_last_request = current_time - self._last_request_time
 
         if time_since_last_request < self._min_request_interval:
             wait_time = self._min_request_interval - time_since_last_request
-            self.logger.debug(f"Rate limiting: waiting {wait_time:.2f} seconds")
+            self.logger.debug(
+                "Rate limiting: waiting to respect base interval",
+                wait_seconds=round(wait_time, 2),
+            )
             await asyncio.sleep(wait_time)
+            current_time = time.time()
 
-        self._last_request_time = int(time.time())
+        self._last_request_time = current_time
+
+    def _reset_usage_counters_if_needed(self) -> None:
+        """日次カウンタと待機キューをリセット"""
+        today = datetime.now().date()
+        if today != self._daily_reset_date:
+            self.logger.info(
+                "Resetting Gemini daily usage counters",
+                previous=self._daily_request_count,
+            )
+            self._daily_reset_date = today
+            self._daily_request_count = 0
+            self._daily_alert_triggered = False
+            self._minute_request_times.clear()
+
+    def _check_daily_quota(self) -> None:
+        """無料枠の日次リクエスト制限を確認"""
+        limit = self.settings.gemini_api_daily_limit
+        if limit <= 0:
+            return
+
+        if self._daily_request_count >= limit:
+            self.logger.error(
+                "Gemini daily free tier exhausted",
+                daily_limit=limit,
+                requests_made=self._daily_request_count,
+            )
+            raise RateLimitExceeded()
+
+    async def _wait_for_minute_slot(self, current_time: float) -> None:
+        """1分あたりのリクエスト制限を順守するため待機"""
+        minute_limit = self.settings.gemini_api_minute_limit
+        if minute_limit <= 0:
+            self._prune_minute_window(current_time)
+            return
+
+        while True:
+            self._prune_minute_window(current_time)
+            if len(self._minute_request_times) < minute_limit:
+                break
+
+            wait_time = max(0.0, 60 - (current_time - self._minute_request_times[0]))
+            if wait_time > 0:
+                self.logger.debug(
+                    "Waiting to respect Gemini minute quota",
+                    wait_seconds=round(wait_time, 2),
+                    minute_limit=minute_limit,
+                )
+                await asyncio.sleep(wait_time)
+            current_time = time.time()
+
+    def _prune_minute_window(self, current_time: float | None = None) -> None:
+        """1分間のリクエスト履歴を整備"""
+        if current_time is None:
+            current_time = time.time()
+
+        while (
+            self._minute_request_times
+            and current_time - self._minute_request_times[0] >= 60
+        ):
+            self._minute_request_times.popleft()
+
+    def _register_request(self) -> None:
+        """API 呼び出しを記録し警告閾値をチェック"""
+        now = time.time()
+        self._prune_minute_window(now)
+        self._minute_request_times.append(now)
+        self._daily_request_count += 1
+        self._maybe_warn_gemini_usage()
+
+    def _maybe_warn_gemini_usage(self) -> None:
+        """無料枠に近づいたときに警告ログを出す"""
+        if not self.settings.enable_usage_alerts:
+            return
+
+        limit = self.settings.gemini_api_daily_limit
+        if limit <= 0:
+            return
+
+        threshold = int(limit * self.settings.usage_alert_threshold)
+
+        if self._daily_request_count >= threshold and not self._daily_alert_triggered:
+            remaining = max(0, limit - self._daily_request_count)
+            self.logger.warning(
+                "Gemini API usage approaching daily free tier",
+                daily_requests=self._daily_request_count,
+                daily_limit=limit,
+                remaining_requests=remaining,
+            )
+            self._daily_alert_triggered = True
 
     async def _call_gemini_api(self, prompt: str, retry_count: int = 3) -> str:
         """
@@ -173,9 +281,11 @@ class GeminiClient(LoggerMixin):
         if not self._client:
             raise GeminiAPIError("Gemini client not initialized")
 
-        await self._rate_limit_check()
-
         for attempt in range(retry_count + 1):
+            await self._rate_limit_check()
+            api_call_started = False
+            request_recorded = False
+
             try:
                 self.logger.debug(
                     "Calling Gemini API", attempt=attempt + 1, prompt_length=len(prompt)
@@ -198,11 +308,15 @@ class GeminiClient(LoggerMixin):
                     max_output_tokens=self.model_config.max_tokens,
                 )
 
+                api_call_started = True
                 response = await self._client.aio.models.generate_content(
                     model=self.model_config.model_name,
                     contents=prompt,
                     config=generation_config,
                 )
+
+                self._register_request()
+                request_recorded = True
 
                 if not response.text:
                     raise GeminiAPIError("Empty response from Gemini API")
@@ -218,10 +332,33 @@ class GeminiClient(LoggerMixin):
 
                 return response.text.strip() if response.text else ""
 
+            except RateLimitExceeded:
+                raise
+
+            except GeminiAPIError as e:
+                if api_call_started and not request_recorded:
+                    self._register_request()
+                    request_recorded = True
+
+                error_msg = str(e)
+                self.logger.error(
+                    "Gemini API call failed",
+                    attempt=attempt + 1,
+                    error=error_msg,
+                )
+
+                if attempt == retry_count:
+                    raise
+
+                await asyncio.sleep(1 * (attempt + 1))
+
             except Exception as e:
+                if api_call_started and not request_recorded:
+                    self._register_request()
+                    request_recorded = True
+
                 error_msg = str(e)
 
-                # レート制限エラーの検出
                 if "429" in error_msg or "rate limit" in error_msg.lower():
                     if attempt < retry_count:
                         wait_time = (2**attempt) * 2  # エクスポネンシャルバックオフ
@@ -234,9 +371,10 @@ class GeminiClient(LoggerMixin):
                         continue
                     raise RateLimitExceeded() from e
 
-                # その他の API エラー
                 self.logger.error(
-                    "Gemini API call failed", attempt=attempt + 1, error=error_msg
+                    "Gemini API call failed",
+                    attempt=attempt + 1,
+                    error=error_msg,
                 )
 
                 if attempt == retry_count:
@@ -244,7 +382,6 @@ class GeminiClient(LoggerMixin):
                         f"API call failed after {retry_count + 1} attempts: {error_msg}"
                     ) from e
 
-                # リトライ前の待機
                 await asyncio.sleep(1 * (attempt + 1))
 
         raise GeminiAPIError("Unexpected error in API call")
