@@ -1,7 +1,6 @@
-"""
-Audio handling functionality for Discord messages
-"""
+"""Audio handling functionality for Discord messages."""
 
+from pathlib import Path
 from typing import Any
 
 import discord
@@ -15,6 +14,19 @@ class AudioHandler(LoggerMixin):
     def __init__(self, speech_processor=None):
         self.speech_processor = speech_processor
 
+    @staticmethod
+    def _get_channel_name(channel_info: Any) -> str:
+        """Safely obtain channel name from various channel representations."""
+        if hasattr(channel_info, "name"):
+            name = channel_info.name
+            if isinstance(name, str):
+                return name
+        if isinstance(channel_info, dict):
+            name = channel_info.get("name")
+            if isinstance(name, str):
+                return name
+        return "unknown"
+
     async def handle_audio_attachments(
         self,
         message_data: dict[str, Any],
@@ -25,6 +37,49 @@ class AudioHandler(LoggerMixin):
         try:
             metadata = message_data.get("metadata", {})
             attachments = metadata.get("attachments", [])
+
+            # Fallback: build metadata from the raw Discord attachments when
+            # structured metadata is not yet available (e.g. voice messages
+            # with empty message content).
+            if not attachments and original_message and original_message.attachments:
+                fallback_attachments: list[dict[str, Any]] = []
+                for discord_attachment in original_message.attachments:
+                    filename = discord_attachment.filename or "audio"
+                    content_type = discord_attachment.content_type or ""
+                    is_audio = False
+                    if content_type.startswith("audio/"):
+                        is_audio = True
+                    elif self.speech_processor:
+                        try:
+                            is_audio = self.speech_processor.is_audio_file(filename)
+                        except Exception:  # pragma: no cover - defensive
+                            is_audio = False
+
+                    fallback_attachments.append(
+                        {
+                            "id": discord_attachment.id,
+                            "filename": filename,
+                            "size": discord_attachment.size,
+                            "url": discord_attachment.url,
+                            "proxy_url": discord_attachment.proxy_url,
+                            "content_type": content_type,
+                            "file_extension": Path(filename).suffix.lower(),
+                            "file_category": "audio" if is_audio else "other",
+                        }
+                    )
+
+                if fallback_attachments:
+                    attachments = fallback_attachments
+                    metadata["attachments"] = fallback_attachments
+                    # message_data may be reused later (AI processing), so keep
+                    # the reconstructed metadata.
+                    message_data["metadata"] = metadata
+                    self.logger.debug(
+                        "Reconstructed attachment metadata from Discord payload",
+                        attachment_count=len(fallback_attachments),
+                    )
+
+            channel_name = self._get_channel_name(channel_info)
 
             # Log attachment information
             self.logger.debug(
@@ -61,7 +116,7 @@ class AudioHandler(LoggerMixin):
             self.logger.info(
                 "Processing audio attachments",
                 count=len(audio_attachments),
-                channel=channel_info.name,
+                channel=channel_name,
             )
 
             for attachment in audio_attachments:
@@ -92,7 +147,7 @@ class AudioHandler(LoggerMixin):
         except Exception as e:
             self.logger.error(
                 "Error processing audio attachments",
-                channel_name=channel_info.name,
+                channel_name=channel_name,
                 error=str(e),
                 exc_info=True,
             )
@@ -145,8 +200,11 @@ class AudioHandler(LoggerMixin):
                 )
                 return
 
+            channel_name = self._get_channel_name(channel_info)
             audio_result = await self.speech_processor.process_audio_file(
-                file_data=audio_data, filename=filename, channel_name=channel_info.name
+                file_data=audio_data,
+                filename=filename,
+                channel_name=channel_name,
             )
 
             # 結果に応じてフィードバックを更新
@@ -214,6 +272,14 @@ class AudioHandler(LoggerMixin):
                 "fallback_reason": audio_result.fallback_reason,
                 "saved_file_path": getattr(audio_result, "saved_file_path", None),
             }
+
+            content_meta = message_data["metadata"]["content"]
+            transcript = audio_result.transcription.transcript
+            if transcript:
+                if not content_meta.get("raw_content"):
+                    content_meta["raw_content"] = transcript
+                if not message_data.get("content"):
+                    message_data["content"] = transcript
 
         except Exception as e:
             self.logger.error("Failed to integrate audio transcription", error=str(e))

@@ -228,9 +228,16 @@ class APIUsageMonitor(LoggerMixin):
         """API が使用可能かチェック"""
         return self._check_limits(api_name)
 
-    def track_gemini_usage(self, request_count: int = 1) -> None:
+    def track_gemini_usage(
+        self, request_count: int = 1, success: bool | None = None
+    ) -> None:
         """Gemini API 使用量を追跡"""
-        for _ in range(request_count):
+        normalized = max(1, request_count)
+        if normalized > 10:
+            # トークン数など大きな値が渡された場合は 1 リクエストとして扱う
+            normalized = 1
+
+        for _ in range(normalized):
             self.record_api_usage("gemini")
 
     def track_speech_usage(self, minutes_used: float) -> None:
