@@ -394,11 +394,7 @@ class MessageHandler(LoggerMixin):
                     self.system_metrics.record_ai_request(True, int(processing_time))
 
                 if hasattr(self, "api_usage_monitor"):
-                    # Estimate token usage (rough calculation)
-                    estimated_tokens = len(final_content.split()) * 1.3
-                    self.api_usage_monitor.track_gemini_usage(
-                        int(estimated_tokens), True
-                    )
+                    self.api_usage_monitor.track_gemini_usage()
 
                 self.logger.info(
                     "AI processing completed",
@@ -420,12 +416,7 @@ class MessageHandler(LoggerMixin):
                     self.system_metrics.record_error("ai_processing", str(e))
 
                 if hasattr(self, "api_usage_monitor"):
-                    estimated_tokens = (
-                        len(final_content.split()) * 1.3 if final_content else 0
-                    )
-                    self.api_usage_monitor.track_gemini_usage(
-                        int(estimated_tokens), False
-                    )
+                    self.api_usage_monitor.track_gemini_usage(success=False)
 
                 self.logger.error(
                     "AI processing failed",

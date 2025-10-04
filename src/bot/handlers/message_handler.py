@@ -8,6 +8,7 @@ import discord
 
 from src.utils.mixins import LoggerMixin
 
+from ..message_processor import MessageProcessor
 from .audio_handler import AudioHandler
 from .lifelog_handler import LifelogHandler
 from .note_handler import NoteHandler
@@ -41,6 +42,9 @@ class MessageHandler(LoggerMixin):
         self.template_engine = template_engine
         self.note_analyzer = note_analyzer
         self.speech_processor = speech_processor
+
+        # Unified metadata extractor
+        self.message_processor = MessageProcessor()
 
         # Lifelog components
         self.lifelog_manager = lifelog_manager
@@ -110,10 +114,28 @@ class MessageHandler(LoggerMixin):
             self._processed_messages.add(message_id)
 
             # メッセージタイプによる処理の分岐
-            metadata = message_data.get("metadata", {})
+            metadata = message_data.get("metadata")
+            if metadata is None:
+                try:
+                    metadata = self.message_processor.extract_metadata(message)
+                except Exception as exc:
+                    self.logger.warning(
+                        "Falling back to minimal metadata extraction",
+                        message_id=message_id,
+                        error=str(exc),
+                    )
+                    metadata = self._build_fallback_metadata(message, message_data)
+
+                message_data["metadata"] = metadata
+
+                # Update convenience fields used by downstream handlers
+                content_info = metadata.get("content", {})
+                if not message_data.get("content"):
+                    message_data["content"] = content_info.get("raw_content", "")
+                message_data["attachments"] = metadata.get("attachments", [])
 
             # 音声添付ファイルがある場合
-            if metadata.get("attachments"):
+            if metadata.get("attachments") or message_data.get("attachments"):
                 await self.audio_handler.handle_audio_attachments(
                     message_data, channel_info, message
                 )
@@ -146,12 +168,22 @@ class MessageHandler(LoggerMixin):
     ) -> None:
         """テキストメッセージの処理"""
         try:
-            # AI 処理が必要な場合
+            ai_result = None
+
             if self.ai_processor:
                 ai_result = await self.ai_processor.process_message(message_data)
 
-                # ノート作成が必要な場合（ AI 結果が存在すればノート作成）
-                if ai_result:
+            if self.note_handler and ai_result:
+                content_meta = (
+                    message_data.get("metadata", {}).get("content", {})
+                    if isinstance(message_data.get("metadata"), dict)
+                    else {}
+                )
+                raw_content = content_meta.get("raw_content")
+                if not raw_content and isinstance(message_data.get("content"), str):
+                    raw_content = message_data["content"]
+
+                if raw_content and raw_content.strip():
                     await self.note_handler.handle_obsidian_note_creation(
                         message_data, channel_info, ai_result, original_message
                     )
@@ -175,3 +207,63 @@ class MessageHandler(LoggerMixin):
     async def _handle_lifelog_auto_detection(self, *args, **kwargs):
         """Legacy compatibility method"""
         return await self.lifelog_handler.handle_lifelog_auto_detection(*args, **kwargs)
+
+    def _build_fallback_metadata(
+        self, message: discord.Message, message_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """テストやモック環境向けに最小限のメタデータを組み立てる"""
+        raw_content = message_data.get("content")
+        if not isinstance(raw_content, str):
+            msg_content = getattr(message, "content", "")
+            raw_content = msg_content if isinstance(msg_content, str) else ""
+
+        cleaned_content = raw_content.strip()
+
+        basic_info: dict[str, Any] = {
+            "id": getattr(message, "id", 0),
+            "type": str(getattr(message, "type", "message")),
+            "flags": [],
+            "pinned": bool(getattr(message, "pinned", False)),
+            "tts": bool(getattr(message, "tts", False)),
+            "author": {},
+            "channel": {},
+            "guild": None,
+        }
+
+        content_meta: dict[str, Any] = {
+            "raw_content": raw_content,
+            "cleaned_content": cleaned_content,
+            "word_count": len(cleaned_content.split()) if cleaned_content else 0,
+            "char_count": len(cleaned_content),
+            "line_count": cleaned_content.count("\n") + (1 if cleaned_content else 0),
+            "urls": [],
+            "mentions": {},
+            "code_blocks": 0,
+            "inline_code": 0,
+            "has_formatting": False,
+            "language": None,
+        }
+
+        fallback_metadata: dict[str, Any] = {
+            "basic": basic_info,
+            "content": content_meta,
+            "attachments": message_data.get("attachments", []),
+            "references": {
+                "is_reply": False,
+                "reply_to": None,
+                "mentions_reply_author": False,
+            },
+            "discord_features": {
+                "embeds": [],
+                "reactions": [],
+                "mentions": {},
+                "stickers": [],
+            },
+            "timing": {
+                "created_at": {},
+                "edited_at": {"was_edited": False},
+                "age_seconds": 0,
+            },
+        }
+
+        return fallback_metadata
