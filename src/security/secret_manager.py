@@ -81,7 +81,8 @@ class GoogleSecretManager(BaseSecretManager):
         if client is not None:
             self._client = client
         else:
-            assert secretmanager is not None  # narrow for type-checkers
+            if secretmanager is None:  # pragma: no cover - defensive
+                raise RuntimeError("google-cloud-secret-manager client unavailable")
             self._client = secretmanager.SecretManagerServiceAsyncClient()
 
     async def _fetch_secret(self, secret_name: str, version: str) -> str | None:
