@@ -137,8 +137,8 @@ class GoogleCalendarService(LoggerMixin):
         if on_request:
             try:
                 on_request()
-            except Exception:
-                pass
+            except Exception as exc:
+                self.logger.warning("Request hook failed", error=str(exc))
         async with session.request(method, url, params=params) as resp:
             if resp.status != 200:
                 self.logger.debug(
