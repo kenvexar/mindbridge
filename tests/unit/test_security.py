@@ -11,7 +11,14 @@ from pydantic import SecretStr
 from src.config.secure_settings import SecureSettingsManager
 from src.monitoring.health_server import OAuthCodeVault
 from src.security.access_logger import AccessLogger, SecurityEvent, SecurityEventType
-from src.security.secret_manager import PersonalConfigManager, PersonalSecretManager
+from src.security.secret_manager import (
+    ConfigManager,
+    GoogleSecretManager,
+    PersonalConfigManager,
+    PersonalSecretManager,
+    create_config_manager,
+    create_secret_manager,
+)
 
 
 class DummySecureSettingsManager:
@@ -127,6 +134,50 @@ class TestPersonalSecretManager:
         assert len(manager._cache) == 0
 
 
+class TestGoogleSecretManager:
+    """Tests for the Google Secret Manager wrapper."""
+
+    @pytest.mark.asyncio
+    async def test_fetch_secret(self):
+        class _Payload:
+            def __init__(self, data: bytes):
+                self.data = data
+
+        class _Response:
+            def __init__(self, data: bytes):
+                self.payload = _Payload(data)
+
+        mock_client = AsyncMock()
+        mock_client.access_secret_version.return_value = _Response(b"gcp-value")
+
+        manager = GoogleSecretManager(project_id="my-project", client=mock_client)
+
+        result = await manager.get_secret("discord-bot-token")
+
+        mock_client.access_secret_version.assert_awaited_once_with(
+            name="projects/my-project/secrets/discord-bot-token/versions/latest"
+        )
+        assert result == "gcp-value"
+
+    def test_create_secret_manager_strategy(self):
+        env_manager = create_secret_manager()
+        assert isinstance(env_manager, PersonalSecretManager)
+
+        with pytest.raises(ValueError):
+            create_secret_manager("gcp")
+
+        mock_client = AsyncMock()
+        gcp_manager = create_secret_manager(
+            "google", project_id="proj", client=mock_client
+        )
+        assert isinstance(gcp_manager, GoogleSecretManager)
+
+    def test_create_config_manager_uses_factory(self):
+        cfg = create_config_manager()
+        assert isinstance(cfg, ConfigManager)
+        assert isinstance(cfg.secret_manager, PersonalSecretManager)
+
+
 class TestPersonalConfigManager:
     """Test PersonalConfigManager functionality"""
 
@@ -146,7 +197,7 @@ class TestPersonalConfigManager:
             mock_get.return_value = "discord_token_123"
             result = await manager.get_config_value("discord_bot_token")
             assert result == "discord_token_123"
-            mock_get.assert_called_once_with("discord-bot-token")
+            mock_get.assert_called_once_with("discord-bot-token", version="latest")
 
     @pytest.mark.asyncio
     async def test_get_config_value_gemini_key(self):
@@ -159,7 +210,7 @@ class TestPersonalConfigManager:
             mock_get.return_value = "gemini_key_123"
             result = await manager.get_config_value("gemini_api_key")
             assert result == "gemini_key_123"
-            mock_get.assert_called_once_with("gemini-api-key")
+            mock_get.assert_called_once_with("gemini-api-key", version="latest")
 
 
 class TestAccessLogger:

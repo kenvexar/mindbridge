@@ -63,23 +63,26 @@ usage() {
   cat <<USAGE
 MindBridge CLI
 
-サブコマンド:
-  env <PROJECT_ID>                 Google Cloud 環境セットアップ
-  secrets <PROJECT_ID> [FLAGS]     必須/オプションシークレット設定
-  optional <PROJECT_ID>            カレンダー/ウェブフック/タイムゾーン設定
-  deploy <PROJECT_ID> [REGION]     Cloud Run デプロイ
-  full-deploy <PROJECT_ID> [FLAGS] 環境→シークレット→（任意）→デプロイ一括
-  ar-clean <PROJECT_ID> [...]      Artifact Registry の古いイメージ削除
-  init                             ローカル初期設定（.env 生成）
-  run                              ローカル起動（uv 使用）
+サブコマンド (実行順の目安):
   help                             このヘルプ
 
+  init                             ローカル初期設定（.env 生成）
+  clean [--with-uv-cache]          Pythonキャッシュ削除
+  run                              ローカル起動（uv 使用）
+
+  env <PROJECT_ID>                 Google Cloud 環境セットアップ
+  secrets <PROJECT_ID> [FLAGS]     必須/オプションシークレット設定（env 後に実行）
+  optional <PROJECT_ID>            カレンダー/ウェブフックなど追加設定（secrets 後）
+  deploy <PROJECT_ID> [REGION]     Cloud Run デプロイ（secrets/optional 完了後）
+  full-deploy <PROJECT_ID> [FLAGS] env→secrets→optional→deploy を一括実行
+  ar-clean <PROJECT_ID> [...]      Artifact Registry の古いイメージ削除（運用メンテ）
+
 例:
+  ./scripts/manage.sh init
+  ./scripts/manage.sh run
   ./scripts/manage.sh env my-proj
   ./scripts/manage.sh secrets my-proj --with-optional --skip-existing
   ./scripts/manage.sh deploy my-proj us-central1
-  ./scripts/manage.sh full-deploy my-proj --with-optional
-  ./scripts/manage.sh run
 USAGE
 }
 
@@ -318,6 +321,47 @@ cmd_ar_clean(){
   (( FAILED > 0 )) && { printf "%s\n" "[DONE] 完了（失敗: $FAILED）"; return 1; } || printf "%s\n" "[DONE] クリーンアップ完了"
 }
 
+# ===== clean（キャッシュクリーンアップ） =====
+cmd_clean(){
+  local WITH_UV_CACHE=false
+  while (($#)); do
+    case "$1" in
+      --with-uv-cache)
+        WITH_UV_CACHE=true
+        ;;
+      --help|-h)
+        cat <<'HELP'
+Usage: ./scripts/manage.sh clean [--with-uv-cache]
+  --with-uv-cache  uv cache prune も実行
+HELP
+        return 0
+        ;;
+      *)
+        warn "未対応のオプション: $1"
+        ;;
+    esac
+    shift
+  done
+
+  log_step "Pythonキャッシュを削除"
+  find . -type d \(-name '__pycache__' -o -name '.mypy_cache' -o -name '.pytest_cache'\) -prune -exec rm -rf {} + 2>/dev/null || true
+  rm -rf .pytest_cache .mypy_cache .ruff_cache
+
+  if [[ "$WITH_UV_CACHE" == true ]]; then
+    if command -v uv >/dev/null 2>&1; then
+      log_step "uv cache prune を実行"
+      if ! uv cache prune; then
+        warn "uv cache prune に失敗しました"
+      fi
+    else
+      warn "uv コマンドが見つからないため uv cache prune をスキップ"
+    fi
+  fi
+
+  log_success "ローカルキャッシュを掃除しました"
+}
+
+
 # ===== init（旧 local-setup.sh） =====
 cmd_init(){
   printf "%b\n" "${CYAN}MindBridge ローカル初期設定${NC}"
@@ -372,6 +416,10 @@ case "$cmd" in
 
   ar-clean)
     cmd_ar_clean "$@"
+    ;;
+
+  clean)
+    cmd_clean "$@"
     ;;
 
   init)

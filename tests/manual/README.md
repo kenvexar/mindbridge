@@ -1,48 +1,32 @@
 # Manual Tests
 
-このディレクトリには手動実行用のテストファイルが含まれています。
+手動テスト用スクリプトは以下のカテゴリに整理されています。実行時はプロジェクトルートで `uv sync --dev` 済みであること、および必要な認証情報を `.env` などで設定しておくことを推奨します。
 
-## テストファイル一覧
+## 1. Audio / Speech
+| ファイル | 目的 | 実行コマンド | 前提条件 |
+| --- | --- | --- | --- |
+| `quick_voice_test.py` | SpeechProcessor のモック音声確認 | `uv run python tests/manual/quick_voice_test.py` | モック環境で十分 |
+| `test_voice_memo.py` | 音声メモ全体フローの統合テスト | `uv run python tests/manual/test_voice_memo.py` | Discord/Obsidian 設定が必要 |
+| `test_real_voice.py` | 実音声ファイルを使った精度テスト | `uv run python tests/manual/test_real_voice.py` | `pydub` が利用可能であること |
 
-### `quick_voice_test.py`
-- **目的**: 音声メモ機能のクイックテスト（モック機能使用）
-- **実行**: `uv run python tests/manual/quick_voice_test.py`
-- **概要**: SpeechProcessor の基本機能とモックデータでの動作確認
+## 2. Calendar / Integrations
+| ファイル | 目的 | 実行コマンド | 前提条件 |
+| --- | --- | --- | --- |
+| `test_garmin_integration.py` | Garmin Connect 認証とデータ取得の検証 | `uv run python tests/manual/test_garmin_integration.py` | Garmin 認証情報が必要 |
+| `test_google_calendar_fix.py` | Google Calendar API フローの手動確認 | `uv run python tests/manual/test_google_calendar_fix.py` | Google OAuth 資格情報 (`credentials.json`) |
 
-### `simple_test.py`
-- **目的**: シンプルなコンポーネントテスト
-- **実行**: `uv run python tests/manual/simple_test.py`
-- **概要**: MockAIProcessor を使用したメッセージ処理テスト
+## 3. Utility / Script Checks
+| ファイル | 目的 | 実行コマンド | 前提条件 |
+| --- | --- | --- | --- |
+| `simple_test.py` | Mock AIProcessor を使った軽量検証 | `uv run python tests/manual/simple_test.py` | 特になし |
+| `test_manage.sh` | `scripts/manage.sh` の smoke テスト | `bash tests/manual/test_manage.sh` | gcloud CLI がインストール済みであること |
 
-### `test_real_voice.py`
-- **目的**: 実際の音声ファイルを使用したテスト
-- **実行**: `uv run python tests/manual/test_real_voice.py`
-- **概要**: pydub で生成した実際の音声データでのテスト
+## 実行のベストプラクティス
+- 事前に `./scripts/manage.sh clean` を実行し、キャッシュ由来の差分を排除する。
+- 外部 API を利用するテストは `.env` または Secret Manager に最新の資格情報が登録されていることを確認する。
+- 大量のログが出力されるテスト（音声メモなど）は `LOG_LEVEL=DEBUG` を設定し、必要に応じてログファイルへリダイレクトする。
 
-### `test_voice_memo.py`
-- **目的**: 音声メモ機能の総合テストスクリプト
-- **実行**: `uv run python tests/manual/test_voice_memo.py`
-- **概要**: 音声処理、 Bot 統合、 Obsidian 統合の包括的テスト
-
-### `test_garmin_integration.py`
-- **目的**: Garmin Connect 統合テストスクリプト
-- **実行**: `uv run python tests/manual/test_garmin_integration.py`
-- **概要**: Garmin 認証、健康データ取得、キャッシュ機能のテスト
-
-## 実行方法
-
-プロジェクトルートディレクトリから以下のコマンドでテストを実行してください：
-
-```bash
-# 個別のテスト実行
-uv run python tests/manual/<test_file_name>.py
-
-# 例：音声メモ機能のクイックテスト
-uv run python tests/manual/quick_voice_test.py
-```
-
-## 注意事項
-
-- すべてのテストファイルは適切にプロジェクトルートパスを設定しています
-- 一部のテストは外部 API を使用するため、適切な認証情報が必要です
-- テスト実行前に `uv sync` でプロジェクトの依存関係をインストールしてください
+## トラブルシューティング
+- 認証エラーが発生した場合は `uv run python -m src.security.simple_admin` で Secrets を再読み込みする。
+- Garmin や Google API の rate limit に達した場合は、一定時間待機した上で再実行する。
+- Speech API 関連のテストで `pydub` ImportError が出る場合は `brew install ffmpeg` などでデコーダを導入する。
