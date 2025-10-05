@@ -12,6 +12,8 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, Field
 
+from src.integrations.base import integration_registry, register_integration
+
 from .base import BaseIntegration, IntegrationConfig
 from .garmin import GarminIntegration
 from .google_calendar import GoogleCalendarIntegration
@@ -56,12 +58,6 @@ class IntegrationManagerConfig(BaseModel):
 class IntegrationManager:
     """外部連携統合管理システム"""
 
-    # 利用可能な連携クラス
-    AVAILABLE_INTEGRATIONS: dict[str, type[BaseIntegration]] = {
-        "garmin": GarminIntegration,
-        "google_calendar": GoogleCalendarIntegration,
-    }
-
     def __init__(self, config: IntegrationManagerConfig):
         self.config = config
         self.logger = structlog.get_logger(__name__)
@@ -81,17 +77,17 @@ class IntegrationManager:
     ) -> bool:
         """外部連携を登録"""
         try:
-            if integration_name not in self.AVAILABLE_INTEGRATIONS:
+            factory = integration_registry.get(integration_name)
+            if factory is None:
                 self.logger.error(
                     "未対応の連携タイプ",
                     integration_name=integration_name,
-                    available=list(self.AVAILABLE_INTEGRATIONS.keys()),
+                    available=list(integration_registry.available().keys()),
                 )
                 return False
 
             # 連携インスタンス作成
-            integration_class = self.AVAILABLE_INTEGRATIONS[integration_name]
-            integration = integration_class(integration_config)
+            integration = factory(integration_config)
 
             # 設定検証
             validation_errors = await integration.validate_config()
@@ -456,3 +452,7 @@ class IntegrationManager:
 
         if self._sync_tasks:
             await asyncio.gather(*self._sync_tasks.values(), return_exceptions=True)
+
+
+register_integration("garmin", GarminIntegration)
+register_integration("google_calendar", GoogleCalendarIntegration)

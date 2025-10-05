@@ -22,10 +22,12 @@
 3. `README.md` および `docs/quick-start.md` から新ディレクトリへのリンクを張る。
 
 ## TODO リスト
-- [ ] `docs/deploy/` ディレクトリ作成。
-- [ ] `overview.md` / `cloud-run.md` / `local.md` の下書きを作成。
-- [ ] 旧ドキュメントに移行告知を追記し、レビュー完了後に削除。
-- [ ] デプロイ関連のスクリーンショットやログを `docs/assets/deploy/` に整理。
+- [x] `docs/deploy/` ディレクトリ作成。
+- [x] `overview.md` / `cloud-run.md` / `local.md` の下書きを作成。
+- [x] 旧ドキュメントに移行告知を追記し、レビュー完了後に削除。
+- [x] デプロイ関連のスクリーンショットやログを `docs/assets/deploy/` に整理。
+
+補足: 現時点では移行対象アセットが存在しないため `docs/assets/deploy/README.md` を作成し運用手順のみ整備。
 
 ## レビュー依頼先
 - デプロイ作業担当（Cloud Run 運用経験者）

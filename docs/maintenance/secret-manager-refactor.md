@@ -19,5 +19,5 @@
 - 個人環境では従来通り `PersonalConfigManager` を利用すれば自動的に `PersonalSecretManager` が採用される。
 
 ## 今後の TODO
-- `SecureSettingsManager` にファクトリを統合し、環境ごとに自動切り替えする仕組みを追加。
-- `scripts/manage.sh` から Secret Manager 選択オプションを提供。
+- [x] `SecureSettingsManager` にファクトリを統合し、環境ごとに自動切り替えする仕組みを追加。
+- [x] `scripts/manage.sh` から Secret Manager 選択オプションを提供。

@@ -6,12 +6,14 @@ Google Calendar 連携
 
 import asyncio
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-import aiohttp
 import structlog
 from pydantic import BaseModel, Field
+
+from src.integrations.google_calendar import GoogleCalendarService
+from src.integrations.google_calendar.schemas import CalendarEventRecord
 
 from ..models import LifelogCategory, LifelogEntry, LifelogType
 from .base import (
@@ -28,7 +30,7 @@ class GoogleCalendarEvent(BaseModel):
     """Google Calendar イベントデータ"""
 
     event_id: str
-    summary: str
+    summary: str | None = None
     description: str | None = None
     location: str | None = None
 
@@ -64,7 +66,7 @@ class GoogleCalendarIntegration(BaseIntegration):
     def __init__(self, config: IntegrationConfig):
         super().__init__(config)
         self.base_url = "https://www.googleapis.com/calendar/v3"
-        self.session: aiohttp.ClientSession | None = None
+        self.service = GoogleCalendarService(base_url=self.base_url)
 
         # Google Calendar 固有設定
         calendar_settings = config.custom_settings.get("google_calendar", {})
@@ -218,11 +220,6 @@ class GoogleCalendarIntegration(BaseIntegration):
     async def authenticate(self) -> bool:
         """Google Calendar 認証"""
         try:
-            self.session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=30),
-                headers={"User-Agent": "MindBridge-Lifelog/1.0"},
-            )
-
             # 環境変数から不足分を補完（.env 反映後に自動読込）
             if not self.config.client_id:
                 self.config.client_id = os.getenv("GOOGLE_CALENDAR_CLIENT_ID")
@@ -233,10 +230,10 @@ class GoogleCalendarIntegration(BaseIntegration):
             if not self.config.refresh_token:
                 self.config.refresh_token = os.getenv("GOOGLE_CALENDAR_REFRESH_TOKEN")
 
-            # アクセストークンが無くても、リフレッシュトークン+クライアント情報があれば更新を試行
             if self.config.access_token:
                 return await self._authenticate_oauth()
-            elif (
+
+            if (
                 self.config.refresh_token
                 and self.config.client_id
                 and self.config.client_secret
@@ -246,9 +243,9 @@ class GoogleCalendarIntegration(BaseIntegration):
                     return await self._authenticate_oauth()
                 self.add_error("Google Calendar トークンのリフレッシュに失敗しました")
                 return False
-            else:
-                self.add_error("Google Calendar 認証情報が設定されていません")
-                return False
+
+            self.add_error("Google Calendar 認証情報が設定されていません")
+            return False
 
         except Exception as e:
             self.add_error(f"Google Calendar 認証でエラー: {str(e)}")
@@ -257,62 +254,45 @@ class GoogleCalendarIntegration(BaseIntegration):
     async def _authenticate_oauth(self) -> bool:
         """OAuth2 認証"""
         try:
-            # トークンの有効性をテスト（カレンダーリスト取得）
-            test_url = f"{self.base_url}/users/me/calendarList"
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
-
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
+            if not self.config.access_token:
+                self.add_error("Google Calendar アクセストークンがありません")
                 return False
 
-            async with self.session.get(test_url, headers=headers) as response:
+            session = await self.service.get_session(
+                headers={
+                    "Authorization": f"Bearer {self.config.access_token}",
+                    "User-Agent": "MindBridge-Lifelog/1.0",
+                }
+            )
+            url = f"{self.base_url}/users/me/calendarList"
+            async with session.get(url) as response:
                 if response.status == 200:
-                    self._authenticated = True
-                    self.logger.info("Google Calendar OAuth 認証成功")
-
-                    # カレンダー情報を取得・キャッシュ
                     calendar_data = await response.json()
-                    calendars = calendar_data.get("items", [])
-
-                    self.logger.info(
-                        "カレンダー一覧取得", calendar_count=len(calendars)
+                    calendars = (
+                        calendar_data.get("items", [])
+                        if isinstance(calendar_data, dict)
+                        else []
                     )
 
-                    # カレンダー情報の詳細ログ
-                    for cal in calendars[:5]:  # 最初の5つのカレンダーをログ出力
-                        self.logger.debug(
-                            "取得カレンダー詳細",
-                            calendar_id=cal.get("id", ""),
-                            summary=cal.get("summary", ""),
-                            primary=cal.get("primary", False),
-                            selected=cal.get("selected", False),
-                            access_role=cal.get("accessRole", ""),
-                        )
+                    self._authenticated = True
+                    self.logger.info(
+                        "Google Calendar OAuth 認証成功", calendar_count=len(calendars)
+                    )
 
                     await self._cache_calendar_info(calendars)
-
-                    # キャッシュ後の確認
-                    calendar_info = self.config.custom_settings.get(
-                        "google_calendar", {}
-                    ).get("calendar_info", {})
-                    self.logger.info(
-                        "カレンダー情報キャッシュ完了", cached_count=len(calendar_info)
-                    )
-
+                    await self._discover_and_update_calendars(calendars)
                     return True
 
-                elif response.status == 401:
-                    # トークン期限切れ - リフレッシュ試行
+                if response.status == 401:
                     if await self._refresh_token():
                         return await self._authenticate_oauth()
-                    else:
-                        self.add_error(
-                            "Google Calendar トークンが無効です。再認証が必要です"
-                        )
-                        return False
-                else:
-                    self.add_error(f"Google Calendar 認証失敗: HTTP {response.status}")
+                    self.add_error(
+                        "Google Calendar トークンが無効です。再認証が必要です"
+                    )
                     return False
+
+                self.add_error(f"Google Calendar 認証失敗: HTTP {response.status}")
+                return False
 
         except Exception as e:
             self.add_error(f"Google Calendar OAuth 認証でエラー: {str(e)}")
@@ -320,11 +300,17 @@ class GoogleCalendarIntegration(BaseIntegration):
 
     async def _refresh_token(self) -> bool:
         """Google トークンリフレッシュ"""
-        if not self.config.refresh_token:
+        if not (
+            self.config.refresh_token
+            and self.config.client_id
+            and self.config.client_secret
+        ):
+            self.add_error("トークンリフレッシュに必要な情報が不足しています")
             return False
 
         try:
-            # Google OAuth2 token endpoint
+            from aiohttp import ClientSession, ClientTimeout
+
             refresh_url = "https://oauth2.googleapis.com/token"
             data = {
                 "client_id": self.config.client_id,
@@ -333,28 +319,21 @@ class GoogleCalendarIntegration(BaseIntegration):
                 "grant_type": "refresh_token",
             }
 
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return False
+            async with ClientSession(timeout=ClientTimeout(total=30)) as session:
+                async with session.post(refresh_url, data=data) as response:
+                    if response.status == 200:
+                        token_data = await response.json()
+                        self.config.access_token = token_data.get("access_token")
+                        if token_data.get("refresh_token"):
+                            self.config.refresh_token = token_data["refresh_token"]
+                        if token_data.get("expires_in"):
+                            expires_in = int(token_data["expires_in"])
+                            self.config.token_expires_at = datetime.now() + timedelta(
+                                seconds=expires_in
+                            )
+                        self.logger.info("Google Calendar トークンリフレッシュ成功")
+                        return True
 
-            async with self.session.post(refresh_url, data=data) as response:
-                if response.status == 200:
-                    token_data = await response.json()
-                    self.config.access_token = token_data.get("access_token")
-
-                    # Google はリフレッシュトークンを毎回更新するとは限らない
-                    if token_data.get("refresh_token"):
-                        self.config.refresh_token = token_data["refresh_token"]
-
-                    if token_data.get("expires_in"):
-                        expires_in = int(token_data["expires_in"])
-                        self.config.token_expires_at = datetime.now() + timedelta(
-                            seconds=expires_in
-                        )
-
-                    self.logger.info("Google Calendar トークンリフレッシュ成功")
-                    return True
-                else:
                     self.add_error(
                         f"Google Calendar トークンリフレッシュ失敗: HTTP {response.status}"
                     )
@@ -476,28 +455,20 @@ class GoogleCalendarIntegration(BaseIntegration):
 
     async def test_connection(self) -> bool:
         """接続テスト"""
-        if not self._authenticated:
+        if not self._authenticated or not self.config.access_token:
             return False
 
         try:
-            # プライマリカレンダー取得でテスト
-            url = f"{self.base_url}/calendars/primary"
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
-
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return False
-
-            async with self.session.get(url, headers=headers) as response:
-                success = response.status == 200
-                if success:
-                    self.logger.info("Google Calendar 接続テスト成功")
-                else:
-                    self.add_error(
-                        f"Google Calendar 接続テスト失敗: HTTP {response.status}"
-                    )
-                return success
-
+            calendars = await self.service.fetch_calendar_list(
+                access_token=self.config.access_token,
+                on_request=self.increment_request_count,
+            )
+            success = len(calendars) > 0
+            if success:
+                self.logger.info("Google Calendar 接続テスト成功")
+            else:
+                self.add_error("Google Calendar 接続テストに失敗しました")
+            return success
         except Exception as e:
             self.add_error(f"Google Calendar 接続テストでエラー: {str(e)}")
             return False
@@ -510,49 +481,47 @@ class GoogleCalendarIntegration(BaseIntegration):
             self.logger.warning("Google Calendar API レート制限中")
             return []
 
+        if not self._authenticated:
+            await self.authenticate()
+            if not self._authenticated:
+                self.logger.warning("Google Calendar 未認証のため同期をスキップします")
+                return []
+
+        if not self.config.access_token:
+            self.add_error("Google Calendar アクセストークンがありません")
+            return []
+
         start_time = datetime.now()
         synced_data: list[IntegrationData] = []
 
+        start_date = start_date or datetime.now() - timedelta(
+            days=1 if self.sync_past_events else 0
+        )
+        end_date = end_date or datetime.now() + timedelta(days=7)
+
+        start_utc = self._ensure_utc(start_date)
+        end_utc = self._ensure_utc(end_date)
+
         try:
-            # セッションが存在しない場合は作成
-            if self.session is None:
-                await self.authenticate()
-
-            # デフォルトで過去 1 日から今後 7 日間
-            if not start_date:
-                start_date = datetime.now() - timedelta(
-                    days=1 if self.sync_past_events else 0
-                )
-            if not end_date:
-                end_date = datetime.now() + timedelta(days=7)
-
-            # 各カレンダーから並列でイベント取得
-            tasks = []
-            for calendar_id in self.calendars_to_sync:
-                tasks.append(
-                    self._sync_calendar_events(calendar_id, start_date, end_date)
-                )
-
+            tasks = [
+                self._sync_calendar_events(calendar_id, start_utc, end_utc)
+                for calendar_id in self.calendars_to_sync
+            ]
             calendar_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # 結果統合
             for result in calendar_results:
                 if isinstance(result, Exception):
-                    self.logger.warning(f"カレンダー同期でエラー: {str(result)}")
+                    self.logger.warning("カレンダー同期でエラー", error=str(result))
                     continue
-                if result and isinstance(result, list):
+                if result:
                     synced_data.extend(result)
 
-            # 重複除去（同じイベントが複数のカレンダーにある場合）
-            unique_events = {}
+            unique_events: dict[str, IntegrationData] = {}
             for event in synced_data:
                 event_key = f"{event.external_id}_{event.timestamp.isoformat()}"
-                if event_key not in unique_events:
-                    unique_events[event_key] = event
-
+                unique_events.setdefault(event_key, event)
             synced_data = list(unique_events.values())
 
-            # 同期成功統計更新
             sync_duration = (datetime.now() - start_time).total_seconds()
             self.update_metrics(
                 total_records_synced=self.metrics.total_records_synced
@@ -569,17 +538,12 @@ class GoogleCalendarIntegration(BaseIntegration):
                 records=len(synced_data),
                 duration=f"{sync_duration:.1f}s",
             )
-
             return synced_data
 
         except Exception as e:
             self.add_error(f"Google Calendar データ同期でエラー: {str(e)}")
             self.update_metrics(health_score=max(0.0, self.metrics.health_score - 10.0))
             return []
-        finally:
-            # セッションのクリーンアップ（一時的なテスト用セッションの場合）
-            # 注意: 通常の使用では、__aexit__ でセッションをクローズする
-            pass
 
     async def _sync_calendar_events(
         self, calendar_id: str, start_date: datetime, end_date: datetime
@@ -587,193 +551,102 @@ class GoogleCalendarIntegration(BaseIntegration):
         """指定カレンダーのイベント同期"""
         events_data: list[IntegrationData] = []
 
-        try:
-            # ISO 8601 形式でタイムゾーン付き
-            time_min = start_date.isoformat() + "Z"
-            time_max = end_date.isoformat() + "Z"
+        if not self.config.access_token:
+            return events_data
 
-            url = f"{self.base_url}/calendars/{calendar_id}/events"
-            params = {
-                "timeMin": time_min,
-                "timeMax": time_max,
-                "maxResults": "100",
-                "singleEvents": "true",  # 繰り返しイベントを展開
-                "orderBy": "startTime",
-            }
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
+        calendar_name = self._get_calendar_name(calendar_id)
+        params = {
+            "maxResults": "100",
+            "singleEvents": "true",
+            "orderBy": "startTime",
+        }
 
-            self.increment_request_count()
+        raw_events = await self.service.fetch_events(
+            access_token=self.config.access_token,
+            calendar_id=calendar_id,
+            time_min=start_date,
+            time_max=end_date,
+            params=params,
+            on_request=self.increment_request_count,
+        )
 
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return events_data
+        for event in raw_events:
+            try:
+                summary = event.get("summary", "")
+                if self._should_exclude_event(summary, event.get("description", "")):
+                    continue
 
-            async with self.session.get(
-                url, headers=headers, params=params
-            ) as response:
-                calendar_name = self._get_calendar_name(calendar_id)
+                record = self.service.build_event_record(
+                    event,
+                    calendar_id=calendar_id,
+                    calendar_name=calendar_name,
+                )
+                if record is None:
+                    continue
 
-                if response.status == 404:
-                    # 404エラーは読み取り専用カレンダーやアクセス権限がない場合によく発生
-                    # エラーレベルではなく警告レベルでログ出力し、処理を続行
-                    self.logger.warning(
-                        f"Google Calendar カレンダーにアクセスできません ({calendar_name}): HTTP 404 - スキップします",
-                        calendar_id=calendar_id,
-                        calendar_name=calendar_name,
-                    )
-                    return events_data
-                elif response.status == 403:
-                    # 権限エラー
-                    self.logger.warning(
-                        f"Google Calendar カレンダーへのアクセス権限がありません ({calendar_name}): HTTP 403 - スキップします",
-                        calendar_id=calendar_id,
-                        calendar_name=calendar_name,
-                    )
-                    return events_data
-                elif response.status != 200:
-                    # その他のエラー
-                    self.add_error(
-                        f"Google Calendar イベント取得失敗 ({calendar_name}): HTTP {response.status}"
-                    )
-                    return events_data
+                if (
+                    not record.all_day
+                    and record.duration_minutes() < self.event_duration_threshold
+                ):
+                    continue
 
-                events_json = await response.json()
+                integration_event = self._record_to_calendar_event(record)
+                processed_data = integration_event.model_dump()
 
-                for event in events_json.get("items", []):
-                    try:
-                        # 除外キーワードチェック
-                        summary = event.get("summary", "")
-                        if self._should_exclude_event(
-                            summary, event.get("description", "")
-                        ):
-                            continue
+                enhanced_raw = dict(record.raw)
+                enhanced_raw.setdefault("calendar_id", calendar_id)
+                enhanced_raw.setdefault("calendar_name", calendar_name)
 
-                        # イベントデータ構造化
-                        event_data = await self._parse_calendar_event(
-                            event, calendar_id, calendar_name
-                        )
+                integration_data = IntegrationData(
+                    integration_name="google_calendar",
+                    external_id=record.event_id,
+                    data_type="calendar_event",
+                    timestamp=integration_event.start_time,
+                    raw_data=enhanced_raw,
+                    processed_data=processed_data,
+                    confidence_score=0.9,
+                    data_quality=IntegrationDataProcessor.calculate_data_quality(
+                        event,
+                        ["id", "summary", "start"],
+                    ),
+                )
+                events_data.append(integration_data)
 
-                        # 最小時間フィルター
-                        if not event_data.all_day:
-                            duration_minutes = (
-                                event_data.end_time - event_data.start_time
-                            ).total_seconds() / 60
-                            if duration_minutes < self.event_duration_threshold:
-                                continue
+            except Exception as exc:
+                self.logger.warning(
+                    "Google Calendar イベント処理でエラー",
+                    event_id=event.get("id"),
+                    error=str(exc),
+                )
+                continue
 
-                        # raw_data にカレンダー情報を追加
-                        enhanced_raw_data = event.copy()
-                        enhanced_raw_data["calendar_id"] = calendar_id
-                        enhanced_raw_data["calendar_name"] = calendar_name
-
-                        # IntegrationData に変換
-                        integration_data = IntegrationData(
-                            integration_name="google_calendar",
-                            external_id=event_data.event_id,
-                            data_type="calendar_event",
-                            timestamp=event_data.start_time,
-                            raw_data=enhanced_raw_data,
-                            processed_data=event_data.model_dump(),
-                            confidence_score=0.9,
-                            data_quality=IntegrationDataProcessor.calculate_data_quality(
-                                event, ["id", "summary", "start"]
-                            ),
-                        )
-
-                        events_data.append(integration_data)
-
-                    except Exception as e:
-                        self.logger.warning(
-                            "Google Calendar イベント処理でエラー",
-                            event_id=event.get("id"),
-                            error=str(e),
-                        )
-                        continue
-
-                if len(events_data) > 0:
-                    self.logger.info(
-                        f"Google Calendar イベント取得完了 ({calendar_name}): {len(events_data)}件"
-                    )
-                else:
-                    self.logger.debug(
-                        f"Google Calendar イベントなし ({calendar_name}): 指定期間にイベントが見つかりません"
-                    )
-
-        except Exception as e:
-            calendar_name = self._get_calendar_name(calendar_id)
-            self.add_error(
-                f"Google Calendar イベント同期でエラー ({calendar_name}): {str(e)}"
+        if events_data:
+            self.logger.info(
+                "Google Calendar イベント取得完了",
+                calendar_id=calendar_id,
+                calendar_name=calendar_name,
+                count=len(events_data),
+            )
+        else:
+            self.logger.debug(
+                "Google Calendar イベントなし",
+                calendar_id=calendar_id,
+                calendar_name=calendar_name,
             )
 
         return events_data
 
-    async def _parse_calendar_event(
-        self, event: dict[str, Any], calendar_id: str, calendar_name: str
+    def _record_to_calendar_event(
+        self, record: CalendarEventRecord
     ) -> GoogleCalendarEvent:
-        """カレンダーイベント解析"""
+        data = record.model_dump(exclude={"raw"}, exclude_none=True)
+        return GoogleCalendarEvent(**data)
 
-        # 時刻情報の解析
-        start_info = event["start"]
-        end_info = event["end"]
-
-        if "dateTime" in start_info:
-            # 時刻指定イベント
-            start_time = IntegrationDataProcessor.normalize_timestamp(
-                start_info["dateTime"]
-            )
-            end_time = IntegrationDataProcessor.normalize_timestamp(
-                end_info["dateTime"]
-            )
-            all_day = False
-        else:
-            # 終日イベント
-            start_time = IntegrationDataProcessor.normalize_timestamp(
-                start_info["date"] + "T00:00:00"
-            )
-            end_time = IntegrationDataProcessor.normalize_timestamp(
-                end_info["date"] + "T23:59:59"
-            )
-            all_day = True
-
-        # 参加者情報
-        attendees = []
-        if "attendees" in event:
-            for attendee in event["attendees"]:
-                email = attendee.get("email", "")
-                if email:
-                    attendees.append(email)
-
-        # イベントタイプの推測
-        event_type = self._classify_event_type(
-            event.get("summary", ""), event.get("description", ""), len(attendees)
-        )
-
-        return GoogleCalendarEvent(
-            event_id=event["id"],
-            summary=event.get("summary", ""),
-            description=event.get("description"),
-            location=event.get("location"),
-            start_time=start_time,
-            end_time=end_time,
-            all_day=all_day,
-            calendar_id=calendar_id,
-            calendar_name=calendar_name,
-            event_type=event_type,
-            attendees=attendees,
-            organizer=event.get("organizer", {}).get("email"),
-            status=event.get("status", "confirmed"),
-            transparency=event.get("transparency", "opaque"),
-            recurring="recurringEventId" in event,
-            recurrence_rule=",".join(event.get("recurrence", []))
-            if event.get("recurrence")
-            else None,
-            created_time=IntegrationDataProcessor.normalize_timestamp(event["created"])
-            if event.get("created")
-            else None,
-            updated_time=IntegrationDataProcessor.normalize_timestamp(event["updated"])
-            if event.get("updated")
-            else None,
-        )
+    @staticmethod
+    def _ensure_utc(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
 
     def _get_calendar_name(self, calendar_id: str) -> str:
         """カレンダー名取得"""
@@ -901,9 +774,7 @@ class GoogleCalendarIntegration(BaseIntegration):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """非同期コンテキストマネージャーの終了処理"""
-        if self.session and not self.session.closed:
-            await self.session.close()
-            self.session = None
+        await self.service.close()
 
     def convert_to_lifelog_entry(
         self, integration_data: IntegrationData

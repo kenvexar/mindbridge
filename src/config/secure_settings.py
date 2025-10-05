@@ -3,14 +3,22 @@ Secure settings loader with enhanced validation for personal use.
 個人使用向け強化セキュリティ設定管理
 """
 
+from __future__ import annotations
+
+import asyncio
 import os
 import re
-from typing import Any
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from threading import Thread
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from pydantic import SecretStr
 
 from src.config.settings import get_settings
+
+if TYPE_CHECKING:
+    from src.security.secret_manager import ConfigManager
 
 
 class SecureSettingsManager:
@@ -20,6 +28,10 @@ class SecureSettingsManager:
         self.logger = structlog.get_logger("secure_settings")
         self.base_settings = get_settings()
         self._secrets_cache: dict[str, str] = {}
+        self._config_manager: ConfigManager | None = None
+        self._secret_loop: asyncio.AbstractEventLoop | None = None
+        self._secret_thread: Thread | None = None
+        self._secret_strategy: str = "env"
 
         # セキュリティ: 個人使用向け設定検証ルール
         self._validation_rules = {
@@ -28,6 +40,95 @@ class SecureSettingsManager:
             "github_token": self._validate_github_token,
             "encryption_key": self._validate_encryption_key,
         }
+
+        self._initialize_secret_manager()
+
+    def _initialize_secret_manager(self) -> None:
+        strategy = os.getenv("SECRET_MANAGER_STRATEGY") or getattr(
+            self.base_settings, "secret_manager_strategy", "env"
+        )
+        project_id = os.getenv("SECRET_MANAGER_PROJECT_ID") or getattr(
+            self.base_settings, "secret_manager_project_id", None
+        )
+
+        normalized = strategy.lower() if isinstance(strategy, str) else "env"
+        self._secret_strategy = normalized
+
+        if normalized == "env":
+            self._config_manager = None
+            self._secret_loop = None
+            self._secret_thread = None
+            self.logger.info(
+                "Secret manager backend configured",
+                strategy=normalized,
+                project_id=project_id,
+            )
+            return
+
+        from src.security.secret_manager import create_config_manager
+
+        try:
+            self._config_manager = create_config_manager(
+                normalized, project_id=project_id
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.warning(
+                "Failed to initialize secret manager backend",
+                strategy=strategy,
+                error=str(exc),
+            )
+            self._config_manager = None
+            return
+
+        self._start_secret_loop()
+        self.logger.info(
+            "Secret manager backend configured",
+            strategy=normalized,
+            project_id=project_id,
+        )
+
+    def _start_secret_loop(self) -> None:
+        if self._secret_loop is not None:
+            return
+
+        loop = asyncio.new_event_loop()
+
+        def _run_loop(loop_obj: asyncio.AbstractEventLoop) -> None:
+            asyncio.set_event_loop(loop_obj)
+            loop_obj.run_forever()
+
+        thread = Thread(target=_run_loop, args=(loop,), daemon=True)
+        thread.start()
+        self._secret_loop = loop
+        self._secret_thread = thread
+
+    def _fetch_from_secret_manager(
+        self, key: str, *, version: str = "latest"
+    ) -> str | None:
+        if self._config_manager is None or self._secret_loop is None:
+            return None
+
+        future = asyncio.run_coroutine_threadsafe(
+            self._config_manager.get_config_value(key, version=version),
+            self._secret_loop,
+        )
+        try:
+            return future.result(timeout=15)
+        except FutureTimeoutError:
+            self.logger.warning(
+                "Secret manager lookup timed out",
+                key=key,
+                strategy=self._secret_strategy,
+            )
+            future.cancel()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.warning(
+                "Secret manager lookup failed",
+                key=key,
+                strategy=self._secret_strategy,
+                error=str(exc),
+            )
+        return None
 
     def get_secure_setting(self, key: str, default: str | None = None) -> str | None:
         """Get a setting securely from environment or base settings"""
@@ -40,6 +141,11 @@ class SecureSettingsManager:
         if env_value:
             self._secrets_cache[key] = env_value
             return env_value
+
+        manager_value = self._fetch_from_secret_manager(key, version="latest")
+        if manager_value:
+            self._secrets_cache[key] = manager_value
+            return manager_value
 
         # Fall back to base settings
         try:

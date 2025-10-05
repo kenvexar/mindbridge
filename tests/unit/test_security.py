@@ -51,6 +51,37 @@ class TestSecureSettingsManager:
             # Cache should return raw value even after SecretStr is gone
             assert manager.get_secure_setting("discord_bot_token") == "plain-token"
 
+    def test_secret_manager_backend_used_when_configured(self):
+        with patch.dict(
+            os.environ,
+            {
+                "SECRET_MANAGER_STRATEGY": "google",
+                "SECRET_MANAGER_PROJECT_ID": "proj",
+                "DISCORD_BOT_TOKEN": "",
+            },
+            clear=False,
+        ):
+            with (
+                patch("src.config.secure_settings.get_settings") as mock_settings,
+                patch(
+                    "src.security.secret_manager.create_config_manager"
+                ) as mock_factory,
+                patch.object(SecureSettingsManager, "_start_secret_loop") as mock_loop,
+                patch.object(
+                    SecureSettingsManager,
+                    "_fetch_from_secret_manager",
+                    return_value="managed-token",
+                ) as mock_fetch,
+            ):
+                mock_settings.return_value = DummySettings(None)
+                mock_factory.return_value = AsyncMock()
+                manager = SecureSettingsManager()
+                result = manager.get_secure_setting("discord_bot_token")
+
+        mock_loop.assert_called_once()
+        mock_fetch.assert_called_once()
+        assert result == "managed-token"
+
 
 class TestOAuthCodeVault:
     """Test secure storage of OAuth codes"""

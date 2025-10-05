@@ -9,9 +9,10 @@ import os
 from datetime import datetime, timedelta
 from typing import Any
 
-import aiohttp
 import structlog
-from pydantic import BaseModel
+
+from src.integrations.garmin.schemas import ActivityRecord, DailyHealthResult
+from src.integrations.garmin.service import GarminIntegrationService
 
 from ..models import LifelogCategory, LifelogEntry, LifelogType
 from .base import (
@@ -24,71 +25,13 @@ from .base import (
 logger = structlog.get_logger(__name__)
 
 
-class GarminActivityData(BaseModel):
-    """Garmin アクティビティデータ"""
-
-    activity_id: str
-    activity_type: str
-    activity_name: str
-    start_time: datetime
-    duration: int  # 秒
-    distance: float | None = None  # メートル
-    calories: int | None = None
-    avg_heart_rate: int | None = None
-    max_heart_rate: int | None = None
-    elevation_gain: float | None = None  # メートル
-    avg_speed: float | None = None  # m/s
-
-    # 詳細データ
-    steps: int | None = None
-    avg_cadence: float | None = None
-    training_effect: float | None = None
-    recovery_time: int | None = None  # 時間
-
-
-class GarminHealthData(BaseModel):
-    """Garmin 健康データ"""
-
-    date: datetime
-    steps: int | None = None
-    distance: float | None = None  # メートル
-    calories: int | None = None
-    active_calories: int | None = None
-    floors_climbed: int | None = None
-
-    # 睡眠データ
-    sleep_start_time: datetime | None = None
-    sleep_end_time: datetime | None = None
-    sleep_duration: int | None = None  # 分
-    deep_sleep: int | None = None  # 分
-    light_sleep: int | None = None  # 分
-    rem_sleep: int | None = None  # 分
-    sleep_score: int | None = None
-
-    # 心拍数データ
-    resting_heart_rate: int | None = None
-    max_heart_rate: int | None = None
-    heart_rate_variability: float | None = None
-
-    # ストレス・エネルギー
-    stress_avg: int | None = None  # 0-100
-    body_battery_max: int | None = None  # 0-100
-    body_battery_min: int | None = None  # 0-100
-
-    # 体重・体組成
-    weight: float | None = None  # kg
-    body_fat: float | None = None  # %
-    body_water: float | None = None  # %
-    muscle_mass: float | None = None  # kg
-
-
 class GarminIntegration(BaseIntegration):
     """Garmin Connect 連携実装"""
 
     def __init__(self, config: IntegrationConfig):
         super().__init__(config)
         self.base_url = "https://connect.garmin.com"
-        self.session: aiohttp.ClientSession | None = None
+        self.service = GarminIntegrationService(base_url=self.base_url)
 
         # Garmin 固有設定
         garmin_settings = config.custom_settings.get("garmin", {})
@@ -157,21 +100,10 @@ class GarminIntegration(BaseIntegration):
                 )
                 return False
 
-            self.session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=30),
-                headers={"User-Agent": "MindBridge-Lifelog/1.0"},
-            )
-
-            # GarminClient を使用した実際の認証テスト
             from pathlib import Path
 
-            from src.garmin.client import GarminClient
-
             cache_dir = Path(os.getenv("GARMIN_CACHE_DIR", "/app/.cache/garmin"))
-            client = GarminClient(cache_dir)
-
-            # 認証テスト
-            success = await client.authenticate()
+            success = await self.service.authenticate_with_client(cache_dir)
             if success:
                 self._authenticated = True
                 self.logger.info("Garmin integration authentication successful")
@@ -194,11 +126,9 @@ class GarminIntegration(BaseIntegration):
             test_url = f"{self.base_url}/modern/proxy/userprofile-service/userprofile/personal-information"
             headers = {"Authorization": f"Bearer {self.config.access_token}"}
 
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return False
+            session = await self.service.get_session()
 
-            async with self.session.get(test_url, headers=headers) as response:
+            async with session.get(test_url, headers=headers) as response:
                 if response.status == 200:
                     self._authenticated = True
                     self.logger.info("Garmin OAuth 認証成功")
@@ -232,11 +162,9 @@ class GarminIntegration(BaseIntegration):
                 "refresh_token": self.config.refresh_token,
             }
 
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return False
+            session = await self.service.get_session()
 
-            async with self.session.post(refresh_url, data=data) as response:
+            async with session.post(refresh_url, data=data) as response:
                 if response.status == 200:
                     token_data = await response.json()
                     self.config.access_token = token_data.get("access_token")
@@ -273,16 +201,12 @@ class GarminIntegration(BaseIntegration):
                 )
                 return False
 
-            # GarminClient を使用した実際の接続テスト
             from pathlib import Path
 
-            from src.garmin.client import GarminClient
-
             cache_dir = Path(os.getenv("GARMIN_CACHE_DIR", "/app/.cache/garmin"))
-            client = GarminClient(cache_dir)
-
-            # 接続テスト
-            connection_result = await client.test_connection()
+            connection_result = await self.service.test_connection_with_client(
+                cache_dir
+            )
             success = connection_result.get("success", False)
 
             if success:
@@ -358,92 +282,46 @@ class GarminIntegration(BaseIntegration):
         activities_data: list[IntegrationData] = []
 
         try:
-            # Garmin Connect アクティビティ API
-            start_str = start_date.strftime("%Y-%m-%d")
-            end_str = end_date.strftime("%Y-%m-%d")
-
-            url = f"{self.base_url}/modern/proxy/activitylist-service/activities/search/activities"
-            params = {
-                "start": "0",
-                "limit": "100",
-                "startDate": start_str,
-                "endDate": end_str,
-            }
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
-
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
+            access_token = self.config.access_token
+            if not access_token:
+                self.add_error("Garmin アクセストークンが設定されていません")
                 return activities_data
 
-            self.increment_request_count()
-            async with self.session.get(
-                url, headers=headers, params=params
-            ) as response:
-                if response.status != 200:
-                    self.add_error(
-                        f"Garmin アクティビティ取得失敗: HTTP {response.status}"
+            records: list[ActivityRecord] = await self.service.get_activity_records(
+                access_token=access_token,
+                start_date=start_date,
+                end_date=end_date,
+                activity_types=self.activity_types_filter,
+                on_request=self.increment_request_count,
+            )
+
+            for record in records:
+                try:
+                    processed = record.model_dump(exclude={"raw"}, exclude_none=True)
+                    data_quality = IntegrationDataProcessor.calculate_data_quality(
+                        record.raw,
+                        ["activityId", "startTimeLocal", "duration"],
                     )
-                    return activities_data
+                    integration_data = IntegrationData(
+                        integration_name="garmin",
+                        external_id=record.activity_id,
+                        data_type="activity",
+                        timestamp=record.start_time,
+                        raw_data=record.raw,
+                        processed_data=processed,
+                        confidence_score=0.95,
+                        data_quality=data_quality,
+                    )
+                    activities_data.append(integration_data)
+                except Exception as exc:
+                    self.logger.warning(
+                        "Garmin アクティビティ処理でエラー",
+                        activity_id=record.activity_id,
+                        error=str(exc),
+                    )
+                    continue
 
-                activities_json = await response.json()
-
-                for activity in activities_json:
-                    try:
-                        # アクティビティタイプフィルター
-                        activity_type = (
-                            activity.get("activityType", {}).get("typeKey", "").lower()
-                        )
-                        if (
-                            self.activity_types_filter
-                            and activity_type not in self.activity_types_filter
-                        ):
-                            continue
-
-                        # アクティビティデータ構造化
-                        activity_data = GarminActivityData(
-                            activity_id=str(activity["activityId"]),
-                            activity_type=activity_type,
-                            activity_name=activity.get("activityName", ""),
-                            start_time=IntegrationDataProcessor.normalize_timestamp(
-                                activity["startTimeLocal"]
-                            ),
-                            duration=activity.get("duration", 0),
-                            distance=activity.get("distance"),
-                            calories=activity.get("calories"),
-                            avg_heart_rate=activity.get("averageHR"),
-                            max_heart_rate=activity.get("maxHR"),
-                            elevation_gain=activity.get("elevationGain"),
-                            avg_speed=activity.get("averageSpeed"),
-                            steps=activity.get("steps"),
-                        )
-
-                        # IntegrationData に変換
-                        integration_data = IntegrationData(
-                            integration_name="garmin",
-                            external_id=activity_data.activity_id,
-                            data_type="activity",
-                            timestamp=activity_data.start_time,
-                            raw_data=activity,
-                            processed_data=activity_data.model_dump(),
-                            confidence_score=0.95,
-                            data_quality=IntegrationDataProcessor.calculate_data_quality(
-                                activity, ["activityId", "startTimeLocal", "duration"]
-                            ),
-                        )
-
-                        activities_data.append(integration_data)
-
-                    except Exception as e:
-                        self.logger.warning(
-                            "Garmin アクティビティ処理でエラー",
-                            activity_id=activity.get("activityId"),
-                            error=str(e),
-                        )
-                        continue
-
-                self.logger.info(
-                    f"Garmin アクティビティ取得完了: {len(activities_data)}件"
-                )
+            self.logger.info(f"Garmin アクティビティ取得完了: {len(activities_data)}件")
 
         except Exception as e:
             self.add_error(f"Garmin アクティビティ同期でエラー: {str(e)}")
@@ -454,68 +332,50 @@ class GarminIntegration(BaseIntegration):
         self, start_date: datetime, end_date: datetime
     ) -> list[IntegrationData]:
         """健康データ同期"""
-        health_data = []
+        health_data: list[IntegrationData] = []
 
         try:
-            # 日別で健康データを取得
+            access_token = self.config.access_token
+            if not access_token:
+                self.add_error("Garmin アクセストークンが設定されていません")
+                return health_data
+
+            user_uuid = self._get_user_uuid()
+            if not user_uuid:
+                self.logger.debug("Garmin ユーザー UUID が設定されていません")
+
             current_date = start_date.date()
             end_date_date = end_date.date()
 
             while current_date <= end_date_date:
                 date_str = current_date.strftime("%Y-%m-%d")
+                target_datetime = datetime.combine(current_date, datetime.min.time())
 
-                # 複数のエンドポイントから並列取得
-                tasks = [
-                    self._get_daily_steps(date_str),
-                    self._get_daily_sleep(date_str),
-                    self._get_daily_heart_rate(date_str),
-                    self._get_daily_stress(date_str),
-                ]
-
-                if self.sync_sleep_data:
-                    tasks.append(self._get_daily_body_composition(date_str))
-
-                daily_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                # データ統合
-                daily_health = GarminHealthData(
-                    date=datetime.combine(current_date, datetime.min.time())
+                result: DailyHealthResult = await self.service.get_daily_health_result(
+                    access_token=access_token,
+                    user_uuid=user_uuid or "",
+                    target_date=target_datetime,
+                    include_body_composition=self.sync_sleep_data,
+                    on_request=self.increment_request_count,
                 )
 
-                for result in daily_results:
-                    if isinstance(result, Exception):
-                        continue
-                    if result and isinstance(result, dict):
-                        # 各データタイプの結果を統合
-                        for key, value in result.items():
-                            if hasattr(daily_health, key) and value is not None:
-                                setattr(daily_health, key, value)
-
-                # IntegrationData 作成
-                if any(
-                    getattr(daily_health, field) is not None
-                    for field in [
-                        "steps",
-                        "sleep_duration",
-                        "resting_heart_rate",
-                        "weight",
-                    ]
-                ):
+                metrics = result.metrics
+                if result.has_any_data():
+                    processed = metrics.model_dump(exclude_none=True)
                     integration_data = IntegrationData(
                         integration_name="garmin",
                         external_id=f"health_{date_str}",
                         data_type="health",
-                        timestamp=daily_health.date,
-                        raw_data={},
-                        processed_data=daily_health.model_dump(exclude_none=True),
+                        timestamp=metrics.date,
+                        raw_data=result.raw_payload,
+                        processed_data=processed,
                         confidence_score=0.9,
                         data_quality="good",
                     )
-
                     health_data.append(integration_data)
 
                 current_date += timedelta(days=1)
-                await asyncio.sleep(0.1)  # API 負荷軽減
+                await asyncio.sleep(0.1)
 
             self.logger.info(f"Garmin 健康データ取得完了: {len(health_data)}件")
 
@@ -523,211 +383,6 @@ class GarminIntegration(BaseIntegration):
             self.add_error(f"Garmin 健康データ同期でエラー: {str(e)}")
 
         return health_data
-
-    async def _get_daily_steps(self, date_str: str) -> dict[str, Any]:
-        """日別歩数データ取得"""
-        try:
-            url = f"{self.base_url}/modern/proxy/userstats-service/wellness/{date_str}"
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
-
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return {}
-
-            self.increment_request_count()
-            async with self.session.get(url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return {
-                        "steps": data.get("totalSteps"),
-                        "distance": data.get("totalDistance"),
-                        "calories": data.get("activeKilocalories"),
-                        "floors_climbed": data.get("floorsAscended"),
-                    }
-        except Exception as e:
-            self.logger.debug(f"歩数データ取得エラー {date_str}: {str(e)}")
-
-        return {}
-
-    async def _get_daily_sleep(self, date_str: str) -> dict[str, Any]:
-        """日別睡眠データ取得 - wellness summary から取得"""
-        try:
-            # まず wellness サマリーから基本的な睡眠データを取得
-            url = f"{self.base_url}/modern/proxy/usersummary-service/usersummary/daily/{self._get_user_uuid()}"
-            params = {"calendarDate": date_str}
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
-
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return {}
-
-            self.increment_request_count()
-            async with self.session.get(
-                url, headers=headers, params=params
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-
-                    # wellness summary から睡眠データを抽出
-                    sleeping_seconds = data.get("sleepingSeconds", 0)
-                    measurable_sleep = data.get("measurableAsleepDuration", 0)
-                    body_battery_sleep = data.get("bodyBatteryDuringSleep", 0)
-
-                    # 詳細睡眠データも試行
-                    detailed_sleep = {}
-                    try:
-                        sleep_url = f"{self.base_url}/modern/proxy/wellness-service/wellness/dailySleepData/{self._get_user_uuid()}"
-                        sleep_params = {"date": date_str}
-
-                        async with self.session.get(
-                            sleep_url, headers=headers, params=sleep_params
-                        ) as sleep_response:
-                            if sleep_response.status == 200:
-                                sleep_data = await sleep_response.json()
-                                if sleep_data.get("dailySleepDTO"):
-                                    sleep_dto = sleep_data["dailySleepDTO"]
-                                    detailed_sleep = {
-                                        "sleep_start_time": IntegrationDataProcessor.normalize_timestamp(
-                                            sleep_dto.get("sleepStartTimestampLocal")
-                                        )
-                                        if sleep_dto.get("sleepStartTimestampLocal")
-                                        else None,
-                                        "sleep_end_time": IntegrationDataProcessor.normalize_timestamp(
-                                            sleep_dto.get("sleepEndTimestampLocal")
-                                        )
-                                        if sleep_dto.get("sleepEndTimestampLocal")
-                                        else None,
-                                        "deep_sleep": sleep_dto.get(
-                                            "deepSleepSeconds", 0
-                                        )
-                                        // 60,
-                                        "light_sleep": sleep_dto.get(
-                                            "lightSleepSeconds", 0
-                                        )
-                                        // 60,
-                                        "rem_sleep": sleep_dto.get("remSleepSeconds", 0)
-                                        // 60,
-                                        "sleep_score": sleep_dto.get(
-                                            "overallSleepScore"
-                                        ),
-                                    }
-                    except Exception as e:
-                        self.logger.debug(
-                            f"詳細睡眠データ取得エラー {date_str}: {str(e)}"
-                        )
-
-                    # 基本データと詳細データを統合
-                    result = {
-                        "sleep_duration": sleeping_seconds // 60
-                        if sleeping_seconds > 0
-                        else None,  # 分に変換
-                        "measurable_sleep_duration": measurable_sleep // 60
-                        if measurable_sleep > 0
-                        else None,
-                        "body_battery_during_sleep": body_battery_sleep
-                        if body_battery_sleep > 0
-                        else None,
-                        **detailed_sleep,  # 詳細データがあれば統合
-                    }
-
-                    # データが存在する場合のみ返す
-                    if any(
-                        v is not None and v > 0
-                        for v in result.values()
-                        if isinstance(v, (int, float))
-                    ):
-                        self.logger.debug(f"睡眠データ取得成功 {date_str}: {result}")
-                        return result
-                    else:
-                        self.logger.debug(f"睡眠データなし {date_str}")
-                        return {}
-
-                else:
-                    self.logger.debug(
-                        f"睡眠データ API エラー {date_str}: {response.status}"
-                    )
-
-        except Exception as e:
-            self.logger.debug(f"睡眠データ取得エラー {date_str}: {str(e)}")
-
-        return {}
-
-    async def _get_daily_heart_rate(self, date_str: str) -> dict[str, Any]:
-        """日別心拍数データ取得"""
-        try:
-            url = f"{self.base_url}/modern/proxy/userstats-service/wellness/{date_str}"
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
-
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return {}
-
-            self.increment_request_count()
-            async with self.session.get(url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return {
-                        "resting_heart_rate": data.get("restingHeartRate"),
-                        "max_heart_rate": data.get("maxHeartRate"),
-                    }
-        except Exception as e:
-            self.logger.debug(f"心拍数データ取得エラー {date_str}: {str(e)}")
-
-        return {}
-
-    async def _get_daily_stress(self, date_str: str) -> dict[str, Any]:
-        """日別ストレスデータ取得"""
-        try:
-            url = f"{self.base_url}/modern/proxy/userstats-service/stress-level/{date_str}"
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
-
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return {}
-
-            self.increment_request_count()
-            async with self.session.get(url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return {
-                        "stress_avg": data.get("overallStressLevel"),
-                        "body_battery_max": data.get("maxStressLevel"),
-                        "body_battery_min": data.get("minStressLevel"),
-                    }
-        except Exception as e:
-            self.logger.debug(f"ストレスデータ取得エラー {date_str}: {str(e)}")
-
-        return {}
-
-    async def _get_daily_body_composition(self, date_str: str) -> dict[str, Any]:
-        """日別体組成データ取得"""
-        try:
-            url = f"{self.base_url}/modern/proxy/weight-service/weight/dateRange"
-            params = {"startDate": date_str, "endDate": date_str}
-            headers = {"Authorization": f"Bearer {self.config.access_token}"}
-
-            if self.session is None:
-                self.add_error("HTTP セッションが初期化されていません")
-                return {}
-
-            self.increment_request_count()
-            async with self.session.get(
-                url, headers=headers, params=params
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if data and len(data) > 0:
-                        weight_data = data[0]
-                        return {
-                            "weight": weight_data.get("weight"),
-                            "body_fat": weight_data.get("bodyFat"),
-                            "body_water": weight_data.get("bodyWater"),
-                            "muscle_mass": weight_data.get("muscleMass"),
-                        }
-        except Exception as e:
-            self.logger.debug(f"体組成データ取得エラー {date_str}: {str(e)}")
-
-        return {}
 
     def _get_user_uuid(self) -> str:
         """ユーザー UUID 取得（キャッシュ化推奨）"""
@@ -752,8 +407,7 @@ class GarminIntegration(BaseIntegration):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """リソースクリーンアップ"""
-        if self.session:
-            await self.session.close()
+        await self.service.close()
 
     def convert_to_lifelog_entry(
         self, integration_data: IntegrationData

@@ -45,9 +45,9 @@ src/
 - `IntegrationManager` は `registry.py` として外部連携の登録/DI を担い、Lifelog 側はそれを呼び出す構造に変更。
 
 ## 移行ステップ
-1. `src/integrations/garmin/` ディレクトリを新設し、既存の `src/garmin/` ファイルを移動。import パス変更を伴う PR を個別作成。
-2. `GarminIntegration` から API 呼び出しロジックを `service.py` へ移管し、Lifelog 側は `IntegrationResult` を受け取って保存するだけにする。
-3. Google Calendar など他サービスも `src/integrations/<service>/` へ段階的に移動。共通の `OAuthClient` ヘルパーを導入。
+1. ✅ `src/integrations/garmin/` ディレクトリを新設し、既存の `src/garmin/` ファイルを移動。import パス変更を伴う PR を個別作成。
+2. ✅ `GarminIntegration` から API 呼び出しロジックを `service.py` へ移管し、Lifelog 側は `IntegrationResult` を受け取って保存するだけにする。
+3. ✅ Google Calendar を `src/integrations/google_calendar/` へ段階的に移動しサービス層を導入。共通の OAuth ヘルパー整備は継続検討。
 4. 移行完了後、`src/lifelog/integrations/` は `bridge` レイヤーとして小さなクラス構成に再整理し、`scheduler.py` など名称も `pipelines/` へ変更する。
 
 ## リスクと対応
@@ -64,3 +64,8 @@ src/
 ## 次アクション
 - このプランをもとに tech lead レビューを受け、ステップ1の実装に着手する。
 - レビュー結果を受けてタイムラインと担当者を割り当てる。
+
+### 進捗メモ
+- 2025-10-05: `src/integrations/garmin/` にクライアント/モデル/キャッシュを移行し、`IntegrationRegistry` を導入。既存 `src/garmin/` には互換ラッパーを配置。
+- 2025-10-05: `GarminIntegrationService` を追加し、Lifelog 側の同期処理はサービス層経由でデータ取得するよう改修。
+- 2025-10-05: Google Calendar 用サービス層と DTO を追加し、Lifelog 側同期処理を新インターフェース経由に置き換え。

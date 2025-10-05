@@ -1,5 +1,6 @@
-"""Deprecated wrappers for Garmin models. Use src.integrations.garmin.models instead."""
+"""Garmin integration package."""
 
+from src.integrations.garmin.client import GarminClient
 from src.integrations.garmin.models import (
     ActivityData,
     DataError,
@@ -15,8 +16,14 @@ from src.integrations.garmin.models import (
     SleepData,
     StepsData,
 )
+from src.integrations.garmin.schemas import (
+    ActivityRecord,
+    DailyHealthMetrics,
+    DailyHealthResult,
+)
 
 __all__ = [
+    "GarminClient",
     "ActivityData",
     "DataError",
     "DataSource",
@@ -30,4 +37,7 @@ __all__ = [
     "HeartRateData",
     "SleepData",
     "StepsData",
+    "ActivityRecord",
+    "DailyHealthMetrics",
+    "DailyHealthResult",
 ]
