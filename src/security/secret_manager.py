@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import os
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, cast
 
 from src.utils.mixins import LoggerMixin
 
 try:  # pragma: no cover - optional dependency
-    from google.cloud import secretmanager
+    from google.cloud import secretmanager as _secretmanager_mod
 except ImportError:  # pragma: no cover - optional dependency
-    secretmanager = None
+    _secretmanager_mod = None  # type: ignore[assignment]
+
+secretmanager: ModuleType | None = cast(ModuleType | None, _secretmanager_mod)
 
 if TYPE_CHECKING:
     from google.cloud.secretmanager import SecretManagerServiceAsyncClient
@@ -75,7 +78,11 @@ class GoogleSecretManager(BaseSecretManager):
                 " `uv sync --extra google-api` を実行して有効化してください。"
             )
         super().__init__(project_id=project_id)
-        self._client = client or secretmanager.SecretManagerServiceAsyncClient()
+        if client is not None:
+            self._client = client
+        else:
+            assert secretmanager is not None  # narrow for type-checkers
+            self._client = secretmanager.SecretManagerServiceAsyncClient()
 
     async def _fetch_secret(self, secret_name: str, version: str) -> str | None:
         secret_path = (
