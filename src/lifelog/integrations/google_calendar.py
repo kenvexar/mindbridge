@@ -513,7 +513,7 @@ class GoogleCalendarIntegration(BaseIntegration):
                 if isinstance(result, Exception):
                     self.logger.warning("カレンダー同期でエラー", error=str(result))
                     continue
-                if result:
+                if isinstance(result, list) and result:
                     synced_data.extend(result)
 
             unique_events: dict[str, IntegrationData] = {}

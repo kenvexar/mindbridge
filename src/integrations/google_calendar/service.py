@@ -191,7 +191,10 @@ class GoogleCalendarService(LoggerMixin):
             if "dateTime" in value:
                 raw = value.get("dateTime")
             elif "date" in value:
-                raw = value.get("date") + "T00:00:00"
+                date_value = value.get("date")
+                if not isinstance(date_value, str) or not date_value.strip():
+                    return None
+                raw = date_value.strip() + "T00:00:00"
             else:
                 return None
         else:
