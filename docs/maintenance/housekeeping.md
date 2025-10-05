@@ -37,20 +37,7 @@
 - 追加で導入する場合は `docs/maintenance/housekeeping.md` を更新して履歴を残す。
 
 ## 3. タスク管理の整備
-### 即対応 (Now)
-- [x] `asyncio-throttle` と `requests` の依存削除 (`uv remove` + 動作確認)。
-- [x] デプロイ資料統合案を `docs/maintenance/deployment-docs-plan.md` に記載し、レビュー準備完了。
-- [x] `tests/manual/README.md` を更新し、テストカテゴリと実行条件を明文化。
-
-### 次のスプリント (Next)
-- [x] `src/integrations/` パッケージ設計をまとめ、`src/garmin` と `src/lifelog/integrations` の役割分担を明文化。 (see `docs/maintenance/integrations-refactor-plan.md`)
-- [x] ドメインパッケージごとの README テンプレートを作成し、`src/` 各ディレクトリへ展開。 (template: `docs/maintenance/readme-template.md`)
-- [x] `scripts/manage.sh clean` に `uv cache prune` をオプション追加。再帰的なキャッシュ整理をサポート。
-
-### 将来検討 (Later)
-- [x] Google Secret Manager を再導入する場合の抽象化インターフェースを設計し、`PersonalSecretManager` との切り替え方式を決定。 (see `docs/maintenance/secret-manager-refactor.md`)
-- [x] `docs/` の情報アーキテクチャを再編し、デプロイ資料を `docs/deploy/` へ集約。 (index: `docs/README.md`)
-- [x] `scripts/manage.sh` のサブコマンドを `help` 出力順に整理し、依存関係を明示。
+現在進行中のタスクはありません。
 
 ## 4. 参考コマンド
 - ディレクトリ／キャッシュの整理: `./scripts/manage.sh clean`

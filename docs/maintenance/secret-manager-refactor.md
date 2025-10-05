@@ -17,7 +17,3 @@
 ## 導入方法
 - Cloud Run 等で使用する場合: `create_secret_manager("google", project_id=...)` を呼び出し、得られたインスタンスを `ConfigManager` に渡す。
 - 個人環境では従来通り `PersonalConfigManager` を利用すれば自動的に `PersonalSecretManager` が採用される。
-
-## 今後の TODO
-- [x] `SecureSettingsManager` にファクトリを統合し、環境ごとに自動切り替えする仕組みを追加。
-- [x] `scripts/manage.sh` から Secret Manager 選択オプションを提供。

@@ -45,10 +45,8 @@ src/
 - `IntegrationManager` は `registry.py` として外部連携の登録/DI を担い、Lifelog 側はそれを呼び出す構造に変更。
 
 ## 移行ステップ
-1. ✅ `src/integrations/garmin/` ディレクトリを新設し、既存の `src/garmin/` ファイルを移動。import パス変更を伴う PR を個別作成。
-2. ✅ `GarminIntegration` から API 呼び出しロジックを `service.py` へ移管し、Lifelog 側は `IntegrationResult` を受け取って保存するだけにする。
-3. ✅ Google Calendar を `src/integrations/google_calendar/` へ段階的に移動しサービス層を導入。共通の OAuth ヘルパー整備は継続検討。
-4. 移行完了後、`src/lifelog/integrations/` は `bridge` レイヤーとして小さなクラス構成に再整理し、`scheduler.py` など名称も `pipelines/` へ変更する。
+残タスク:
+- 移行完了後、`src/lifelog/integrations/` は `bridge` レイヤーとして小さなクラス構成に再整理し、`scheduler.py` など名称も `pipelines/` へ変更する。
 
 ## リスクと対応
 | リスク | 影響 | 対応策 |
