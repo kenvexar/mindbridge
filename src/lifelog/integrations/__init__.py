@@ -9,7 +9,14 @@ from .bridge import IntegrationBridge, create_default_bridge
 from .garmin import GarminIntegration
 from .google_calendar import GoogleCalendarIntegration
 from .manager import IntegrationManager
-from .scheduler import IntegrationScheduler
+from .pipelines.scheduler import (
+    IntegrationSyncScheduler,
+    IntegrationSyncSchedulerConfig,
+)
+
+# Backward compatibility aliases (deprecated)
+IntegrationScheduler = IntegrationSyncScheduler
+IntegrationSchedulerConfig = IntegrationSyncSchedulerConfig
 
 __all__ = [
     "BaseIntegration",
@@ -20,5 +27,6 @@ __all__ = [
     "GarminIntegration",
     "GoogleCalendarIntegration",
     "IntegrationManager",
-    "IntegrationScheduler",
+    "IntegrationSyncScheduler",
+    "IntegrationSyncSchedulerConfig",
 ]

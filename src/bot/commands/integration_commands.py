@@ -15,8 +15,8 @@ from discord.ext import commands
 from ...config.settings import Settings
 from ...lifelog.integrations.base import IntegrationConfig
 from ...lifelog.integrations.manager import IntegrationManager
-from ...lifelog.integrations.scheduler import (
-    IntegrationScheduler,
+from ...lifelog.integrations.pipelines.scheduler import (
+    IntegrationSyncScheduler,
     ScheduleType,
 )
 from ...lifelog.manager import LifelogManager
@@ -33,7 +33,7 @@ class IntegrationCommands(commands.Cog):
 
         # 外部連携システム（遅延初期化）
         self.integration_manager: IntegrationManager | None = None
-        self.scheduler: IntegrationScheduler | None = None
+        self.scheduler: IntegrationSyncScheduler | None = None
         self.lifelog_manager: LifelogManager | None = None
 
         self._initialized = False
@@ -47,18 +47,22 @@ class IntegrationCommands(commands.Cog):
             # 設定読み込み（エラーハンドリング強化）
             try:
                 from ...lifelog.integrations.manager import IntegrationManagerConfig
-                from ...lifelog.integrations.scheduler import IntegrationSchedulerConfig
+                from ...lifelog.integrations.pipelines.scheduler import (
+                    IntegrationSyncSchedulerConfig,
+                )
 
                 manager_config = IntegrationManagerConfig()
-                scheduler_config = IntegrationSchedulerConfig()
+                scheduler_config = IntegrationSyncSchedulerConfig()
             except Exception as e:
                 logger.warning(f"設定読み込みに失敗、デフォルト設定を使用: {e}")
                 # デフォルト設定を使用
                 from ...lifelog.integrations.manager import IntegrationManagerConfig
-                from ...lifelog.integrations.scheduler import IntegrationSchedulerConfig
+                from ...lifelog.integrations.pipelines.scheduler import (
+                    IntegrationSyncSchedulerConfig,
+                )
 
                 manager_config = IntegrationManagerConfig()
-                scheduler_config = IntegrationSchedulerConfig()
+                scheduler_config = IntegrationSyncSchedulerConfig()
 
             # マネージャー初期化（エラーハンドリング）
             try:
@@ -78,11 +82,11 @@ class IntegrationCommands(commands.Cog):
             # スケジューラー初期化（ IntegrationManager が必要）
             if self.integration_manager:
                 try:
-                    self.scheduler = IntegrationScheduler(
+                    self.scheduler = IntegrationSyncScheduler(
                         self.integration_manager, scheduler_config
                     )
                 except Exception as e:
-                    logger.warning(f"IntegrationScheduler 初期化失敗: {e}")
+                    logger.warning(f"IntegrationSyncScheduler 初期化失敗: {e}")
                     self.scheduler = None
 
                 # デフォルト連携を登録

@@ -14,7 +14,7 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, Field
 
-from .manager import IntegrationManager, SyncResult
+from ..manager import IntegrationManager, SyncResult
 
 logger = structlog.get_logger(__name__)
 
@@ -43,7 +43,7 @@ class ScheduleTask:
     max_retries: int = 3
 
 
-class IntegrationSchedulerConfig(BaseModel):
+class IntegrationSyncSchedulerConfig(BaseModel):
     """スケジューラー設定"""
 
     # 基本設定
@@ -70,10 +70,12 @@ class IntegrationSchedulerConfig(BaseModel):
     )
 
 
-class IntegrationScheduler:
+class IntegrationSyncScheduler:
     """外部連携スケジューラー"""
 
-    def __init__(self, manager: IntegrationManager, config: IntegrationSchedulerConfig):
+    def __init__(
+        self, manager: IntegrationManager, config: IntegrationSyncSchedulerConfig
+    ):
         self.manager = manager
         self.config = config
         self.logger = structlog.get_logger(__name__)
