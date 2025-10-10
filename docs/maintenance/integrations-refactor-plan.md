@@ -1,5 +1,7 @@
 # 外部連携パッケージ再編計画
 
+> Status: `lifelog/integrations` のブリッジ層とパイプライン実装を導入済み
+
 ## 背景
 - 現在 Garmin 関連コードが `src/garmin/` と `src/lifelog/integrations/garmin.py` に分散し、API クライアント層と統合ロジックの責務が曖昧になっている。
 - `src/lifelog/integrations/` ディレクトリは Google Calendar など他サービスも抱えており、共通の抽象化 (`BaseIntegration`) と個別実装が混在している。
@@ -45,8 +47,9 @@ src/
 - `IntegrationManager` は `registry.py` として外部連携の登録/DI を担い、Lifelog 側はそれを呼び出す構造に変更。
 
 ## 移行ステップ
-残タスク:
-- 移行完了後、`src/lifelog/integrations/` は `bridge` レイヤーとして小さなクラス構成に再整理し、`scheduler.py` など名称も `pipelines/` へ変更する。
+- ✅ `src/lifelog/integrations/bridge.py` を追加し、統合パイプラインを管理する `IntegrationBridge` を新設。
+- ✅ `src/lifelog/integrations/pipelines/` 配下に Garmin / Google Calendar 用パイプラインと汎用パイプラインを配置。
+- ✅ `src/lifelog/manager.py` から外部連携データ変換ロジックを移設し、ブリッジ経由での変換に統一。
 
 ## リスクと対応
 | リスク | 影響 | 対応策 |
@@ -60,10 +63,5 @@ src/
 - ドキュメント (`docs/architecture.md`) に新しいレイヤー構成を追記。
 
 ## 次アクション
-- このプランをもとに tech lead レビューを受け、ステップ1の実装に着手する。
-- レビュー結果を受けてタイムラインと担当者を割り当てる。
-
-### 進捗メモ
-- 2025-10-05: `src/integrations/garmin/` にクライアント/モデル/キャッシュを移行し、`IntegrationRegistry` を導入。既存 `src/garmin/` には互換ラッパーを配置。
-- 2025-10-05: `GarminIntegrationService` を追加し、Lifelog 側の同期処理はサービス層経由でデータ取得するよう改修。
-- 2025-10-05: Google Calendar 用サービス層と DTO を追加し、Lifelog 側同期処理を新インターフェース経由に置き換え。
+- ブリッジ／パイプラインの単体テストを追加し、LifelogManager からの変換結果を検証する。
+- `IntegrationScheduler` など旧構造に依存する箇所の命名整理（`pipelines/` への再配置含む）。

@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from src.integrations.base import integration_registry, register_integration
 
 from .base import BaseIntegration, IntegrationConfig
+from .bridge import IntegrationBridge, create_default_bridge
 from .garmin import GarminIntegration
 from .google_calendar import GoogleCalendarIntegration
 
@@ -58,13 +59,18 @@ class IntegrationManagerConfig(BaseModel):
 class IntegrationManager:
     """外部連携統合管理システム"""
 
-    def __init__(self, config: IntegrationManagerConfig):
+    def __init__(
+        self,
+        config: IntegrationManagerConfig,
+        bridge: IntegrationBridge | None = None,
+    ):
         self.config = config
         self.logger = structlog.get_logger(__name__)
         self.integrations: dict[str, BaseIntegration] = {}
         self._sync_lock = asyncio.Lock()
         self._sync_tasks: dict[str, asyncio.Task] = {}
         self._last_cleanup = datetime.now()
+        self.bridge = bridge or create_default_bridge()
 
         # 統計情報
         self.sync_history: list[SyncResult] = []

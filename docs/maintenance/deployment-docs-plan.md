@@ -1,7 +1,5 @@
 # デプロイ文書統合案
 
-> Status: 実施済み（docs/deploy/ に反映）
-
 ## 目的
 `docs/deployment.md` と `docs/DEPLOYMENT_GUIDE.md` の重複を解消し、利用シーンに応じたガイドへ再編する。
 
