@@ -1,96 +1,66 @@
 # MindBridge
 
-AI 駆動の知識管理システム。 Discord でメッセージを投稿すると、 AI が自動で Obsidian ノートに整理します。
+MindBridge は Discord の会話、添付ファイル、外部連携データを AI で整理し、Obsidian Vault に構造化ノートとして保存する自動化プラットフォームです。ひとつの起動コマンドで要約、タグ付け、統計、バックアップまでを一貫して処理します。
 
-## 概要
+## Core Capabilities
+- **Discord ingestion**: メッセージ/添付/埋め込みを取り込み、詳細なメタデータとテキスト整形を実施。
+- **AI enrichment**: Gemini 2.5 Flash による要約・タグ・分類、URL 解析、類似ノート参照。
+- **Obsidian integration**: テンプレート駆動の Markdown 生成、Daily Note 連携、Vault 統計、GitHub バックアップ。
+- **Audio transcription**: Google Cloud Speech-to-Text を優先し、フォールバック保存や使用量監視も実装。
+- **Lifelog & health analytics**: Garmin / Google Calendar との同期、活動・睡眠インサイト、自動スケジューラ、ライフログデータ管理。
+- **Productivity tooling**: タスク管理、家計管理、定期購入集計、各種 Slash コマンドでの統計表示。
+- **Operations & security**: Secret Manager 抽象化、構造化セキュリティログ、軽量ヘルスチェックサーバ、GitHub 同期ワークフロー。
 
-Discord → AI 処理 → Obsidian ノート自動保存。メッセージから自動分類とメタデータ抽出で構造化されたメモ管理。
+## How It Works
+1. **Runtime bootstrap**: `src/main.py` が設定とシークレットを読み込み、AI/Garmin クライアントを遅延初期化。
+2. **Discord bot**: `DiscordBot` が Slash コマンドとメッセージハンドラを登録、`MessageProcessor` がメタデータを抽出。
+3. **AI & templating**: `AIProcessor`・`AdvancedNoteAnalyzer` が要約やタグを生成し、`TemplateEngine` が YAML フロントマター付きノートを作成。
+4. **Vault sync**: `ObsidianFileManager` がノートを保存し、必要に応じて Daily Note へ統合。GitHub 連携がある場合は差分を同期。
+5. **Schedulers & integrations**: Garmin/Calendar などは `IntegrationManager` と `HealthAnalysisScheduler` がバックグラウンドで同期。
+6. **Monitoring**: `/status` Slash コマンドや HTTP ヘルスサーバが動作状態をレポートし、セキュリティイベントは構造化ログへ記録。
 
-### 主要機能
+## Quick Start
 
-AI 駆動メッセージ処理
-- AI 分析とメタデータ抽出による自動 Discord メッセージキャプチャ
-- URL コンテンツの取得と要約
-- インテリジェントな分類とフォルダ割り当て
-
-音声メモ処理
-- Google Cloud Speech-to-Text による自動文字起こし
-- デプロイ時の自動認証情報生成機能
-- 複数の音声フォーマット（ MP3 / WAV / FLAC / OGG / M4A / WEBM ）
-
-Obsidian 統合
-- 自動フォルダ分類による構造化 Markdown ノート生成
-- Activity Log と Daily Tasks のデイリーノート統合
-- プレースホルダー置換に対応したテンプレートシステム
-
-家計管理
-- Obsidian 内の収支データモデルと統計表示
-- 定期購入サマリーとカテゴリ別集計
-
-タスク管理
-- タスク統計（アクティブ件数、完了率など）
-- Daily Note との連携による進捗可視化
-
-外部サービス統合
-- Garmin Connect ：フィットネス・健康データ同期（ python-garminconnect 使用、 OAuth 不要）
-- Google Calendar ：自動イベント・会議インポート
-- 健康データ統合：睡眠・歩数・心拍数・アクティビティの自動取得
-- GitHub 同期： Obsidian Vault の自動バックアップ
-- 暗号化された認証情報ストレージによる安全な認証
-
-## クイックスタート
-
-### ローカル実行（最短 3 ステップ）
-
+### Local runtime
 ```bash
-# 1. 依存関係インストール
+# 1. Install dependencies
 uv sync --dev
 
-# 2. 環境設定（対話式）
+# 2. Create .env with interactive wizard
 ./scripts/manage.sh init
 
-# 3. 起動
-uv run python -m src.main
+# 3. Launch the bridge
+./scripts/manage.sh run         # or: uv run python -m src.main
 ```
+Bot を起動したら Discord の #memo チャンネルに投稿し、`/status` で稼働状況を確認してください。
 
-### クラウドデプロイ
+### Cloud Run (summary)
+`./scripts/manage.sh full-deploy <PROJECT_ID> --with-optional` で環境セットアップからデプロイまでを自動化できます。詳細は `docs/deploy/cloud-run.md` を参照してください。
 
+## Documentation
+- ガイドと詳細な手順は `docs/README.md` を参照。
+- 使用方法のハイライトは `docs/basic-usage.md`。
+- システム構成の概要は `docs/architecture.md`。
+
+## Repository Layout
+- `src/` – ドメイン別モジュール (`ai/`, `bot/`, `obsidian/`, `finance/`, `tasks/`, `lifelog/`, `integrations/`, `health_analysis/`, `security/`, `monitoring/`).
+- `docs/` – クイックスタート、ユーザーガイド、デプロイ手順、メンテナンスノート。
+- `scripts/manage.sh` – 初期化、デプロイ、メンテ、クリーンアップをまとめた CLI。
+- `tests/` – `unit/`, `integration/`, `manual/` によるテスト群。
+- `deploy/` – Cloud Run・Docker 用のデプロイテンプレート。
+- `vault/`, `logs/` – 実行時に生成される Vault と暗号化ログ（Git 管理対象外）。
+
+## Development Checklist
 ```bash
-# 完全自動デプロイ
-./scripts/manage.sh full-deploy YOUR_PROJECT_ID --with-optional
-
-# 基本機能のみ
-./scripts/manage.sh full-deploy YOUR_PROJECT_ID
-```
-
-### 使用方法
-
-**#memo チャンネルに投稿するだけ！** AI が自動で Obsidian ノートを生成。
-
-## 開発
-
-### 開発クイックリファレンス
-
-```bash
-# セットアップ
 uv sync --dev
-
-# 実行
 uv run python -m src.main
-
-# テスト・品質チェック
-uv run pytest -q                                      # テスト実行
-uv run pytest --cov=src --cov-report=term-missing    # カバレッジ
-uv run ruff check . --fix && uv run ruff format .    # Lint ・ Format
-uv run mypy src                                       # 型チェック
-uv run pre-commit run --all-files                    # Pre-commit
-
-# コンテナ
-docker compose up -d
+uv run pytest -q
+uv run pytest --cov=src --cov-report=term-missing
+uv run ruff check . --fix && uv run ruff format .
+uv run mypy src
 ```
+追加のコマンドやメンテナンス手順は `docs/development-guide.md` と `docs/testing.md` を参照してください。
 
----
+## License
 
-**プロジェクト情報**
-- Python >=3.13
-- MIT ライセンス
+MIT License – 詳細は `LICENSE` を参照。

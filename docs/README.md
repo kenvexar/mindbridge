@@ -1,25 +1,26 @@
 # Documentation Index
 
-## ガイド
-- `docs/quick-start.md`
-- `docs/basic-usage.md`
-- `docs/USER_GUIDE.md`
+## Getting Started
+- `quick-start.md` – 最短ルートでローカル起動するための 3 ステップ。
+- `USER_GUIDE.md` – 初期セットアップ、環境変数、外部サービス連携の詳細。
+- `basic-usage.md` – Discord での操作方法と Slash / Prefix コマンド一覧。
 
-## 開発
-- `docs/development-guide.md`
-- `docs/testing.md`
-- `docs/architecture.md`
+## Architecture & Development
+- `architecture.md` – ランタイム、AI パイプライン、Obsidian 連携、各ドメインモジュールの概要。
+- `development-guide.md` – ローカル開発フロー、品質チェック、管理スクリプトの使い方。
+- `testing.md` – 自動テスト、手動検証、モック設定のガイド。
 
-## デプロイ
-- `docs/deploy/overview.md`
-- `docs/deploy/cloud-run.md`
-- `docs/deploy/local.md`
+## Operations & Deployment
+- `deploy/overview.md` – デプロイ戦略の比較と選定チャート。
+- `deploy/local.md` – Docker / uv 実行手順とトラブルシューティング。
+- `deploy/cloud-run.md` – Google Cloud Run 向けの完全手順とチェックリスト。
+- `deployment.md` / `DEPLOYMENT_GUIDE.md` – 旧パスから新ドキュメントへのリダイレクト。
 
-## リファレンス
-- `docs/yaml-front-matter.md`
-- `docs/maintenance/housekeeping.md`
-- `docs/maintenance/deployment-docs-plan.md`
-- `docs/maintenance/integrations-refactor-plan.md`
-- `docs/maintenance/readme-template.md`
+## Reference
+- `yaml-front-matter.md` – 生成される YAML フィールドとカスタマイズのベストプラクティス。
+- `maintenance/housekeeping.md` – リポジトリ構造と継続的な整備メモ。
+- `maintenance/secret-manager-refactor.md` – Secret Manager 抽象化の設計ノート。
+- `maintenance/readme-template.md` – パッケージ README 作成用テンプレート。
+- `maintenance/deployment-docs-plan.md` – デプロイ文書メンテナンスの履歴・TODO。
 
-情報構造の詳細は `docs/maintenance/housekeeping.md` を参照してください。
+各ドキュメントの更新履歴は該当ファイルの冒頭コメントや Git ログで確認してください。

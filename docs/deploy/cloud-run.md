@@ -1,330 +1,161 @@
-# MindBridge 安全デプロイ手順書
+# Cloud Run デプロイガイド
 
-## **今後の完全手順ガイド**
-
----
-
-## **STEP 1: 緊急認証情報対応（即座実行）**
-
-### **1.1 Discord Bot Token 更新**
-```bash
-# 1. Discord Developer Portal にアクセス
-# https://discord.com/developers/applications
-
-# 2. アプリケーション選択 → Bot → Reset Token
-# 3. 新しいトークンをコピーして安全に保存
-```
-
-### **1.2 Google API Key 更新**
-```bash
-# 1. Google Cloud Console にアクセス
-# https://console.cloud.google.com/apis/credentials
-
-# 2. 該当 API Key を削除
-# 3. 新しい API Key を作成
-# - Gemini API 用
-# - Google Cloud Speech API 用
-```
-
-### **1.3 GitHub Token 更新**
-```bash
-# 1. GitHub Settings にアクセス
-# https://github.com/settings/tokens
-
-# 2. 該当トークンを Revoke
-# 3. 新しい Personal Access Token を作成
-# - repo (Full control of private repositories)
-# - workflow (Update GitHub Action workflows)
-```
-
-### **1.4 Garmin 認証情報更新**
-```bash
-# 1. Garmin Connect アカウント設定
-# https://connect.garmin.com/
-
-# 2. パスワード変更
-# 3. 新しい認証情報を記録
-```
+Google Cloud Run へ MindBridge を安全にデプロイするための手順をまとめています。基本的には `./scripts/manage.sh` を利用することで、プロジェクト準備からデプロイ、後処理までを自動化できます。
 
 ---
 
-## **STEP 2: ローカル環境設定（ 15 分）**
+## 1. 前提条件
 
-### **2.1 環境変数ファイル作成**
+- Google Cloud アカウントと課金が有効なプロジェクト
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install) がインストール済み
+- `docker`, `bash`, `uv` がローカル環境にインストールされていること
+- リポジトリ内の `scripts/manage.sh` に実行権限 (`chmod +x`) が付与されていること
+
+初回のみ以下を実行してください。
+
 ```bash
-# サンプルを複製して Docker 用設定ファイルを作成
-cp .env.docker.example .env.docker
-
-# 以下の値を最新の認証情報に更新
-DISCORD_BOT_TOKEN=<Discord の新しい Bot Token>
-GEMINI_API_KEY=<Google Gemini API Key>
-GOOGLE_CLOUD_SPEECH_API_KEY=<Speech-to-Text API Key>
-GITHUB_TOKEN=<GitHub Personal Access Token>
-GARMIN_EMAIL=<Garmin ログインメール>
-GARMIN_PASSWORD=<Garmin パスワード>
-OBSIDIAN_BACKUP_REPO=<Vault を保存する GitHub リポジトリ URL>
-```
-
-### **2.2 ローカル動作確認**
-```bash
-# 依存関係が最新であることを確認
-uv sync --dev
-
-# 全テストを実行
-uv run pytest -q
-
-# コード品質チェック
-uv run ruff check . --fix
-uv run mypy src
-
-# ローカル起動テスト
-uv run python -m src.main
-```
-
----
-
-## **STEP 3: Google Cloud 環境準備（ 30 分）**
-
-### **3.1 プロジェクト設定**
-```bash
-# Google Cloud にログイン
 gcloud auth login
-
-# プロジェクト ID を設定（例: mindbridge-prod-2024 ）
-export PROJECT_ID="your-project-id"
-gcloud config set project $PROJECT_ID
-
-# 必要な API を有効化
-./scripts/manage.sh env $PROJECT_ID
-```
-
-### **3.2 Secret Manager 設定**
-```bash
-# 必須シークレット設定
-./scripts/manage.sh secrets $PROJECT_ID
-
-# 実行時にプロンプトされる項目:
-# - Discord Bot Token
-# - Gemini API Key
-# - GitHub Token
-# - Obsidian Backup Repo URL
-# - Garmin 認証情報
-
-# オプション機能も設定する場合
-./scripts/manage.sh secrets $PROJECT_ID --with-optional
-```
-
-### **3.3 サービスアカウント確認**
-```bash
-# サービスアカウントが正しく設定されているか確認
-gcloud iam service-accounts list --filter="email:mindbridge-service@$PROJECT_ID.iam.gserviceaccount.com"
-
-# 権限確認
-gcloud projects get-iam-policy $PROJECT_ID \
-  --flatten="bindings[].members" \
-  --format='table(bindings.role)' \
-  --filter="bindings.members:mindbridge-service@$PROJECT_ID.iam.gserviceaccount.com"
+gcloud auth configure-docker    # Artifact Registry への push を許可
 ```
 
 ---
 
-## **STEP 4: デプロイ前テスト（ 20 分）**
+## 2. プロジェクト初期化
 
-### **4.1 ローカル本番モード確認**
+`<PROJECT_ID>` は Cloud Run 用に作成する GCP プロジェクト ID です。
+
 ```bash
-# 本番モードでローカル起動
-ENVIRONMENT=production uv run python -m src.main
-
-# Discord Slash コマンド動作確認:
-# - /status → Bot 稼働確認
-# - /system_status → スケジューラと外部連携の状態
-# - /garmin_today → Garmin データ取得確認（オプション）
-# - 音声メモアップロード → 文字起こし動作確認
+export PROJECT_ID="your-mindbridge-project"
+./scripts/manage.sh env "$PROJECT_ID"
 ```
 
-### **4.2 Google Secret Manager 接続テスト**
-```bash
-# Secret Manager からシークレット取得テスト
-gcloud secrets versions access latest --secret="discord-bot-token" --project=$PROJECT_ID
-
-# 他の必須シークレットも確認
-gcloud secrets versions access latest --secret="gemini-api-key" --project=$PROJECT_ID
-gcloud secrets versions access latest --secret="github-token" --project=$PROJECT_ID
-```
+このコマンドで以下が自動化されます。
+- 指定したプロジェクトが存在しない場合は作成（オプションで課金アカウントとリンク）
+- Cloud Run / Cloud Build / Secret Manager / Speech API など必要な API の有効化
+- `mindbridge-service` サービスアカウント作成と IAM ロール付与
+- Artifact Registry (`mindbridge` リポジトリ) のセットアップ
 
 ---
 
-## **STEP 5: Cloud Run デプロイ（ 15 分）**
+## 3. シークレット登録
 
-### **5.1 一括デプロイ実行**
+必要なシークレットを Secret Manager に保存します。`--with-optional` を付与すると Garmin/Speech などのオプションも登録できます。
+
 ```bash
-# 基本機能のみでデプロイ
-./scripts/manage.sh full-deploy $PROJECT_ID
-
-# または、オプション機能も含めてデプロイ
-./scripts/manage.sh full-deploy $PROJECT_ID --with-optional
+./scripts/manage.sh secrets "$PROJECT_ID" --with-optional --skip-existing
 ```
 
-### **5.2 デプロイ状況確認**
-```bash
-# サービス状態確認
-gcloud run services describe mindbridge --region=us-central1 --project=$PROJECT_ID
+登録する主なシークレット:
 
-# ログ確認
-gcloud logs read "resource.type=cloud_run_revision AND resource.labels.service_name=mindbridge" \
-  --project=$PROJECT_ID --limit=50
-```
+| シークレット名 | 用途 |
+| --- | --- |
+| `discord-bot-token` / `discord-guild-id` | Discord Bot 認証 |
+| `gemini-api-key` | Gemini API キー |
+| `github-token`, `obsidian-backup-repo` | GitHub バックアップ（任意） |
+| `garmin-username`, `garmin-password` | Garmin 連携（オプション） |
+| `google-cloud-speech-credentials` | Speech-to-Text サービスアカウント（自動生成可能） |
 
-### **5.3 ヘルスチェック確認**
-```bash
-# Cloud Run URL 取得
-SERVICE_URL=$(gcloud run services describe mindbridge --region=us-central1 --project=$PROJECT_ID --format="value(status.url)")
-
-# ヘルスエンドポイント確認
-curl -f "$SERVICE_URL/health"
-
-# 期待される応答: {"status": "healthy", "timestamp": "..."}
-```
+Secret Manager へ登録すると、Cloud Run では `SECRET_MANAGER_STRATEGY=google` と `SECRET_MANAGER_PROJECT_ID` を通じて自動的に読み込みます。
 
 ---
 
-## **STEP 6: 本番動作確認（ 10 分）**
+## 4. 追加設定（任意）
 
-### **6.1 Discord Bot 動作確認**
 ```bash
-# Discord サーバーで以下をテスト:
-/status             # → Bot の状態確認
-/integration_status # → 外部連携サマリー
-/garmin_sleep       # → Garmin 睡眠データ確認（設定済みの場合）
+./scripts/manage.sh optional "$PROJECT_ID"
 ```
 
-### **6.2 主要機能テスト**
-1. **メッセージ処理**: #memo チャンネルにテストメッセージ投稿
-2. **音声処理**: 音声ファイルをアップロード → 文字起こし確認
-3. **GitHub 同期**: Obsidian Vault のバックアップ動作確認
-
-### **6.3 監視設定確認**
-```bash
-# Cloud Run メトリクス確認
-gcloud logging read "resource.type=cloud_run_revision" \
-  --project=$PROJECT_ID --limit=20
-
-# エラーログがないことを確認
-gcloud logging read "resource.type=cloud_run_revision AND severity>=ERROR" \
-  --project=$PROJECT_ID --limit=10
-```
+このステップでは以下をガイドします。
+- Google Calendar OAuth 用のリダイレクト URI 登録
+- Webhook／外部サービス連携用の追加シークレット
+- Artifact Registry のクリーンアップジョブ作成
 
 ---
 
-## **STEP 7: 運用開始後の監視（継続）**
+## 5. ビルドとデプロイ
 
-### **7.1 日次チェック項目**
+### 5.1 ワンコマンドで実行
+
 ```bash
-# サービス状態確認
-gcloud run services list --project=$PROJECT_ID
-
-# エラーログ確認（毎日）
-gcloud logging read "resource.type=cloud_run_revision AND severity>=ERROR" \
-  --project=$PROJECT_ID --freshness=1d
-
-# コスト確認
-gcloud billing budgets list --billing-account=YOUR_BILLING_ACCOUNT
+./scripts/manage.sh full-deploy "$PROJECT_ID" --with-optional
 ```
 
-### **7.2 週次メンテナンス**
-```bash
-# 古いコンテナイメージ削除
-./scripts/manage.sh ar-clean $PROJECT_ID us-central1 mindbridge mindbridge 5 7
+`env` → `secrets` → `optional` → `deploy` の流れを一括で実行します。`--with-optional` を外せば必須構成のみデプロイ可能です。
 
-# セキュリティアップデート確認
-uv sync --upgrade
+### 5.2 手動実行（参考）
+
+```bash
+# コンテナイメージをビルドして Artifact Registry に push
+gcloud builds submit --tag "us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:latest"
+
+# Cloud Run へデプロイ
+gcloud run deploy mindbridge \
+  --project="$PROJECT_ID" \
+  --image="us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:latest" \
+  --region="us-central1" \
+  --platform="managed" \
+  --allow-unauthenticated \
+  --memory=1Gi \
+  --cpu=1 \
+  --set-env-vars="ENVIRONMENT=production,SECRET_MANAGER_STRATEGY=google,SECRET_MANAGER_PROJECT_ID=$PROJECT_ID"
 ```
+
+その他の推奨設定:
+- 最小インスタンス数は 0、最大インスタンス数は 3〜5 程度
+- `--ingress internal-and-cloud-load-balancing` や Cloud Armor を利用してアクセス制御する場合は追加設定が必要
 
 ---
 
-## **トラブルシューティング**
+## 6. デプロイ後の確認
 
-### **よくある問題と解決方法**
+1. **サービス状態**
+   ```bash
+   gcloud run services list --project="$PROJECT_ID"
+   gcloud run services describe mindbridge --region=us-central1 --project="$PROJECT_ID"
+   ```
+2. **ログチェック**
+   ```bash
+   gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=mindbridge" \
+     --project="$PROJECT_ID" --limit=50
+   ```
+3. **Discord 側の動作確認**
+   - `/status` で Bot がオンラインか確認。
+   - `/integration_status` で Garmin / Calendar などの連携状況を確認。
+4. **ヘルスチェック**
+   - Cloud Run サービス URL `/healthz` にアクセスすると `HealthServer` がレスポンスを返します。
 
-#### **問題 1: デプロイ時の認証エラー**
-```bash
-# 解決方法
-gcloud auth login
-gcloud config set project $PROJECT_ID
-gcloud auth configure-docker us-central1-docker.pkg.dev
-```
-
-#### **問題 2: Discord Bot が応答しない**
-```bash
-# 解決方法
-# 1. Secret Manager のトークン確認
-gcloud secrets versions access latest --secret="discord-bot-token" --project=$PROJECT_ID
-
-# 2. Discord Developer Portal でトークン再確認
-# 3. Bot 権限設定確認（管理者権限推奨）
-```
-
-#### **問題 3: Cloud Run 起動失敗**
-```bash
-# 解決方法
-# 1. ログ詳細確認
-gcloud logs read "resource.type=cloud_run_revision" --project=$PROJECT_ID --limit=100
-
-# 2. 環境変数確認
-gcloud run services describe mindbridge --region=us-central1 --project=$PROJECT_ID
-
-# 3. リソース制限確認（メモリ・ CPU ）
-```
+問題が発生した場合は `logs/` 代替として Cloud Logging を参照し、必要に応じて `./scripts/manage.sh run` でローカル再現を試みてください。
 
 ---
 
-## **成功確認チェックリスト**
+## 7. 運用とメンテナンス
 
-- [ ] 全ての認証情報を新規作成・設定完了
-- [ ] ローカル環境で正常動作確認
-- [ ] Google Cloud 環境設定完了
-- [ ] Secret Manager にシークレット保存完了
-- [ ] Cloud Run デプロイ成功
-- [ ] ヘルスチェック正常応答
-- [ ] Discord Bot 応答確認
-- [ ] 主要機能動作確認
-- [ ] エラーログなし
-- [ ] 監視体制構築完了
-
-**全項目完了後、安全にサービス運用開始可能です！**
+- **定期クリーンアップ**: Artifact Registry の古いイメージを削除。
+  ```bash
+  ./scripts/manage.sh ar-clean "$PROJECT_ID" us-central1 mindbridge mindbridge 5 7 --no-dry-run
+  ```
+- **シークレット更新**: `./scripts/manage.sh secrets "$PROJECT_ID" --skip-existing` で更新。管理者に通知後、Cloud Run を再デプロイ。
+- **ログ監視**: Cloud Logging のフィルタ（`severity>=ERROR`）で異常検知。必要に応じてアラートポリシーを設定。
+- **コスト管理**: `gcloud beta billing accounts budgets list` で予算を設定し、推定コストを監視。
 
 ---
 
-## **緊急時の対応**
+## 8. トラブルシューティング
 
-### **サービス停止が必要な場合**
-```bash
-# 緊急停止
-gcloud run services update mindbridge --region=us-central1 --project=$PROJECT_ID --min-instances=0 --max-instances=0
-
-# 復旧
-gcloud run services update mindbridge --region=us-central1 --project=$PROJECT_ID --min-instances=0 --max-instances=3
-```
-
-### **認証情報漏洩時の対応**
-1. 該当トークン・ API キーの即座無効化
-2. 新しい認証情報の生成
-3. Secret Manager での更新
-4. サービス再デプロイ
-
-**これで完全に安全なデプロイが可能です！**
+| 症状 | 対応策 |
+| --- | --- |
+| デプロイに失敗する | `gcloud builds submit` / `gcloud run deploy` のログを確認。IAM 権限とサービス有効化状況を再チェック。 |
+| Discord Bot が応答しない | Secret Manager に格納した `discord-bot-token` / `discord-guild-id` が最新か確認し、Cloud Run コンソールから再起動。 |
+| Slash コマンドが同期されない | `DISCORD_GUILD_ID` が正しいか、Bot を再招待して権限を付与したか確認。 |
+| Garmin/Calendar 連携がエラーになる | `/integration_status` で詳細を確認し、必要なら `/manual_sync`。Secret Manager の資格情報を再発行。 |
+| GitHub 同期に失敗 | サービスアカウントが Git を実行できるか、`github-token` の権限 (`repo`) が有効か確認。 |
 
 ---
 
-## **関連ドキュメント**
+## 9. 参考資料
 
-- [プロジェクト README](../README.md)
-- [開発ガイド](../CLAUDE.md)
-- [セキュリティドキュメント](SECURITY.md)
-- [運用ガイド](OPERATIONS.md)
+- ローカル/コンテナでの実行: `docs/deploy/local.md`
+- リポジトリ構造とメンテナンス: `docs/maintenance/housekeeping.md`
+- テスト手順: `docs/testing.md`
 
----
-
-**作成日**: 2025 年 9 月 23 日
-**更新日**: 2025 年 9 月 23 日
-**バージョン**: 1.0
+Cloud Run デプロイ後もリポジトリの更新があれば `./scripts/manage.sh full-deploy` を再実行し、最新バージョンを反映してください。

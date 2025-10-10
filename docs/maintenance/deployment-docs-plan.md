@@ -1,33 +1,23 @@
-# デプロイ文書統合案
+# デプロイ文書メンテナンスログ
 
-## 目的
-`docs/deployment.md` と `docs/DEPLOYMENT_GUIDE.md` の重複を解消し、利用シーンに応じたガイドへ再編する。
+Cloud Run / ローカル運用に関するドキュメント再編の履歴と今後の TODO をまとめます。
 
-## 現状の課題
-- **内容の重複**: Cloud Run デプロイ手順が両ドキュメントで重複し、更新コストが高い。
-- **粒度の差**: `deployment.md` は概要中心、`DEPLOYMENT_GUIDE.md` は詳細な運用手順で構成されているが、参照導線がない。
-- **構造の混在**: ローカル運用や Docker 手順が散在し、初学者がどちらを読めばよいか判断しづらい。
+## 2025 Q1 アップデート（完了）
 
-## 統合方針
-1. `docs/deploy/` ディレクトリを新設し、以下3レイヤーで情報を整理する。
-   - `overview.md`: デプロイ戦略と選択肢（Cloud Run / ローカル / Docker）の比較表。
-   - `cloud-run.md`: Cloud Run 導入の決定版。`DEPLOYMENT_GUIDE.md` の Step 形式を移植し、チェックリスト化。
-   - `local.md`: ローカルと Docker 手順を `deployment.md` から移行し、トラブルシューティングを追記。
-2. 既存ファイルは以下の通り扱う。
-   - `docs/deployment.md` → `docs/deploy/overview.md` にリネーム＋内容再編（重複部分は `cloud-run.md` へ移動）。
-   - `docs/DEPLOYMENT_GUIDE.md` → `docs/deploy/cloud-run.md` として再構成。クリティカルパスを冒頭のチェックリストに集約。
-   - 旧ファイルには短期的にリダイレクト文言を残し、次回リリースで削除。
-3. `README.md` および `docs/quick-start.md` から新ディレクトリへのリンクを張る。
+- `docs/deploy/overview.md` を作成し、デプロイ戦略の比較と共通ワークフローを整理。
+- `docs/deploy/cloud-run.md` を全面改稿。`scripts/manage.sh` ベースの手順、確認項目、トラブルシュートを追加。
+- `docs/deploy/local.md` を更新し、`uv run` / Docker Compose 両方の運用手順を整備。
+- 旧 `deployment.md` / `DEPLOYMENT_GUIDE.md` は互換性のためのリダイレクト文言のみ残す。
+- ルート `README.md`・`docs/README.md`・`docs/quick-start.md` に新しいドキュメントへのリンクを追加。
 
-現時点で未着手のタスクはありません。
+## 残課題 / 次回アクション
 
-## レビュー依頼先
-- デプロイ作業担当（Cloud Run 運用経験者）
-- ドキュメント整備担当（Obsidian 連携チーム）
+- [ ] Docker イメージのビルド方法を `README.md` に簡易追記し、Cloud Run 以外のホスティング手段（例: 自前 VPS）に触れる。
+- [ ] `docs/deploy/cloud-run.md` に監視/アラート設定（Ops Agent, Uptime Check 等）の推奨構成を加筆。
+- [ ] Secret Manager を使用しない個人運用向けの簡易ガイドを `docs/deploy/local.md` に追加検討。
 
-## 期限の目安
-- 初稿作成: 今スプリント（1 週間以内）
-- レビュー & Fix: 次スプリント開始時
+## 参照
 
----
-このプランは `docs/maintenance/housekeeping.md` のタスク完了報告として登録済み。
+- 運用全体のサマリ: `docs/maintenance/housekeeping.md`
+- テスト/検証の手順: `docs/testing.md`
+- 管理スクリプト実装: `scripts/manage.sh`

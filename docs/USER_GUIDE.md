@@ -1,6 +1,6 @@
 # MindBridge ユーザーガイド
 
-AI が Discord のメッセージや添付ファイルを整理し、 Obsidian ノートに保存するワークフローの利用手順をまとめています。
+MindBridge は Discord のメッセージ、添付ファイル、外部サービスのデータを AI で整理し、Obsidian Vault に構造化ノートとして保存する自動化プラットフォームです。本ガイドでは初期セットアップから日常運用、トラブルシュートまでをまとめます。
 
 ## 目次
 
@@ -8,237 +8,185 @@ AI が Discord のメッセージや添付ファイルを整理し、 Obsidian �
 2. [初期セットアップ](#2-初期セットアップ)
    - [必要な環境](#21-必要な環境)
    - [インストール手順](#22-インストール手順)
-   - [主要な環境変数](#23-主要な環境変数)
-   - [Discord Bot 準備](#24-discord-bot-準備)
+   - [必須/推奨環境変数](#23-必須推奨環境変数)
+   - [オプション設定](#24-オプション設定)
+   - [Discord Bot 準備](#25-discord-bot-準備)
 3. [基本的な使い方](#3-基本的な使い方)
-4. [利用可能な Slash コマンド](#4-利用可能な-slash-コマンド)
-5. [外部サービス連携](#5-外部サービス連携)
-6. [音声メモの処理](#6-音声メモの処理)
-7. [カスタマイズのヒント](#7-カスタマイズのヒント)
-8. [トラブルシューティング](#8-トラブルシューティング)
+4. [外部サービス連携](#4-外部サービス連携)
+5. [音声メモの処理](#5-音声メモの処理)
+6. [カスタマイズと開発 Tips](#6-カスタマイズと開発-tips)
+7. [トラブルシューティング](#7-トラブルシューティング)
+8. [付録: 参考リンク](#8-付録-参考リンク)
 
 ---
 
 ## 1. 概要
 
-MindBridge は以下の処理を自動で実行します。
+MindBridge は次のコンポーネントで構成されます。
 
-- Discord の `#memo` チャンネルからテキストや添付ファイルを取得
-- Google Gemini を用いた要約・タグ付け・カテゴリ分類
-- 生成結果を Obsidian Vault の Markdown ノートとして保存
-- Garmin Connect や Google Calendar から取得したデータを日次ノートに統合
-- GitHub リポジトリに Vault を同期（クラウド環境向け）
+- **Discord Bot (`src/bot/`)** – Slash / Prefix コマンド、メッセージ処理、通知。
+- **AI パイプライン (`src/ai/`)** – Gemini 2.5 Flash を利用した要約・タグ・分類、URL 解析、ベクターストア。
+- **Obsidian 連携 (`src/obsidian/`)** – Markdown 生成、テンプレート、Daily Note 統合、統計、GitHub 同期。
+- **外部連携 (`src/lifelog/`, `src/integrations/`, `src/health_analysis/`)** – Garmin、Google Calendar、ライフログ解析、スケジューラ。
+- **生産性ツール (`src/tasks/`, `src/finance/`)** – タスク管理や家計管理の Slash コマンドとノート生成。
+- **運用基盤 (`src/security/`, `src/monitoring/`)** – Secret Manager 抽象化、アクセスログ、ヘルスチェックサーバ。
 
 ---
 
 ## 2. 初期セットアップ
 
 ### 2.1 必要な環境
-
-- Python 3.13
+- Python 3.13+
 - [uv](https://github.com/astral-sh/uv) パッケージマネージャー
-- Discord アカウント（Bot 用）
-- Google Gemini API Key
-- Obsidian Vault のローカルパス
+- Discord Bot（トークン/ギルド ID）
+- Google Gemini API キー
+- Obsidian Vault の保存先（書き込み権限が必要）
 
 ### 2.2 インストール手順
 
 ```bash
-# リポジトリを取得
 git clone https://github.com/your-username/mindbridge.git
 cd mindbridge
 
-# 依存関係をインストール
+# 依存関係と開発ツールをインストール
 uv sync --dev
 
-# .env を対話式で作成
+# 対話式に .env を生成（必要なシークレットを登録）
 ./scripts/manage.sh init
 
-# ローカル起動
-uv run python -m src.main
+# ローカル起動（uv run python -m src.main をラップ）
+./scripts/manage.sh run
 ```
 
-### 2.3 主要な環境変数
+初回起動では Slash コマンドが同期されるまで数秒〜数十秒かかります。Discord 側で `/status` が利用可能になれば準備完了です。
 
-`.env` または `.env.docker` に設定する主なキーは以下のとおりです。
+### 2.3 必須/推奨環境変数
+
+`.env`（ローカル）や Secret Manager（クラウド）に設定します。変数名は大文字推奨ですが、`pydantic` が小文字属性にマッピングします。
+
+| 変数 | 説明 | 必須 |
+| --- | --- | --- |
+| `DISCORD_BOT_TOKEN` | Discord Bot トークン | ✅ |
+| `DISCORD_GUILD_ID` | Slash コマンドを同期するギルド ID | ✅ |
+| `GEMINI_API_KEY` | Google Gemini API キー | ✅ |
+| `OBSIDIAN_VAULT_PATH` | Vault 保存ディレクトリ（既定: `./vault`） | 推奨 |
+| `ENVIRONMENT` | `personal` / `development` / `production` | 推奨 |
+| `LOG_LEVEL` / `LOG_FORMAT` | ログ出力制御 (`INFO` / `json` が既定) | 任意 |
+| `ENABLE_ACCESS_LOGGING` | セキュリティイベントログを有効化 (`true` 推奨) | 任意 |
+
+### 2.4 オプション設定
 
 | 変数 | 用途 |
 | --- | --- |
-| `DISCORD_BOT_TOKEN` | Discord Bot のトークン |
-| `DISCORD_GUILD_ID`  | Slash コマンドを同期するサーバー ID |
-| `GEMINI_API_KEY`    | Google Gemini API キー |
-| `OBSIDIAN_VAULT_PATH` | ノートを保存するディレクトリ |
-| `ENVIRONMENT` | `personal` / `development` / `production` |
-| `LOG_LEVEL`, `LOG_FORMAT` | ログ出力制御 |
-| `ENABLE_ACCESS_LOGGING` | セキュリティイベントロギングの有効/無効 |
-
-### オプションの環境変数
-
-| 変数 | 用途 |
-| --- | --- |
-| `GOOGLE_CLOUD_SPEECH_API_KEY` または `GOOGLE_CLOUD_SPEECH_CREDENTIALS` | 音声文字起こし用の認証情報 |
+| `GOOGLE_CLOUD_SPEECH_API_KEY` または `GOOGLE_CLOUD_SPEECH_CREDENTIALS` | Google Speech-to-Text 認証情報（JSON を base64 で格納可能） |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Service Account JSON ファイルパス（Speech/GCP 共通） |
 | `GARMIN_EMAIL`, `GARMIN_PASSWORD` | Garmin Connect 連携用資格情報 |
-| `GITHUB_TOKEN`, `OBSIDIAN_BACKUP_REPO` | GitHub 同期設定 |
-| `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` | Google Calendar OAuth 用クライアント情報 |
-| `GOOGLE_CALENDAR_ACCESS_TOKEN`, `GOOGLE_CALENDAR_REFRESH_TOKEN` | 既存のトークンを再利用する場合 |
-| `ENABLE_MOCK_MODE`, `MOCK_*_ENABLED` | モック環境でのテスト設定 |
+| `GITHUB_TOKEN`, `OBSIDIAN_BACKUP_REPO`, `OBSIDIAN_BACKUP_BRANCH` | Vault の GitHub 同期設定 |
+| `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` | Google Calendar OAuth クライアント |
+| `GOOGLE_CALENDAR_SERVICE_ACCOUNT` | Service Account を用いた Calendar 認証 |
+| `SECRET_MANAGER_STRATEGY`, `SECRET_MANAGER_PROJECT_ID` | `google` を指定して Secret Manager を利用する場合に設定 |
+| `ENABLE_MOCK_MODE`, `MOCK_*_ENABLED` | 外部 API を呼び出さずにテストするモックフラグ |
+| `MODEL_NAME`, `AI_TEMPERATURE`, `AI_MAX_TOKENS` | Gemini 推論パラメータ (`models/gemini-2.5-flash` が既定) |
 
-### 2.4 Discord Bot 準備
+必要に応じて `./scripts/manage.sh secrets <PROJECT_ID> --with-optional` を利用すると Secret Manager に一括登録できます。
 
-1. [Discord Developer Portal](https://discord.com/developers/applications) でアプリケーションを作成
-2. **Bot** タブでトークンを発行し、必要な権限に `Send Messages`, `Read Message History`, `Use Slash Commands` を含める
-3. OAuth2 → URL Generator で `bot` と `applications.commands` を選択し、サーバーへ招待
-4. `.env` に `DISCORD_BOT_TOKEN` と `DISCORD_GUILD_ID` を記入
+### 2.5 Discord Bot 準備
+1. [Discord Developer Portal](https://discord.com/developers/applications) でアプリケーションを作成。
+2. **Bot** タブでトークンを発行し、`MESSAGE CONTENT INTENT` を有効化。
+3. OAuth2 → URL Generator で `bot` と `applications.commands` を選択し、権限に `Send Messages`, `Read Message History`, `Use Slash Commands` を含めてサーバへ招待。
+4. `.env` / Secret Manager に `DISCORD_BOT_TOKEN` と `DISCORD_GUILD_ID` を設定。
+
+Bot を再招待した際は `/sync` コマンドは不要です。起動時に `client.py` が Slash コマンドをギルドスコープで同期します。
 
 ---
 
 ## 3. 基本的な使い方
 
-### 3.1 テキストメッセージ
+1. Discord の監視チャンネル（既定は `memo`, `notifications`, `commands`）へ投稿。
+2. `MessageProcessor` がテキスト整形・URL 抽出・メタデータ解析を実施。
+3. `AIProcessor` と `AdvancedNoteAnalyzer` が要約・タグ・カテゴリ・関連ノートを生成。
+4. `TemplateEngine` が YAML フロントマター付き Markdown を出力し、`ObsidianFileManager` が Vault に保存。
+5. 必要に応じて `DailyNoteIntegration` が日次サマリーを更新し、`GitHubObsidianSync` が push/pull を行います。
 
-Discord の `#memo` チャンネルに文章を投稿すると、以下の処理が走ります。
-
-1. Gemini で要約・タグ・カテゴリを推定
-2. `vault/` 配下に Markdown ノートを作成
-3. Daily Note に概要を反映（`Daily Note Integration` が有効な場合）
-
-### 3.2 URL を含むメッセージ
-
-本文に URL がある場合は自動でコンテンツを取得し、ノート末尾に「URL 要約」セクションを追加します。同じ URL は重複整理されます。
-
-### 3.3 音声ファイル
-
-MP3 / WAV / FLAC / OGG / M4A / WEBM を添付すると Speech-to-Text で文字起こしを実行します。認証情報が設定されていない場合はファイルを保存し、処理待ちとして記録します。
+### コマンド操作
+- Slash コマンド一覧や詳細は `docs/basic-usage.md` を参照してください。
+- ライフログ機能では `!log`, `!mood`, `!habit`, `!goal` などの Prefix コマンドも利用可能です。
+- コマンド応答が遅い場合は `/system_status` で Integration Manager とスケジューラの状態を確認できます。
 
 ---
 
-## 4. 利用可能な Slash コマンド
+## 4. 外部サービス連携
 
-### 基本コマンド
+### 4.1 Garmin Connect
+1. `.env` に `GARMIN_EMAIL`, `GARMIN_PASSWORD` を設定。
+2. Bot 起動後に `/integration_status` で `garmin` エントリが有効か確認。
+3. `/garmin_today`, `/garmin_sleep` で日次アクティビティや睡眠データを取得。
+4. バックグラウンドでは `HealthAnalysisScheduler` が `HealthDataAnalyzer` と `HealthActivityIntegrator` を用いて日次ノートへ統合します。
 
-| コマンド | 説明 |
-| --- | --- |
-| `/help` | 利用可能なコマンドの概要を表示 |
-| `/status` | Bot の稼働状況と接続状態を表示 |
-| `/search query:<キーワード> [limit]` | Obsidian ノートを検索 |
-| `/random` | ランダムなノートを表示 |
+### 4.2 Google Calendar
+1. OAuth クレデンシャル（クライアント ID / シークレット）を設定し、Bot を再起動。
+2. `/calendar_auth` で表示された URL にアクセスし、Google アカウントで認証。
+3. 得られたコードを `/calendar_token code:<...>` で登録。
+4. `/calendar_test` で接続確認。成功すると予定のプレビューが表示されます。
+5. カレンダーイベントはライフログ経由で日次ノートへ追記されます。
 
-### 統計コマンド
+### 4.3 GitHub Vault バックアップ
+- `GITHUB_TOKEN` に `repo` 権限を付与し、`OBSIDIAN_BACKUP_REPO`（例: `git@github.com:owner/vault.git`）を設定。
+- `ENVIRONMENT=production` の場合、起動時に `git pull`、終了時に `git push` を実行します。
+- `.gitignore` は自動生成され、`logs/` や一時ファイルを除外します。
 
-| コマンド | 説明 |
-| --- | --- |
-| `/bot` | Bot の稼働統計 (uptime, メモリ等) |
-| `/obsidian` | ノート総数や最新更新などの統計 |
-| `/finance` | 家計関連統計 (今月の支出など) |
-| `/tasks` | タスク統計 (アクティブ数、完了率など) |
-
-### 外部連携・ヘルスチェック
-
-| コマンド | 説明 |
-| --- | --- |
-| `/integration_status` | 外部連携モジュールの状態一覧 |
-| `/system_status` | スケジューラや監視メトリクスの状況 |
-| `/manual_sync name:<連携名>` | 指定連携の手動同期 (`garmin` など) |
-| `/integration_config` | 現在の連携設定を確認 |
-| `/scheduler_status` | 実行中ジョブと次回実行予定を確認 |
-| `/lifelog_stats` | ライフログの要約レポートを表示 |
-| `/garmin_today` | 当日の Garmin アクティビティサマリー |
-| `/garmin_sleep` | Garmin 睡眠データの要約 |
-| `/calendar_auth` | Google Calendar OAuth を開始 |
-| `/calendar_token code:<認証コード>` | OAuth で取得したコードを登録 |
-| `/calendar_test` | Google Calendar 接続テスト |
-
-### 設定コマンド
-
-| コマンド | 説明 |
-| --- | --- |
-| `/show [setting]` | 既知の設定値を表示（現在は検出済みチャンネル数を返答） |
-| `/set setting:<キー> value:<値>` | 設定更新リクエスト（永続化は順次実装中） |
-| `/history` | 設定変更履歴（履歴が無い場合は案内のみ） |
-
-> **補足:** Slash コマンドはギルド専用同期です。 Bot を再起動した直後は反映まで数秒〜1分程度かかる場合があります。
+### 4.4 Integration Manager とスケジューラ
+- `IntegrationManager` は `/app/.mindbridge/integrations/settings.json` を管理し、暗号化済みクレデンシャル (`credentials.json.encrypted`) を扱います。
+- `/integration_config` で設定を閲覧・保存、`/manual_sync` で即時同期をトリガー。
+- `/scheduler_status` は `IntegrationSyncScheduler` のジョブ状態（次回実行時刻や直近の結果）を表示します。
 
 ---
 
-## 5. 外部サービス連携
-
-### 5.1 Garmin Connect
-
-1. `.env` に `GARMIN_EMAIL` と `GARMIN_PASSWORD` を設定
-2. Bot 起動後 `/integration_status` で `garmin` が有効になっているか確認
-3. `/garmin_today` や `/garmin_sleep` で同期結果を確認
-
-Garmin 連携は `HealthAnalysisScheduler` によりバックグラウンドで実行され、 Daily Note にアクティビティレポートが追記されます。
-
-### 5.2 Google Calendar
-
-1. `.env` に `GOOGLE_CALENDAR_CLIENT_ID` と `GOOGLE_CALENDAR_CLIENT_SECRET` を設定
-2. `/calendar_auth` で表示される URL にブラウザからアクセスし、 Google アカウントで認証
-3. 取得したコードを `/calendar_token code:<...>` で登録
-4. `/calendar_test` で接続を検証
-
-> **セキュリティメモ:** `/callback` エンドポイントで受け取ったコードは `logs/google_calendar_auth_code.enc` に暗号化して保存されます。32 バイト(または URL-safe Base64)の `ENCRYPTION_KEY` が未設定の場合、コードは保存されないため手動で控えてください。
-
-Calendar イベントはライフログの一部として日次ノートに統合されます。
-
-### 5.3 GitHub バックアップ
-
-- `GITHUB_TOKEN` と `OBSIDIAN_BACKUP_REPO` を設定すると、 GitHub リポジトリに Vault を保存できます。
-- `ENVIRONMENT=production` のとき、起動時にリモートから pull、終了時に push を試行します。
-
----
-
-## 6. 音声メモの処理
+## 5. 音声メモの処理
 
 | 項目 | 内容 |
 | --- | --- |
 | 対応フォーマット | MP3 / WAV / FLAC / OGG / M4A / WEBM |
-| 最大ファイルサイズ | Discord 制限に準拠 (25MB) |
-| 認証情報 | `GOOGLE_CLOUD_SPEECH_API_KEY` もしくは JSON を `GOOGLE_CLOUD_SPEECH_CREDENTIALS` に設定 |
-| フォールバック | 認証情報が無い場合はファイルを保存して再処理待ちにする |
-
-処理結果は通常ノートと同じフォーマットで作成され、音声トラックのメタデータや AI 要約が追記されます。
-
----
-
-## 7. カスタマイズのヒント
-
-- **テンプレート**: `vault/90_Meta/Templates/` にカスタムテンプレートを配置すると `TemplateEngine` が読み込みます。
-- **ログ**: `LOG_LEVEL=DEBUG` や `LOG_FORMAT=text` を設定すると詳細なログを確認できます。
-- **モックモード**: `ENABLE_MOCK_MODE=true` と `MOCK_GEMINI_ENABLED=true` などを組み合わせると外部 API へ接続せずに開発できます。
-- **Vault パス**: デフォルトでは `./vault`。別ディレクトリを指定する場合は `.env` の `OBSIDIAN_VAULT_PATH` を更新してください。
+| 認証情報 | `GOOGLE_CLOUD_SPEECH_API_KEY` または `GOOGLE_CLOUD_SPEECH_CREDENTIALS`（サービスアカウント JSON） |
+| 処理フロー | `SpeechProcessor` が認証情報を検証 → Google Speech API へ送信 → 文字起こし結果と要約を YAML フロントマター・本文に追加 |
+| フォールバック | API が利用できない場合は音声ファイルのみ保存し、ステータスを `pending` として記録 |
+| 使用量監視 | `SpeechAPIUsage` が月次使用時間を追跡し、閾値超過時は通知します |
 
 ---
 
-## 8. トラブルシューティング
+## 6. カスタマイズと開発 Tips
 
-### Bot が応答しない
-
-1. `/status` で稼働確認
-2. `.env` のトークン/ギルド ID を再確認
-3. `uv run python -m src.main` を再実行し、コンソールログでエラーを確認
-
-### Slash コマンドが表示されない
-
-- Bot を招待する際に `applications.commands` 権限が付与されているか確認
-- `DISCORD_GUILD_ID` が正しく設定されているか確認
-- Bot を再起動して Discord 側の同期を待つ
-
-### 音声文字起こしに失敗する
-
-- `GOOGLE_CLOUD_SPEECH_API_KEY` または `GOOGLE_CLOUD_SPEECH_CREDENTIALS` が設定されているか確認
-- Google Cloud Console で Speech-to-Text API が有効か確認
-
-### Obsidian ノートが生成されない
-
-- `OBSIDIAN_VAULT_PATH` が存在し、書き込み権限があるか確認
-- `/integration_status` で関連する連携にエラーがないか確認
-
-### GitHub 同期に失敗する
-
-- `GITHUB_TOKEN` に `repo` 権限があるか確認
-- Bot 実行ユーザーが Vault ディレクトリで `git` コマンドを利用できるか確認
+- **テンプレート**: `vault/90_Meta/Templates/` に Markdown テンプレートを配置すると `TemplateEngine` が自動作成します。`{title}` や `{timestamp}` プレースホルダーが利用可能です。
+- **チャンネル設定**: `src/bot/channel_config.py` の `ChannelConfig` で監視チャンネルや通知宛先を制御。起動後は `/status` に反映されます。
+- **モックモード**: `ENABLE_MOCK_MODE=true` と各 `MOCK_*_ENABLED` を設定すると外部 API を呼ばずに処理を検証できます。CI や手動テストで活用してください。
+- **ロギング**: `LOG_LEVEL=DEBUG`、`LOG_FORMAT=text` にすると詳細ログが `logs/` に保存されます。セキュリティイベントは `access_logger` を通じて JSON 形式で出力されます。
+- **メモリ/キャッシュ調整**: `ProcessingSettings`（AI）や `MemoryOptimizedCache` のパラメータは `src/ai/models.py` から変更可能です。
 
 ---
 
-必要に応じて `logs/` ディレクトリを参照すると詳細なデバッグ情報を取得できます。追加の質問があれば Issue やサポートチャンネルで共有してください。
+## 7. トラブルシューティング
+
+| 症状 | チェックポイント |
+| --- | --- |
+| Bot がオンラインにならない | `.env` の `DISCORD_BOT_TOKEN`/`GEMINI_API_KEY` が正しいか、`./scripts/manage.sh run` のログで例外が出ていないか確認。 |
+| Slash コマンドが表示されない | Bot 招待時に `applications.commands` 権限を付与したか、`DISCORD_GUILD_ID` が正しいか。再起動後に同期完了まで数十秒待機。 |
+| ノートが作成されない | `OBSIDIAN_VAULT_PATH` の書き込み権限、Vault パスが存在するか、`logs/` の `Failed to create note` を確認。 |
+| 音声文字起こしが失敗する | Speech API キー or サービスアカウント設定、`GOOGLE_APPLICATION_CREDENTIALS` のファイル権限を確認。 |
+| Garmin/Calendar データが更新されない | `/integration_status` でエラーを確認し、`/manual_sync` で再同期。認証情報の期限切れは `IntegrationConfigManager` がログに出力します。 |
+| GitHub 同期が失敗する | `GITHUB_TOKEN` の権限 (`repo`) を確認し、Vault ディレクトリで `git status` を実行。`GitHubObsidianSync` のログにエラーが残ります。 |
+
+追加情報は `logs/` ディレクトリの最新ファイル、または `/system_status` コマンドで概要を確認できます。
+
+---
+
+## 8. 付録: 参考リンク
+
+- クイックスタート: `docs/quick-start.md`
+- Slash コマンド詳細: `docs/basic-usage.md`
+- システム構成: `docs/architecture.md`
+- 開発フロー: `docs/development-guide.md`
+- デプロイ手順: `docs/deploy/overview.md`, `docs/deploy/cloud-run.md`, `docs/deploy/local.md`
+- YAML フロントマター仕様: `docs/yaml-front-matter.md`
+- 継続メンテナンスメモ: `docs/maintenance/housekeeping.md`
+
+不明点がある場合は Issue を起票するか、チームのサポートチャンネルで相談してください。

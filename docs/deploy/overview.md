@@ -1,19 +1,28 @@
-# Deployment Overview
+# デプロイ概要
+
+MindBridge を運用する代表的なパターンと、ワークフロー全体の流れをまとめます。詳細手順は各サブドキュメントを参照してください。
 
 ## デプロイ戦略の比較
-| 運用形態 | 特徴 | コスト目安 | 推奨シナリオ |
+
+| 運用形態 | 特徴 | コスト/運用負荷 | 推奨シナリオ |
 | --- | --- | --- | --- |
-| Google Cloud Run | 24/7 常時稼働・オートスケール・Secret Manager と親和性が高い | 約 8 円/月 （最低構成） | 本番運用・リモートアクセスが必要な場合 |
-| ローカル (Docker) | `docker compose` で完結。依存セットアップが容易 | 自宅マシン稼働のみ | 開発検証・短期運用 |
-| ローカル (uv run) | 最小構成。コード修正の反映が早い | 0 円 | デバッグ・機能開発 |
+| ローカル（`uv run`） | 依存関係は `uv` のみ。コード変更が即反映。 | 無料 / 管理者のみ | 開発・デバッグ・検証 |
+| ローカル（Docker Compose） | `docker compose up` で環境再現。Secrets は `.env.docker` を使用。 | マシンリソース次第 | チーム内共有検証、簡易運用 |
+| Google Cloud Run | オートスケール、Secret Manager/Artifact Registry 連携。`manage.sh` で自動構成。 | 最小構成で数 USD/月 | 常時稼働、本番運用、リモートアクセス |
 
-## ワークフローの流れ
-1. 依存関係の同期: `uv sync --dev`
-2. `.env` 初期化: `./scripts/manage.sh init`
-3. ローカル確認または Cloud Run へデプロイ
-4. ヘルスチェック/手動テスト (`tests/manual/`)
+## 共通ワークフロー
 
-## 関連ドキュメント
+1. **依存関係同期** – `uv sync --dev`
+2. **シークレット初期化** – `./scripts/manage.sh init`（クラウドの場合は `./scripts/manage.sh secrets <PROJECT_ID>`）
+3. **ローカル検証** – `./scripts/manage.sh run` で手動テスト / Slash コマンド確認
+4. **デプロイ** – 選択した戦略に応じて `docker compose up` または `./scripts/manage.sh full-deploy <PROJECT_ID>`
+5. **ヘルスチェック** – `/status`, `/system_status`, (Cloud Run の場合) `gcloud run services list`
+6. **手動テスト** – `tests/manual/` のシナリオを必要に応じて実施し、Vault 出力を確認
+
+## 参照ドキュメント
+
+- ローカル/Docker 手順: `docs/deploy/local.md`
 - Cloud Run 手順: `docs/deploy/cloud-run.md`
-- ローカル運用 / Docker: `docs/deploy/local.md`
-- 運用メンテ: `docs/maintenance/housekeeping.md`
+- 継続メンテナンスや構成変更: `docs/maintenance/housekeeping.md`
+
+デプロイ後は GitHub 同期や Secret Manager の状態を定期的に確認し、`/integration_status` や `./scripts/manage.sh clean` など運用コマンドを活用してください。
