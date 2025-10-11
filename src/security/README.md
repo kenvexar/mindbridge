@@ -25,4 +25,4 @@
 
 ## メモ
 - Secret Manager 再編の詳細は `docs/maintenance/secret-manager-refactor.md` を参照。
-- ログファイルの保存先は Settings により切り替え可能。ログローテーションは TODO。
+- ログファイルの保存先は Settings により切り替え可能。`AccessLogger` が既定で 5 MB × 5 世代でローテーションを自動実行し、`ACCESS_LOG_ROTATION_SIZE_MB` / `ACCESS_LOG_ROTATION_BACKUPS` で調整可能。

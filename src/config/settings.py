@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     enable_access_logging: bool = True  # セキュリティアクセスログを有効化
     log_level: str = "INFO"
     log_format: str = "json"
+    access_log_rotation_size_mb: float = 5.0
+    access_log_rotation_backups: int = 5
 
     # Environment
     environment: str = "personal"

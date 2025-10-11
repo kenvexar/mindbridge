@@ -2,6 +2,7 @@
 Access logging and security monitoring for MindBridge
 """
 
+import asyncio
 import json
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -11,6 +12,7 @@ from typing import Any
 
 import aiofiles
 
+from src.config import get_settings
 from src.utils.mixins import LoggerMixin
 
 
@@ -109,7 +111,12 @@ class SecurityEvent:
 class AccessLogger(LoggerMixin):
     """Security access logger with threat detection capabilities"""
 
-    def __init__(self, log_file: Path | None = None):
+    def __init__(
+        self,
+        log_file: Path | None = None,
+        max_log_file_size: int | None = None,
+        max_backup_files: int | None = None,
+    ):
         self.log_file = log_file or Path("logs/security_access.jsonl")
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -129,6 +136,12 @@ class AccessLogger(LoggerMixin):
         self.failed_attempt_window = timedelta(hours=1)  # 個人使用では長めに設定
         self.rate_limit_threshold = 200  # 個人使用では高めに設定
         self.rate_limit_window = timedelta(minutes=30)  # 個人使用では長めに設定
+        self.max_log_file_size = (
+            max_log_file_size if max_log_file_size is not None else 5 * 1024 * 1024
+        )
+        self.max_backup_files = (
+            max_backup_files if max_backup_files is not None else 5
+        )  # security logローテーション保持数
 
     async def log_event(self, event: SecurityEvent) -> None:
         """Log a security event"""
@@ -152,6 +165,7 @@ class AccessLogger(LoggerMixin):
 
         # Write to log file
         await self._write_to_file(event)
+        await self._rotate_logs_if_needed()
 
         # Log to application logger
         self.logger.info(
@@ -169,6 +183,49 @@ class AccessLogger(LoggerMixin):
                 await f.write(json.dumps(event.to_dict(), ensure_ascii=False) + "\n")
         except Exception as e:
             self.logger.error(f"Failed to write security log: {e}")
+
+    async def _rotate_logs_if_needed(self) -> None:
+        """Rotate security logs when they exceed the configured size."""
+        if self.max_log_file_size <= 0:
+            return
+
+        try:
+            await asyncio.to_thread(self._rotate_logs_sync)
+        except Exception as exc:
+            self.logger.error(f"Failed to rotate security logs: {exc}")
+
+    def _rotate_logs_sync(self) -> None:
+        """Rotate the log file synchronously (used via asyncio.to_thread)."""
+        if not self.log_file.exists():
+            return
+
+        if self.max_backup_files < 1:
+            self.log_file.unlink(missing_ok=True)
+            self.log_file.touch()
+            return
+
+        if self.log_file.stat().st_size < self.max_log_file_size:
+            return
+
+        oldest_backup = self.log_file.with_name(
+            f"{self.log_file.name}.{self.max_backup_files}"
+        )
+        if oldest_backup.exists():
+            oldest_backup.unlink()
+
+        for index in range(self.max_backup_files - 1, 0, -1):
+            src = self.log_file.with_name(f"{self.log_file.name}.{index}")
+            dest = self.log_file.with_name(f"{self.log_file.name}.{index + 1}")
+            if src.exists():
+                src.replace(dest)
+
+        backup_path = self.log_file.with_name(f"{self.log_file.name}.1")
+        backup_path.parent.mkdir(parents=True, exist_ok=True)
+        if backup_path.exists():
+            backup_path.unlink()
+        self.log_file.replace(backup_path)
+        self.log_file.touch()
+        self.logger.info("Rotated security access log", backup=str(backup_path.name))
 
     def _cleanup_old_attempts(self, user_id: str) -> None:
         """Remove old failed attempts outside the window"""
@@ -359,7 +416,12 @@ def get_access_logger() -> AccessLogger:
     """Get the global access logger instance"""
     global _access_logger
     if _access_logger is None:
-        _access_logger = AccessLogger()
+        settings = get_settings()
+        max_size_bytes = int(settings.access_log_rotation_size_mb * 1024 * 1024)
+        _access_logger = AccessLogger(
+            max_log_file_size=max_size_bytes,
+            max_backup_files=settings.access_log_rotation_backups,
+        )
     return _access_logger
 
 

@@ -293,6 +293,73 @@ class TestAccessLogger:
         # Event should be added to recent events
         assert len(logger.recent_events) == 1
 
+    @pytest.mark.asyncio
+    async def test_access_logger_rotates_logs(self, tmp_path):
+        """Ensure access logs rotate when exceeding configured size."""
+        log_path = tmp_path / "security_access.jsonl"
+        logger = AccessLogger(log_file=log_path)
+        logger.max_log_file_size = 100
+        logger.max_backup_files = 2
+
+        for index in range(20):
+            await logger.log_event(
+                SecurityEvent(
+                    event_type=SecurityEventType.LOGIN_ATTEMPT,
+                    user_id="tester",
+                    action=f"attempt-{index}",
+                    details={"payload": "x" * 64},
+                )
+            )
+
+        first_backup = tmp_path / "security_access.jsonl.1"
+        second_backup = tmp_path / "security_access.jsonl.2"
+        third_backup = tmp_path / "security_access.jsonl.3"
+
+        assert first_backup.exists()
+        assert log_path.exists()
+        assert log_path.stat().st_size < logger.max_log_file_size
+        assert second_backup.exists()
+        assert not third_backup.exists()
+        assert first_backup.stat().st_size > 0
+
+    def test_get_access_logger_respects_settings(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Verify singleton uses configured rotation values."""
+        from src.security import access_logger as access_logger_module
+
+        class DummySettings:
+            access_log_rotation_size_mb = 1.5
+            access_log_rotation_backups = 4
+
+        captured: dict[str, int | None] = {"size": None, "backups": None}
+
+        class DummyLogger:
+            def __init__(
+                self,
+                *,
+                log_file=None,
+                max_log_file_size=None,
+                max_backup_files=None,
+            ):
+                captured["size"] = max_log_file_size
+                captured["backups"] = max_backup_files
+
+        monkeypatch.setattr(access_logger_module, "_access_logger", None)
+        monkeypatch.setattr(
+            access_logger_module, "get_settings", lambda: DummySettings()
+        )
+        monkeypatch.setattr(access_logger_module, "AccessLogger", DummyLogger)
+
+        logger_instance = access_logger_module.get_access_logger()
+
+        expected_size = int(DummySettings.access_log_rotation_size_mb * 1024 * 1024)
+        assert captured["size"] == expected_size
+        assert captured["backups"] == DummySettings.access_log_rotation_backups
+        assert isinstance(logger_instance, DummyLogger)
+
+        access_logger_module._access_logger = None
+
 
 class TestSecurityIntegration:
     """Integration tests for security components"""

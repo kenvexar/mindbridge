@@ -50,4 +50,4 @@
 
 ## 5. ToDo（随時更新）
 
-- 現在オープンなタスクはありません。新しいメンテ項目が発生した際に追記してください。
+- [x] セキュリティ監査ログにローテーション処理を追加する（`src/security/access_logger.py`）。5 MB × 5 世代の自動ローテーションを導入し、`ACCESS_LOG_ROTATION_SIZE_MB` / `ACCESS_LOG_ROTATION_BACKUPS` で調整できるようにした（2025-02-14）。
