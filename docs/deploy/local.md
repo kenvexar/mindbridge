@@ -17,9 +17,9 @@ uv sync --dev              # 依存関係のインストール
 - `.env` は `chmod 600 .env` などで権限を絞り、Git にはコミットしないでください。
 - 推奨サンプル:
   ```env
-  DISCORD_BOT_TOKEN=xxxxxxxxxxxxxxxx
-  DISCORD_GUILD_ID=123456789012345678
-  GEMINI_API_KEY=xxxxx-yyyyy-zzzzz
+  DISCORD_BOT_TOKEN=placeholder-bot-token
+  DISCORD_GUILD_ID=your-guild-id
+  GEMINI_API_KEY=placeholder-gemini-key
   OBSIDIAN_VAULT_PATH=/Users/you/Obsidian/Vault
   SECRET_MANAGER_STRATEGY=env
   ```

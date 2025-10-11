@@ -10,9 +10,9 @@
 
 ```env
 # Discord / AI
-DISCORD_BOT_TOKEN=xxxx
-DISCORD_GUILD_ID=123456789012345678
-GEMINI_API_KEY=xxxx
+DISCORD_BOT_TOKEN=placeholder-bot-token
+DISCORD_GUILD_ID=your-guild-id
+GEMINI_API_KEY=placeholder-gemini-key
 
 # Vault & ログ
 OBSIDIAN_VAULT_PATH=/Users/you/Obsidian/Vault
