@@ -30,6 +30,7 @@ export PROJECT_ID="your-mindbridge-project"
 ```
 
 このコマンドで以下が自動化されます。
+
 - 指定したプロジェクトが存在しない場合は作成（オプションで課金アカウントとリンク）
 - Cloud Run / Cloud Build / Secret Manager / Speech API など必要な API の有効化
 - `mindbridge-service` サービスアカウント作成と IAM ロール付与
@@ -66,6 +67,7 @@ Secret Manager へ登録すると、Cloud Run では `SECRET_MANAGER_STRATEGY=go
 ```
 
 このステップでは以下をガイドします。
+
 - Google Calendar OAuth 用のリダイレクト URI 登録
 - Webhook／外部サービス連携用の追加シークレット
 - Artifact Registry のクリーンアップジョブ作成
@@ -101,6 +103,7 @@ gcloud run deploy mindbridge \
 ```
 
 その他の推奨設定:
+
 - 最小インスタンス数は 0、最大インスタンス数は 3〜5 程度
 - `--ingress internal-and-cloud-load-balancing` や Cloud Armor を利用してアクセス制御する場合は追加設定が必要
 
@@ -109,15 +112,19 @@ gcloud run deploy mindbridge \
 ## 6. デプロイ後の確認
 
 1. **サービス状態**
+
    ```bash
    gcloud run services list --project="$PROJECT_ID"
    gcloud run services describe mindbridge --region=us-central1 --project="$PROJECT_ID"
    ```
+
 2. **ログチェック**
+
    ```bash
    gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=mindbridge" \
      --project="$PROJECT_ID" --limit=50
    ```
+
 3. **Discord 側の動作確認**
    - `/status` で Bot がオンラインか確認。
    - `/integration_status` で Garmin / Calendar などの連携状況を確認。
@@ -131,9 +138,11 @@ gcloud run deploy mindbridge \
 ## 7. 運用とメンテナンス
 
 - **定期クリーンアップ**: Artifact Registry の古いイメージを削除。
+
   ```bash
   ./scripts/manage.sh ar-clean "$PROJECT_ID" us-central1 mindbridge mindbridge 5 7 --no-dry-run
   ```
+
 - **シークレット更新**: `./scripts/manage.sh secrets "$PROJECT_ID" --skip-existing` で更新。管理者に通知後、Cloud Run を再デプロイ。
 - **ログ監視**: Cloud Logging のフィルタ（`severity>=ERROR`）で異常検知。必要に応じてアラートポリシーを設定。
 - **コスト管理**: `gcloud beta billing accounts budgets list` で予算を設定し、推定コストを監視。

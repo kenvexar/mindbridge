@@ -36,6 +36,7 @@ MindBridge は次のコンポーネントで構成されます。
 ## 2. 初期セットアップ
 
 ### 2.1 必要な環境
+
 - Python 3.13+
 - [uv](https://github.com/astral-sh/uv) パッケージマネージャー
 - Discord Bot（トークン/ギルド ID）
@@ -91,6 +92,7 @@ uv sync --dev
 必要に応じて `./scripts/manage.sh secrets <PROJECT_ID> --with-optional` を利用すると Secret Manager に一括登録できます。
 
 ### 2.5 Discord Bot 準備
+
 1. [Discord Developer Portal](https://discord.com/developers/applications) でアプリケーションを作成。
 2. **Bot** タブでトークンを発行し、`MESSAGE CONTENT INTENT` を有効化。
 3. OAuth2 → URL Generator で `bot` と `applications.commands` を選択し、権限に `Send Messages`, `Read Message History`, `Use Slash Commands` を含めてサーバへ招待。
@@ -109,6 +111,7 @@ Bot を再招待した際は `/sync` コマンドは不要です。起動時に 
 5. 必要に応じて `DailyNoteIntegration` が日次サマリーを更新し、`GitHubObsidianSync` が push/pull を行います。
 
 ### コマンド操作
+
 - Slash コマンド一覧や詳細は `docs/basic-usage.md` を参照してください。
 - ライフログ機能では `!log`, `!mood`, `!habit`, `!goal` などの Prefix コマンドも利用可能です。
 - コマンド応答が遅い場合は `/system_status` で Integration Manager とスケジューラの状態を確認できます。
@@ -118,12 +121,14 @@ Bot を再招待した際は `/sync` コマンドは不要です。起動時に 
 ## 4. 外部サービス連携
 
 ### 4.1 Garmin Connect
+
 1. `.env` に `GARMIN_EMAIL`, `GARMIN_PASSWORD` を設定。
 2. Bot 起動後に `/integration_status` で `garmin` エントリが有効か確認。
 3. `/garmin_today`, `/garmin_sleep` で日次アクティビティや睡眠データを取得。
 4. バックグラウンドでは `HealthAnalysisScheduler` が `HealthDataAnalyzer` と `HealthActivityIntegrator` を用いて日次ノートへ統合します。
 
 ### 4.2 Google Calendar
+
 1. OAuth クレデンシャル（クライアント ID / シークレット）を設定し、Bot を再起動。
 2. `/calendar_auth` で表示された URL にアクセスし、Google アカウントで認証。
 3. 得られたコードを `/calendar_token code:<...>` で登録。
@@ -131,11 +136,13 @@ Bot を再招待した際は `/sync` コマンドは不要です。起動時に 
 5. カレンダーイベントはライフログ経由で日次ノートへ追記されます。
 
 ### 4.3 GitHub Vault バックアップ
+
 - `GITHUB_TOKEN` に `repo` 権限を付与し、`OBSIDIAN_BACKUP_REPO`（例: `git@github.com:owner/vault.git`）を設定。
 - `ENVIRONMENT=production` の場合、起動時に `git pull`、終了時に `git push` を実行します。
 - `.gitignore` は自動生成され、`logs/` や一時ファイルを除外します。
 
 ### 4.4 Integration Manager とスケジューラ
+
 - `IntegrationManager` は `/app/.mindbridge/integrations/settings.json` を管理し、暗号化済みクレデンシャル (`credentials.json.encrypted`) を扱います。
 - `/integration_config` で設定を閲覧・保存、`/manual_sync` で即時同期をトリガー。
 - `/scheduler_status` は `IntegrationSyncScheduler` のジョブ状態（次回実行時刻や直近の結果）を表示します。

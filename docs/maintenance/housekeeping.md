@@ -31,6 +31,7 @@
 | 任意 | `google-cloud-secret-manager`, `google-api-python-client` | GCP Secret Manager / Google API 追加連携 | Optional dependencies として `pyproject.toml` に定義。利用時のみ `uv sync --extra ...`。 |
 
 ### 更新方針
+
 - 依存を追加する場合は `pyproject.toml` と `docs/maintenance/housekeeping.md` を更新し、利用箇所と理由を明記。
 - セキュリティアップデートは `uv run pip-audit --progress-spinner off` で確認し、必要に応じて `scripts/manage.sh` の `clean` → `uv sync --upgrade` を実行。
 

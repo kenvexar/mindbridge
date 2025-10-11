@@ -5,6 +5,7 @@ MindBridge が Obsidian ノートを生成するとき、先頭に YAML フロ�
 ---
 
 ## 1. 生成タイミング
+
 - Discord メッセージ（テキスト / 添付 / 音声）を処理してノートを作成する場合
 - Garmin / Google Calendar など外部連携で日次ノートやレポートを生成する場合
 - `DailyNoteIntegration` やタスク・家計モジュールがサマリーを更新する場合
