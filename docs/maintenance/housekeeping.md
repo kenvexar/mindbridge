@@ -50,6 +50,4 @@
 
 ## 5. ToDo（随時更新）
 
-- [ ] `src/integrations/` に Garmin/Calendar の README を追加。
-- [ ] `tests/manual/` に環境変数サンプルを記載した README を作成。
-- [ ] GitHub 同期の設定ガイドを `docs/USER_GUIDE.md` とは別に運用ノートへ切り出すか検討。
+- 現在オープンなタスクはありません。新しいメンテ項目が発生した際に追記してください。

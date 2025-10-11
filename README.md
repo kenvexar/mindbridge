@@ -37,6 +37,22 @@ Bot を起動したら Discord の #memo チャンネルに投稿し、`/status`
 ### Cloud Run (summary)
 `./scripts/manage.sh full-deploy <PROJECT_ID> --with-optional` で環境セットアップからデプロイまでを自動化できます。詳細は `docs/deploy/cloud-run.md` を参照してください。
 
+### Container image & self-host
+```bash
+# Build a runnable image (tag freely for GHCR/ECR, etc.)
+docker build -t mindbridge:latest .
+
+# Minimal run example for self-hosted VPS
+docker run --rm \
+  --env-file .env.docker \
+  -v "$(pwd)/vault:/app/vault" \
+  mindbridge:latest
+```
+VPS や自前 Kubernetes で運用する場合は上記イメージをレジストリへ push し、
+ホスト側で `.env.docker` を管理してください。
+Compose や systemd サービス化のヒントは `docs/deploy/local.md` と
+`docs/deploy/overview.md` を参照できます。
+
 ## Documentation
 - ガイドと詳細な手順は `docs/README.md` を参照。
 - 使用方法のハイライトは `docs/basic-usage.md`。

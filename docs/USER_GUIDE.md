@@ -137,9 +137,10 @@ Bot を再招待した際は `/sync` コマンドは不要です。起動時に 
 
 ### 4.3 GitHub Vault バックアップ
 
-- `GITHUB_TOKEN` に `repo` 権限を付与し、`OBSIDIAN_BACKUP_REPO`（例: `git@github.com:owner/vault.git`）を設定。
-- `ENVIRONMENT=production` の場合、起動時に `git pull`、終了時に `git push` を実行します。
+- `GITHUB_TOKEN`（`repo` 権限）と `OBSIDIAN_BACKUP_REPO` を設定すると、
+  起動時に `git pull`・終了時に `git push` を実行します。
 - `.gitignore` は自動生成され、`logs/` や一時ファイルを除外します。
+- 運用面の詳細やトラブル対策は `docs/maintenance/github-sync.md` を参照してください。
 
 ### 4.4 Integration Manager とスケジューラ
 

@@ -11,6 +11,20 @@ uv sync --dev              # 依存関係のインストール
 
 `./scripts/manage.sh init` はローカル用の `.env` を作成します。必要に応じて `GOOGLE_CLOUD_SPEECH_API_KEY` や `GARMIN_EMAIL` などを追記してください。
 
+### 個人運用（Secret Manager なし）のポイント
+
+- 既定の `SECRET_MANAGER_STRATEGY=env` を維持すれば、すべての資格情報を `.env` で完結できます。
+- `.env` は `chmod 600 .env` などで権限を絞り、Git にはコミットしないでください。
+- 推奨サンプル:
+  ```env
+  DISCORD_BOT_TOKEN=xxxxxxxxxxxxxxxx
+  DISCORD_GUILD_ID=123456789012345678
+  GEMINI_API_KEY=xxxxx-yyyyy-zzzzz
+  OBSIDIAN_VAULT_PATH=/Users/you/Obsidian/Vault
+  SECRET_MANAGER_STRATEGY=env
+  ```
+- Garmin や Google Calendar など追加連携を使う場合は `.env` に追記し、`./scripts/manage.sh run` で再起動すると値が再読込されます。
+
 ---
 
 ## 2. `uv run` で直接実行

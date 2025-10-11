@@ -147,6 +147,21 @@ gcloud run deploy mindbridge \
 - **ログ監視**: Cloud Logging のフィルタ（`severity>=ERROR`）で異常検知。必要に応じてアラートポリシーを設定。
 - **コスト管理**: `gcloud beta billing accounts budgets list` で予算を設定し、推定コストを監視。
 
+### 7.1 監視 / アラート構成の推奨
+
+1. **Cloud Monitoring ワークスペース** – プロジェクトを既存ワークスペースへリンクし、`run.googleapis.com/request_count` や `error_count` をダッシュボード化。
+2. **Uptime Check** – `/healthz` へ HTTPS チェックを追加し、タイムアウトや 5xx を検知したら通知する。CLI 例:
+   ```bash
+   gcloud monitoring uptime-checks create http mindbridge-health \
+     --project="$PROJECT_ID" \
+     --resource-labels=project_id="$PROJECT_ID" \
+     --path="/healthz" \
+     --host="<RUN_SERVICE_URL>" \
+     --port=443
+   ```
+3. **アラートポリシー** – `run.googleapis.com/error_count` や `logging.googleapis.com/user/mindbridge_error_ratio`（ログベース指標）にしきい値を設定し、Slack/Webhook に通知。
+4. **Ops Agent 連携（任意）** – Cloud Run 単体では不要だが、連携する GCE / GKE ノードがある場合は Ops Agent を導入し、外部依存（PostgreSQL など）のメトリクスを同一チャンネルへ集約する。
+
 ---
 
 ## 8. トラブルシューティング

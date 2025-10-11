@@ -12,9 +12,7 @@ Cloud Run / ローカル運用に関するドキュメント再編の履歴と�
 
 ## 残課題 / 次回アクション
 
-- [ ] Docker イメージのビルド方法を `README.md` に簡易追記し、Cloud Run 以外のホスティング手段（例: 自前 VPS）に触れる。
-- [ ] `docs/deploy/cloud-run.md` に監視/アラート設定（Ops Agent, Uptime Check 等）の推奨構成を加筆。
-- [ ] Secret Manager を使用しない個人運用向けの簡易ガイドを `docs/deploy/local.md` に追加検討。
+- 現在、追加の残課題はありません。新しいタスクが発生したらここに追記してください。
 
 ## 参照
 
