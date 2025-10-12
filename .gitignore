@@ -149,6 +149,7 @@ Temporary Items
 
 # Additional project-specific ignores
 logs/
+.mindbridge/
 .tmp/
 tmp/
 *.tmp

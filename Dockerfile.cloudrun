@@ -36,16 +36,15 @@ RUN mkdir -p /app/vault /app/logs /app/.cache /app/.config && \
     chown -R mindbridge:mindbridge /app/vault /app/logs /app/.cache /app/.config && \
     chmod 750 /app/vault /app/logs /app/.cache /app/.config
 
-# Git の初期設定（デフォルト値）
-RUN git config --global init.defaultBranch main
-RUN git config --global user.name "MindBridge Bot"
-RUN git config --global user.email "mindbridge@example.com"
-
-# Git credential helper の設定（環境変数を使用）
-RUN git config --global credential.helper store
-
 # セキュリティ: 非特権ユーザーに切り替え
 USER mindbridge
+
+# Git の初期設定（デフォルト値）
+RUN git config --global init.defaultBranch main && \
+    git config --global user.name "MindBridge Bot" && \
+    git config --global user.email "mindbridge@example.com"
+
+# 認証情報は Cloud Run 上の環境変数や Secret Manager から供給し、credential helper は使用しない
 
 # セキュリティ: 環境変数設定
 ENV PYTHONHASHSEED=random \

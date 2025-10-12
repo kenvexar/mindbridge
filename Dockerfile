@@ -54,13 +54,12 @@ COPY --chown=mindbridge:mindbridge src/ ./src/
 COPY --chown=mindbridge:mindbridge README.md ./
 
 # セキュリティ: 個人使用向けディレクトリ作成（適切な権限設定）
-RUN mkdir -p logs vault .cache .config backups && \
-    chown -R mindbridge:mindbridge logs vault .cache .config backups && \
+RUN mkdir -p logs vault .cache .config backups .mindbridge/integrations && \
+    chown -R mindbridge:mindbridge logs vault .cache .config backups .mindbridge && \
     # セキュリティ: ディレクトリ権限を制限（個人使用向け）
-    chmod 750 logs vault .cache .config backups
+    chmod 750 logs vault .cache .config backups .mindbridge
 
-# セキュリティ: Google Cloud 認証情報の安全なコピー（個人使用向け）
-COPY --chown=mindbridge:mindbridge --chmod=600 speech-key.json* ./.config/
+# Google Cloud Speech 認証情報などは runtime で /app/.config にマウントする
 
 # セキュリティ: 個人ユーザーに切り替え
 USER mindbridge

@@ -214,10 +214,11 @@ class DiscordBot(LoggerMixin):
                 is_bot_message=message.author == self.bot.user,
             )
 
-            # Temporarily disabled for testing - allow bot's own messages to be processed
-            # if message.author == self.bot.user:
-            #     self.logger.debug("Ignoring message from bot itself")
-            #     return
+            # Ignore messages sent by the bot itself so feedback replies
+            # (e.g. transcription status) are not reprocessed into notes.
+            if self.bot.user and message.author == self.bot.user:
+                self.logger.debug("Ignoring message from bot itself")
+                return
 
             self.last_activity = datetime.now()
             self.system_metrics.increment_message_count()

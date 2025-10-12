@@ -15,6 +15,7 @@ services:
       - ./backups:/app/backups  # Personal backups
       - ./.cache:/app/.cache    # Personal cache
       - ./.config:/app/.config  # Personal config
+      - ./.mindbridge:/app/.mindbridge  # Integration settings and state
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

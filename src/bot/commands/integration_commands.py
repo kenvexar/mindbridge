@@ -131,6 +131,13 @@ class IntegrationCommands(commands.Cog):
                 logger.info(f"ファイル設定内容: {file_settings}")
             except Exception as e:
                 logger.warning(f"設定ファイル読み込みエラー: {e}")
+        env_calendar_access = os.getenv("GOOGLE_CALENDAR_ACCESS_TOKEN", "").strip()
+        env_calendar_refresh = os.getenv("GOOGLE_CALENDAR_REFRESH_TOKEN", "").strip()
+        env_calendar_client_id = os.getenv("GOOGLE_CALENDAR_CLIENT_ID", "").strip()
+        env_calendar_client_secret = os.getenv(
+            "GOOGLE_CALENDAR_CLIENT_SECRET", ""
+        ).strip()
+
         default_integrations = {
             "garmin": {
                 "enabled": True,  # Garmin 統合を有効化
@@ -149,7 +156,8 @@ class IntegrationCommands(commands.Cog):
                 },
             },
             "google_calendar": {
-                "enabled": True,
+                # OAuth トークンが未設定の場合は無効化状態で登録しておく
+                "enabled": bool(env_calendar_access),
                 "sync_interval": 1800,  # 30 分間隔
                 "custom_settings": {
                     "google_calendar": {
@@ -196,6 +204,21 @@ class IntegrationCommands(commands.Cog):
                 sync_interval=config_data.get("sync_interval", 3600),
                 custom_settings=config_data.get("custom_settings", {}),
             )
+
+            if integration_name == "google_calendar":
+                # `.env` の資格情報を設定に反映
+                if env_calendar_client_id:
+                    integration_config.client_id = env_calendar_client_id
+                if env_calendar_client_secret:
+                    integration_config.client_secret = env_calendar_client_secret
+                if env_calendar_access:
+                    integration_config.access_token = env_calendar_access
+                if env_calendar_refresh:
+                    integration_config.refresh_token = env_calendar_refresh
+
+                # 認証情報が不足している場合は有効化をオフにする
+                if integration_config.enabled and not integration_config.access_token:
+                    integration_config.enabled = False
 
             await self.integration_manager.register_integration(
                 integration_name, integration_config
@@ -1114,7 +1137,10 @@ class IntegrationCommands(commands.Cog):
 
                             embed.add_field(
                                 name="🔄 有効化",
-                                value="その後、`/外部連携設定 google_calendar enabled:True` で有効化してください。",
+                                value=(
+                                    "その後、`/integration_config integration:google_calendar "
+                                    "enabled:true` で有効化してください。"
+                                ),
                                 inline=False,
                             )
 
