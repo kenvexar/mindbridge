@@ -1,5 +1,5 @@
 # Personal MindBridge Docker image for Google Cloud Run (無料枠最適化)
-FROM python:3.13.7-slim as builder
+FROM python:3.14.0-slim as builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -24,7 +24,7 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev
 
 # Production stage
-FROM python:3.13.7-slim
+FROM python:3.14.0-slim
 
 # セキュリティ: セキュリティアップデートを適用してからパッケージインストール
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
