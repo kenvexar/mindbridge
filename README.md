@@ -59,7 +59,7 @@ Compose や systemd サービス化のヒントは `docs/deploy/local.md` と
 - システム構成の概要は `docs/architecture.md`。
 
 ## Repository Layout
-- `src/` – ドメイン別モジュール (`ai/`, `bot/`, `obsidian/`, `finance/`, `tasks/`, `lifelog/`, `integrations/`, `health_analysis/`, `security/`, `monitoring/`).
+- `src/` – ドメイン別モジュール (`ai/`, `audio/`, `bot/`, `config/`, `finance/`, `garmin/`, `health_analysis/`, `integrations/`, `lifelog/`, `monitoring/`, `obsidian/`, `security/`, `tasks/`, `utils/`).
 - `docs/` – クイックスタート、ユーザーガイド、デプロイ手順、メンテナンスノート。
 - `scripts/manage.sh` – 初期化、デプロイ、メンテ、クリーンアップをまとめた CLI。
 - `tests/` – `unit/`, `integration/`, `manual/` によるテスト群。

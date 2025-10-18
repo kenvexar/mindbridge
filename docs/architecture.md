@@ -56,7 +56,7 @@ Discord → MessageProcessor → AIProcessor → TemplateEngine → Obsidian Vau
 ## 外部連携とライフログ (`src/lifelog/`, `src/integrations/`, `src/health_analysis/`)
 
 - **`IntegrationManager`**: 連携ごとの設定 (`IntegrationSettings`) と認証情報 (`IntegrationCredentials`) を暗号化ファイルで管理。Garmin/Calendar/Financial パイプラインをプラグインとして登録。
-- **`IntegrationSyncScheduler`**: APScheduler ベースの簡易スケジューラで各連携の同期ジョブを管理。Slash コマンドからステータスを確認。
+- **`IntegrationSyncScheduler`**: asyncio ベースの軽量スケジューラで各連携の同期ジョブを管理。内部キューとセマフォで同時実行数を制御し、Slash コマンドからステータスを確認可能。
 - **`LifelogManager`**: ライフログデータを JSON で永続化し、`LifelogAnalyzer` が習慣・目標・気分の統計を提供。
 - **健康分析 (`health_analysis/`)**: `HealthDataAnalyzer` が Garmin データを解析し、`HealthActivityIntegrator` が Obsidian ノートにまとめる。`HealthAnalysisScheduler` がバックグラウンドで実行。
 

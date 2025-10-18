@@ -144,7 +144,7 @@ Bot を再招待した際は `/sync` コマンドは不要です。起動時に 
 
 ### 4.4 Integration Manager とスケジューラ
 
-- `IntegrationManager` は `/app/.mindbridge/integrations/settings.json` を管理し、暗号化済みクレデンシャル (`credentials.json.encrypted`) を扱います。
+- `IntegrationManager` は `~/.mindbridge/integrations/settings.json`（コンテナでは `/app/.mindbridge/...`）を管理し、暗号化済みクレデンシャル (`credentials.json.encrypted`) を扱います。
 - `/integration_config` で設定を閲覧・保存、`/manual_sync` で即時同期をトリガー。
 - `/scheduler_status` は `IntegrationSyncScheduler` のジョブ状態（次回実行時刻や直近の結果）を表示します。
 
