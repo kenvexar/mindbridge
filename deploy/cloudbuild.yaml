@@ -44,12 +44,12 @@ steps:
       '--region', 'us-central1',  # 無料枠対象リージョン
       '--platform', 'managed',
       '--allow-unauthenticated',
-      '--memory', '512Mi',  # 無料枠内のメモリ制限
-      '--cpu', '1',  # 無料枠内の CPU
-      '--concurrency', '10',  # 同時リクエスト数制限
-      '--max-instances', '3',  # 最大インスタンス数制限 (費用抑制)
-      '--min-instances', '0',  # スケールゼロで費用節約
-      '--timeout', '300',  # 5 分タイムアウト
+      '--memory', '512Mi',
+      '--cpu', '1',
+      '--concurrency', '10',
+      '--max-instances', '3',
+      '--min-instances', '0',
+      '--timeout', '300',
       '--set-env-vars', 'ENVIRONMENT=production,LOG_LEVEL=INFO,ENABLE_MOCK_MODE=false',
       '--port', '8080'
     ]
@@ -59,9 +59,9 @@ timeout: '600s'  # 10 分
 
 # ビルドオプション: 無料枠最適化
 options:
-  machineType: 'E2_STANDARD_8'  # バランス重視（無料枠のビルド分で十分）
-  diskSizeGb: '10'              # 最小ディスクサイズ
-  logging: 'CLOUD_LOGGING_ONLY' # Cloud Logging のみに送信
+  machineType: 'E2_MEDIUM'       # 最小構成で無料枠を活用
+  diskSizeGb: '10'
+  logging: 'CLOUD_LOGGING_ONLY'
 
 # 環境変数 (Secret Manager から取得)
 availableSecrets:
@@ -70,8 +70,8 @@ availableSecrets:
       env: 'DISCORD_BOT_TOKEN'
     - versionName: 'projects/$PROJECT_ID/secrets/gemini-api-key/versions/latest'
       env: 'GEMINI_API_KEY'
-    - versionName: 'projects/$PROJECT_ID/secrets/google-cloud-speech-api-key/versions/latest'
-      env: 'GOOGLE_CLOUD_SPEECH_API_KEY'
+    - versionName: 'projects/$PROJECT_ID/secrets/google-cloud-speech-credentials/versions/latest'
+      env: 'GOOGLE_CLOUD_SPEECH_CREDENTIALS'
     # GitHub 同期用シークレット（無料永続化用）
     - versionName: 'projects/$PROJECT_ID/secrets/github-token/versions/latest'
       env: 'GITHUB_TOKEN'

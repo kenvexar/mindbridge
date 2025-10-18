@@ -4,6 +4,34 @@ Google Cloud Run へ MindBridge を安全にデプロイするための手順を
 
 ---
 
+## 0. デプロイ前チェックリスト
+
+本番／ステージング問わず、以下を完了してから Cloud Run へデプロイしてください。
+
+1. コード状態を確認する: `git status --short` が空であること（未コミットの変更は別ブランチへ退避）。
+2. テストと静的解析を実行する:
+
+    ```bash
+    uv run pytest -q
+    uv run ruff check .
+    uv run mypy src       # 型チェックを実施する場合
+    ```
+3. `.env` や `mise.local.toml` 等のローカル設定が最新であることを確認し、`scripts/manage.sh` に実行権限がある (`chmod +x scripts/manage.sh`）。
+4. Google Cloud CLI のログイン状態を確認する: `gcloud auth list` でアクティブアカウントに問題がないこと。
+5. 音声機能を利用する場合は `google-cloud-speech-credentials` を含む必須シークレットが Secret Manager に存在するか確認する:
+
+    ```bash
+    gcloud secrets describe google-cloud-speech-credentials --project="$PROJECT_ID"
+    ```
+6. 課金アラートや予算が設定済みか確認し、想定外の費用発生に備える。
+7. 上記をまとめて検証したい場合は次のコマンドで自動チェックできます。
+
+    ```bash
+    ./scripts/manage.sh deploy-precheck "$PROJECT_ID" --region us-central1
+    ```
+
+---
+
 ## 1. 前提条件
 
 - Google Cloud アカウントと課金が有効なプロジェクト
@@ -76,13 +104,29 @@ Secret Manager へ登録すると、Cloud Run では `SECRET_MANAGER_STRATEGY=go
 
 ## 5. ビルドとデプロイ
 
+### 5.0 デプロイ自動化 CLI
+
+- チェックリストのみ実行:
+
+  ```bash
+  ./scripts/manage.sh deploy-precheck "$PROJECT_ID" --region us-central1
+  ```
+
+- チェックリスト完了後に Cloud Run まで自動デプロイ:
+
+  ```bash
+  ./scripts/manage.sh deploy-auto "$PROJECT_ID" us-central1 --skip-mypy
+  ```
+
+  `--skip-mypy` などのフラグで個別チェックを省略できます。`deploy-auto` は内部で `deploy-precheck` を実行してから `deploy` を呼び出します。
+
 ### 5.1 ワンコマンドで実行
 
 ```bash
 ./scripts/manage.sh full-deploy "$PROJECT_ID" --with-optional
 ```
 
-`env` → `secrets` → `optional` → `deploy` の流れを一括で実行します。`--with-optional` を外せば必須構成のみデプロイ可能です。
+`env` → `secrets` → `optional` → `deploy` の流れを一括で実行します。`--with-optional` を付けると音声処理用の Speech 認証情報や Garmin 連携のテンプレートも自動生成します。音声機能を利用しない場合だけフラグを外してください。
 
 ### 5.2 手動実行（参考）
 
@@ -97,7 +141,7 @@ gcloud run deploy mindbridge \
   --region="us-central1" \
   --platform="managed" \
   --allow-unauthenticated \
-  --memory=1Gi \
+  --memory=512Mi \
   --cpu=1 \
   --set-env-vars="ENVIRONMENT=production,SECRET_MANAGER_STRATEGY=google,SECRET_MANAGER_PROJECT_ID=$PROJECT_ID"
 ```
@@ -106,6 +150,19 @@ gcloud run deploy mindbridge \
 
 - 最小インスタンス数は 0、最大インスタンス数は 3〜5 程度
 - `--ingress internal-and-cloud-load-balancing` や Cloud Armor を利用してアクセス制御する場合は追加設定が必要
+
+### 5.3 デプロイ直前チェック
+
+ワンコマンド実行・手動手順に関わらず、以下を満たしているか確認します。
+
+- Artifact Registry に最新のイメージが存在する:
+
+    ```bash
+    gcloud artifacts docker images list "us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge" --sort-by=~CREATE_TIME --limit=5
+    ```
+- サービスアカウント `mindbridge-service@$PROJECT_ID.iam.gserviceaccount.com` が `roles/secretmanager.secretAccessor` と `roles/speech.client` を保持している。
+- Secret Manager に `discord-bot-token`、`discord-guild-id`、`gemini-api-key`、`google-cloud-speech-credentials` など必須シークレットが存在し、最新版のステータスが `ENABLED` になっている。
+- Cloud Run 用の環境変数が変わった場合は `deploy/cloud-run.yaml` を更新済みである。
 
 ---
 
@@ -130,6 +187,9 @@ gcloud run deploy mindbridge \
    - `/integration_status` で Garmin / Calendar などの連携状況を確認。
 4. **ヘルスチェック**
    - Cloud Run サービス URL `/healthz` にアクセスすると `HealthServer` がレスポンスを返します。
+5. **音声処理の動作確認**
+   - Discord へ短い音声メッセージを送信し、チャンネルの転記ノートが生成されるかを確認。
+   - もしくは Cloud Run のログで `SpeechProcessor` のジョブ完了ログと使用分数を確認し、無料枠内に収まっているかをチェックします。
 
 問題が発生した場合は `logs/` 代替として Cloud Logging を参照し、必要に応じて `./scripts/manage.sh run` でローカル再現を試みてください。
 

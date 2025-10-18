@@ -9,7 +9,7 @@ spec:
     metadata:
       annotations:
         # Resource allocation
-        run.googleapis.com/memory: 1Gi
+        run.googleapis.com/memory: 512Mi
         run.googleapis.com/cpu: "1"
         run.googleapis.com/execution-environment: gen2
 
@@ -56,16 +56,6 @@ spec:
             secretKeyRef:
               name: gemini-api-key
               key: latest
-        - name: GARMIN_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: garmin-username
-              key: latest
-        - name: GARMIN_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: garmin-password
-              key: latest
         - name: GITHUB_TOKEN
           valueFrom:
             secretKeyRef:
@@ -81,6 +71,8 @@ spec:
             secretKeyRef:
               name: google-cloud-speech-credentials
               key: latest
+        # Optional integrations (例: Garmin) は初期コスト抑制のためデフォルト無効。
+        # 必要になった段階で個別の manifest overlay や manage.sh optional コマンドで追加する。
         - name: OBSIDIAN_BACKUP_BRANCH
           value: "main"
         - name: GIT_USER_NAME
@@ -93,7 +85,7 @@ spec:
             memory: 512Mi
           limits:
             cpu: 1000m
-            memory: 1Gi
+            memory: 512Mi
         livenessProbe:
           httpGet:
             path: /health
