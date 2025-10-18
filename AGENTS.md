@@ -42,3 +42,10 @@ make full-deploy PROJECT_ID=...  # Scripted cloud deployment
 - Check `mise.toml` and the `Makefile` for existing task aliases before adding CLI entry points.
 - Document new external dependencies in `docs/` and extend Secret Manager hooks in `scripts/manage.sh` when credentials are required.
 - Run `uv run pip-audit --progress-spinner off` as needed for dependency vulnerability checks.
+
+## Branch Workflow
+- Keep `main` deployment-ready; only merge from `dev` unless a hotfix is unavoidable.
+- Use `dev` as the default working branch; push day-to-day commits here and raise PRs from `dev` to `main`.
+- Create `feature/<topic>` branches for larger or experimental work, then merge them back into `dev` and delete the branch when finished.
+- Protect `main` in GitHub: disallow force pushes/deletions, enforce linear history, and require CI checks (e.g., `uv run pytest -q`, `uv run ruff check .`) to pass before merging.
+- Toggle commit signing on `main` only if all commits are signed; leave administrator overrides off unless absolutely necessary.
