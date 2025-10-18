@@ -7,7 +7,7 @@ Cloud Run / ローカル運用に関するドキュメント再編の履歴と�
 - `docs/deploy/overview.md` を作成し、デプロイ戦略の比較と共通ワークフローを整理。
 - `docs/deploy/cloud-run.md` を全面改稿。`scripts/manage.sh` ベースの手順、確認項目、トラブルシュートを追加。
 - `docs/deploy/local.md` を更新し、`uv run` / Docker Compose 両方の運用手順を整備。
-- 旧 `deployment.md` / `DEPLOYMENT_GUIDE.md` は互換性のためのリダイレクト文言のみ残す。
+- 旧 `deployment.md` / `DEPLOYMENT_GUIDE.md` は廃止し、リンクは `docs/deploy/*.md` へ統合済み。
 - ルート `README.md`・`docs/README.md`・`docs/quick-start.md` に新しいドキュメントへのリンクを追加。
 
 ## 残課題 / 次回アクション

@@ -17,7 +17,6 @@
 - `deploy/overview.md` – デプロイ戦略の比較と選定チャート。
 - `deploy/local.md` – Docker / uv 実行手順とトラブルシューティング。
 - `deploy/cloud-run.md` – Google Cloud Run 向けの完全手順とチェックリスト。
-- `deployment.md` / `DEPLOYMENT_GUIDE.md` – 旧パスから新ドキュメントへのリダイレクト。
 
 ## Reference
 

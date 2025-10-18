@@ -6,7 +6,7 @@
 
 - トップレベル構成は「ランタイム (`src/`)」「テスト (`tests/`)」「ドキュメント (`docs/`)」「デプロイ/ツール (`deploy/`, `scripts/`, `docker*`)」「生成物 (`vault/`, `logs/`)」の 5 系統。
 - 2025 Q1 のリファクタで `docs/` をカテゴリ別に再編済み（`docs/README.md` をインデックスとして利用）。
-- Garmin/Calendar 連携は `src/integrations/` と `src/lifelog/integrations/` に集約済み。旧 `src/garmin/` は互換 API を保持するラッパーとして残置しているため、徐々に `src/integrations/garmin/` へ移行予定。
+- Garmin/Calendar 連携は `src/garmin/`（ランタイム向けクライアント）と `src/integrations/garmin/`, `src/lifelog/integrations/`（Integration Manager / Lifelog パイプライン）に分離済み。双方の構成を更新する際は依存関係を確認する。
 - `tests/manual/` は用途別スクリプトを配置。必要に応じて README を追加し、外部リソースの前提条件を明示する。
 - `logs/`, `vault/` は `.gitkeep` のみコミットし、その他生成物は `./scripts/manage.sh clean` で削除可能。
 
