@@ -2,7 +2,7 @@
 
 import asyncio
 import contextlib
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 import discord
@@ -56,19 +56,23 @@ class TaskReminderSystem:
 
     async def _run_reminder_loop(self) -> None:
         """Main reminder loop that runs daily at 8 AM."""
+        next_run = self._calculate_next_run(datetime.now())
+
         while self._is_running:
             try:
                 now = datetime.now()
+                wait_seconds = max((next_run - now).total_seconds(), 0)
+                if wait_seconds > 0:
+                    await asyncio.sleep(wait_seconds)
 
-                # Check if it's 8 AM
-                if now.hour == 8 and now.minute == 0:
-                    await self._run_daily_checks()
+                if not self._is_running:
+                    break
 
-                    # Wait for 60 seconds to avoid running multiple times in the same minute
-                    await asyncio.sleep(60)
-                else:
-                    # Check every minute
-                    await asyncio.sleep(60)
+                await self._run_daily_checks()
+                # Skip beyond the grace window so the next execution is scheduled for tomorrow
+                next_run = self._calculate_next_run(
+                    datetime.now() + timedelta(minutes=6)
+                )
 
             except asyncio.CancelledError:
                 break
@@ -98,6 +102,21 @@ class TaskReminderSystem:
 
         except Exception as e:
             logger.error("Error in daily task checks", error=str(e))
+
+    def _calculate_next_run(self, reference: datetime) -> datetime:
+        """Compute the next scheduled run time based on the reference moment."""
+
+        target_time = reference.replace(hour=8, minute=0, second=0, microsecond=0)
+
+        if reference <= target_time:
+            return target_time
+
+        grace_window = timedelta(minutes=5)
+        if reference - target_time <= grace_window:
+            # If we just passed the scheduled time, run immediately
+            return reference
+
+        return target_time + timedelta(days=1)
 
     async def _check_overdue_tasks(self) -> None:
         """Check for overdue tasks."""

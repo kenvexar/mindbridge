@@ -1,6 +1,9 @@
 """Task management functionality."""
 
+import asyncio
 import json
+import os
+import tempfile
 import uuid
 from datetime import date, datetime
 from pathlib import Path
@@ -329,24 +332,19 @@ class TaskManager:
             data = {}
             for task_id, task in tasks.items():
                 if isinstance(task, Task):
-                    data[task_id] = task.dict()
+                    data[task_id] = task.model_dump()
                 else:
                     data[task_id] = task
 
-            async with aiofiles.open(self.data_file, "w", encoding="utf-8") as f:
-                await f.write(
-                    json.dumps(data, indent=2, default=str, ensure_ascii=False)
-                )
+            await self._write_tasks_atomic(data)
         except Exception as e:
             logger.error("Failed to save tasks", error=str(e))
 
     async def _create_task_note(self, task: Task) -> None:
         """Create Obsidian note for task."""
         try:
-            filename = f"{task.title.replace(' ', '_')}_task.md"
-            from src.obsidian.models import VaultFolder
-
-            file_path = Path(VaultFolder.TASKS.value) / filename
+            filename, relative_path = self._build_note_paths(task)
+            absolute_path = self.file_manager.vault_path / relative_path
 
             # Status emoji mapping
             status_emoji = {
@@ -366,29 +364,27 @@ class TaskManager:
             }
 
             # Generate task content for file
-            task_content = f"""---
-task_id: {task.id}
-title: {task.title}
-status: {task.status.value}
-priority: {task.priority.value}
-progress: {task.progress}
-due_date: {task.due_date or ""}
-estimated_hours: {task.estimated_hours or ""}
-project: {task.project or ""}
-tags: {task.tags}
-created: {task.created_at.isoformat()}
-updated: {task.updated_at.isoformat()}
----
+            due_date_text = task.due_date.isoformat() if task.due_date else "未設定"
+            estimated_hours_text = (
+                f"{task.estimated_hours}時間"
+                if task.estimated_hours is not None
+                else "未設定"
+            )
+            actual_hours_text = (
+                f"{task.actual_hours}時間"
+                if task.actual_hours is not None
+                else "未設定"
+            )
 
-# {status_emoji.get(task.status, "📋")} {task.title}
+            task_content = f"""# {status_emoji.get(task.status, "📋")} {task.title}
 
 ## 基本情報
 - **ステータス**: {status_emoji.get(task.status, "📋")} {task.status.value}
 - **優先度**: {priority_emoji.get(task.priority, "⚪")} {task.priority.value}
 - **進捗**: {task.progress}%
-- **期限**: {task.due_date or "未設定"}
-- **予想時間**: {task.estimated_hours or "未設定"}時間
-- **実績時間**: {task.actual_hours or "未設定"}時間
+- **期限**: {due_date_text}
+- **予想時間**: {estimated_hours_text}
+- **実績時間**: {actual_hours_text}
 
 ## プロジェクト
 {task.project or "未設定"}
@@ -407,27 +403,6 @@ updated: {task.updated_at.isoformat()}
 - [[Project Overview]]
 """
 
-            task_content = f"""# Task: {task.title}
-
-## Description
-{task.description or "No description"}
-
-## Details
-- **Priority**: {task.priority}
-- **Status**: {task.status}
-- **Due Date**: {task.due_date or "Not set"}
-- **Estimated Hours**: {task.estimated_hours or "Not set"}
-- **Tags**: {", ".join(task.tags) if task.tags else "None"}
-- **Project**: {task.project or "None"}
-
-## Progress
-Progress: {task.progress}%
-
-## Links
-- [[Daily Tasks]]
-- [[Project Overview]]
-"""
-
             from src.obsidian.models import NoteFrontmatter, ObsidianNote
 
             frontmatter = NoteFrontmatter(
@@ -439,8 +414,8 @@ Progress: {task.progress}%
                 obsidian_folder=VaultFolder.TASKS.value,
             )
             note = ObsidianNote(
-                filename=file_path.name,
-                file_path=file_path,
+                filename=filename,
+                file_path=absolute_path,
                 content=task_content,
                 frontmatter=frontmatter,
                 created_at=datetime.now(),
@@ -467,3 +442,35 @@ Progress: {task.progress}%
                 task_id=task.id,
                 error=str(e),
             )
+
+    async def _write_tasks_atomic(self, data: dict[str, Any]) -> None:
+        """Write tasks JSON using an atomic file replace."""
+
+        serialized = json.dumps(data, indent=2, ensure_ascii=False, default=str)
+
+        def _write() -> None:
+            self.data_file.parent.mkdir(parents=True, exist_ok=True)
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.data_file.parent, prefix="tasks_", suffix=".json"
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as tmp_file:
+                    tmp_file.write(serialized)
+                    tmp_file.flush()
+                    os.fsync(tmp_file.fileno())
+                os.replace(temp_path, self.data_file)
+            finally:
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except FileNotFoundError:
+                        pass
+
+        await asyncio.to_thread(_write)
+
+    def _build_note_paths(self, task: Task) -> tuple[str, Path]:
+        """Generate stable filename and relative path for a task note."""
+
+        filename = f"{task.id}.md"
+        relative_path = Path(VaultFolder.TASKS.value) / filename
+        return filename, relative_path
