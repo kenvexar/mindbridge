@@ -1,5 +1,5 @@
 # Personal MindBridge Docker image for Google Cloud Run (無料枠最適化)
-FROM python:3.13.7-slim as builder
+FROM python:3.13.9-slim as builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9.4 /uv /bin/uv
 
 # Set environment variables for personal use
 ENV UV_COMPILE_BYTECODE=1 \
@@ -24,7 +24,7 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev
 
 # Production stage
-FROM python:3.13.7-slim
+FROM python:3.13.9-slim
 
 # セキュリティ: セキュリティアップデートを適用してからパッケージインストール
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
