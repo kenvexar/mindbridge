@@ -1,5 +1,5 @@
 # Cloud Run 用 Dockerfile （セキュリティ強化版）
-FROM python:3.13-slim
+FROM python:3.13.9-slim
 
 # セキュリティ: セキュリティアップデートを適用
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
@@ -20,7 +20,7 @@ RUN groupadd -r mindbridge && \
 WORKDIR /app
 
 # uv のインストール（公式バイナリ）
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9.4 /uv /bin/uv
 
 # 依存関係ファイルのコピー
 COPY pyproject.toml uv.lock ./
