@@ -28,8 +28,9 @@ def setup_logging() -> None:
     # Configure standard library logging
     logging.basicConfig(
         level=log_level,
-        format="%(message) s",
+        format="%(message)s",
         datefmt="[%X]",
+        force=True,
         handlers=[
             RichHandler(
                 console=Console(stderr=True),

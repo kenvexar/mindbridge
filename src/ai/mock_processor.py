@@ -5,7 +5,7 @@ Mock AI processor for development and testing
 import asyncio
 import hashlib
 from datetime import datetime
-from typing import Any
+from typing import Any, TypedDict
 
 from src.ai.models import (
     AIProcessingResult,
@@ -19,40 +19,95 @@ from src.ai.models import (
 from src.utils.mixins import LoggerMixin
 
 
+class MockSample(TypedDict):
+    language: str
+    summary: str
+    key_points: list[str]
+    tags: list[str]
+    category: ProcessingCategory
+
+
 class MockAIProcessor(LoggerMixin):
     """Mock AI processor that simulates Gemini API responses"""
 
-    def __init__(self, settings: ProcessingSettings | None = None):
+    def __init__(
+        self,
+        settings: ProcessingSettings | None = None,
+        preferred_languages: list[str] | None = None,
+    ):
         self.settings = settings or ProcessingSettings()
         self.stats = ProcessingStats()
         self.cache: dict[str, Any] = {}
 
-        # Mock responses for different types of content
-        self.mock_summaries = [
-            "これは重要な情報についてのメモです。",
-            "今日の活動ログと振り返りの内容です。",
-            "新しいアイデアやインサイトが含まれています。",
-            "タスクや予定に関する情報です。",
-            "技術的な内容や学習メモです。",
+        # Mock responses grouped by language for broader coverage
+        self._mock_samples: list[MockSample] = [
+            {
+                "language": "ja",
+                "summary": "これは重要な情報についてのメモです。",
+                "key_points": ["重要なポイント 1", "重要なポイント 2"],
+                "tags": ["重要", "メモ", "記録"],
+                "category": ProcessingCategory.WORK,
+            },
+            {
+                "language": "ja",
+                "summary": "今日の活動ログと振り返りの内容です。",
+                "key_points": ["活動の振り返り", "次のアクション"],
+                "tags": ["活動", "振り返り", "日記"],
+                "category": ProcessingCategory.LIFE,
+            },
+            {
+                "language": "ja",
+                "summary": "新しいアイデアやインサイトが含まれています。",
+                "key_points": ["新規アイデアの概要", "検討が必要な点"],
+                "tags": ["アイデア", "企画", "創造"],
+                "category": ProcessingCategory.IDEA,
+            },
+            {
+                "language": "en",
+                "summary": "This is a concise project status update with next steps.",
+                "key_points": ["Summarize progress", "List follow-up owners"],
+                "tags": ["project", "status", "update"],
+                "category": ProcessingCategory.PROJECT,
+            },
+            {
+                "language": "en",
+                "summary": "Notes from today's learning session and key takeaways.",
+                "key_points": ["Main takeaway", "Topics to revisit"],
+                "tags": ["learning", "notes", "recap"],
+                "category": ProcessingCategory.LEARNING,
+            },
+            {
+                "language": "en",
+                "summary": "Outline of the tasks scheduled for this week.",
+                "key_points": ["Prioritize critical tasks", "Schedule review meeting"],
+                "tags": ["tasks", "planning", "weekly"],
+                "category": ProcessingCategory.TASKS,
+            },
         ]
 
-        self.mock_tags = [
-            ["重要", "メモ", "記録"],
-            ["活動", "振り返り", "日記"],
-            ["アイデア", "企画", "創造"],
-            ["タスク", "予定", "管理"],
-            ["技術", "学習", "開発"],
-        ]
+        self.preferred_languages = (
+            [lang.lower() for lang in preferred_languages]
+            if preferred_languages
+            else ["ja", "en"]
+        )
 
-        self.mock_categories = [
-            ProcessingCategory.WORK,
-            ProcessingCategory.LEARNING,
-            ProcessingCategory.PROJECT,
-            ProcessingCategory.LIFE,
-            ProcessingCategory.IDEA,
-        ]
+        self.logger.info(
+            "Mock AI processor initialized",
+            available_languages=list(self.available_languages),
+            preferred_languages=self.preferred_languages,
+        )
 
-        self.logger.info("Mock AI processor initialized")
+    @property
+    def available_languages(self) -> set[str]:
+        """Return languages supported by the mock dataset."""
+        return {sample["language"] for sample in self._mock_samples}
+
+    def set_preferred_languages(self, languages: list[str] | None) -> None:
+        """Restrict mock responses to specific languages."""
+        if not languages:
+            self.preferred_languages = list(self.available_languages)
+        else:
+            self.preferred_languages = [lang.lower() for lang in languages]
 
     async def process_message(self, message_data: dict[str, Any]) -> AIProcessingResult:
         """Process message data (used by MessageHandler)"""
@@ -72,29 +127,33 @@ class MockAIProcessor(LoggerMixin):
         content_hash = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
         hash_int = int(content_hash[:8], 16)
 
-        # Use hash to select consistent responses for same content
-        summary_idx = hash_int % len(self.mock_summaries)
-        tag_idx = hash_int % len(self.mock_tags)
-        category_idx = hash_int % len(self.mock_categories)
+        # Filter samples by requested languages (fallback to full dataset)
+        samples = [
+            sample
+            for sample in self._mock_samples
+            if sample["language"] in self.preferred_languages
+        ] or self._mock_samples
+
+        selected = samples[hash_int % len(samples)]
 
         # Create mock results
         summary = SummaryResult(
-            summary=self.mock_summaries[summary_idx],
-            key_points=["重要なポイント 1", "重要なポイント 2"],
+            summary=selected["summary"],
+            key_points=selected["key_points"],
             confidence_score=0.85,
             processing_time_ms=100,
             model_used="mock-gemini-pro",
         )
 
         tags = TagResult(
-            tags=self.mock_tags[tag_idx],
-            confidence_scores=dict.fromkeys(self.mock_tags[tag_idx], 0.8),
+            tags=selected["tags"],
+            confidence_scores={tag: 0.8 for tag in selected["tags"]},
             processing_time_ms=50,
             model_used="mock-gemini-pro",
         )
 
         category = CategoryResult(
-            category=self.mock_categories[category_idx],
+            category=selected["category"],
             confidence_score=0.90,
             reasoning="Mock categorization based on content analysis",
             processing_time_ms=70,
@@ -125,6 +184,7 @@ class MockAIProcessor(LoggerMixin):
             summary_length=len(summary.summary),
             tag_count=len(tags.tags),
             category=category.category,
+            language=selected["language"],
         )
 
         return result

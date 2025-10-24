@@ -117,6 +117,12 @@ class AccessLogger(LoggerMixin):
         max_log_file_size: int | None = None,
         max_backup_files: int | None = None,
     ):
+        """Create a security access logger instance.
+
+        ローテーションはデフォルトで 5 MB × 5 世代（約 25 MB）に設定され、
+        `get_access_logger()` 経由で Settings (`ACCESS_LOG_ROTATION_SIZE_MB`,
+        `ACCESS_LOG_ROTATION_BACKUPS`) から上書きされる。
+        """
         self.log_file = log_file or Path("logs/security_access.jsonl")
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
 

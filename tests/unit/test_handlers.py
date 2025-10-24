@@ -296,6 +296,68 @@ class TestMessageHandler:
         await message_handler.initialize_lifelog()
         # Should complete without error
 
+    @pytest.mark.asyncio
+    async def test_initialize_lifelog_bootstraps_components(
+        self, message_handler, monkeypatch
+    ):
+        """Test lifelog bootstrap when dependencies are missing"""
+
+        class DummyManager:
+            def __init__(self, settings):
+                self.settings = settings
+                self.initialized = False
+
+            async def initialize(self):
+                self.initialized = True
+
+        class DummyAnalyzer:
+            def __init__(self, manager, ai_processor):
+                self.manager = manager
+                self.ai_processor = ai_processor
+
+        class DummyMessageHandler:
+            def __init__(self, manager, ai_processor):
+                self.manager = manager
+                self.ai_processor = ai_processor
+
+        class DummyCommands:
+            def __init__(self, manager, analyzer):
+                self.manager = manager
+                self.analyzer = analyzer
+
+            async def register_commands(self, bot):
+                return None
+
+        message_handler.lifelog_manager = None
+        message_handler.lifelog_analyzer = None
+        message_handler.lifelog_message_handler = None
+        message_handler.lifelog_commands = None
+
+        monkeypatch.setattr(
+            message_handler,
+            "_load_lifelog_components",
+            lambda: (
+                DummyManager,
+                DummyAnalyzer,
+                DummyMessageHandler,
+                DummyCommands,
+            ),
+        )
+
+        settings = object()
+
+        await message_handler.initialize_lifelog(settings)
+
+        assert isinstance(message_handler.lifelog_manager, DummyManager)
+        assert message_handler.lifelog_manager.settings is settings
+        assert isinstance(message_handler.lifelog_analyzer, DummyAnalyzer)
+        assert isinstance(message_handler.lifelog_message_handler, DummyMessageHandler)
+        assert isinstance(message_handler.lifelog_commands, DummyCommands)
+        assert (
+            message_handler.lifelog_handler.lifelog_manager
+            == message_handler.lifelog_manager
+        )
+
     def test_set_monitoring_systems(self, message_handler):
         """Test setting monitoring systems"""
         system_metrics = MagicMock()
