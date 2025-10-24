@@ -1,5 +1,5 @@
 # Cloud Run 用 Dockerfile （セキュリティ強化版）
-FROM python:3.13.9-slim
+FROM python:3.14.0-slim
 
 # セキュリティ: セキュリティアップデートを適用
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
