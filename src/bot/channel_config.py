@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import discord
 
 if TYPE_CHECKING:
-    from src.client import DiscordBot
+    from src.bot.client import DiscordBot
 
 from src.utils.mixins import LoggerMixin
 
@@ -99,15 +99,20 @@ class ChannelConfig(LoggerMixin):
                     category=category,
                     description=f"Auto-discovered {category.value} channel",
                 )
-                self.logger.info(
-                    f"✅ Discovered channel: #{channel.name} (ID: {channel.id}) -> {category.value}"
+                self.logger.debug(
+                    "Discovered channel",
+                    channel_name=channel.name,
+                    channel_id=channel.id,
+                    category=category.value,
                 )
 
                 if channel_name in required_channels:
                     found_required += 1
             else:
-                self.logger.info(
-                    f"❌ Channel '{channel_name}' not in standard names: {list(self.standard_channel_names.keys())}"
+                self.logger.debug(
+                    "Channel ignored during discovery",
+                    channel_name=channel_name,
+                    standard_names=list(self.standard_channel_names.keys()),
                 )
 
         # Update the channels dict
@@ -117,8 +122,10 @@ class ChannelConfig(LoggerMixin):
         success = found_required >= len(required_channels)
         if success:
             self.logger.info(
-                f"Successfully discovered {len(discovered_channels)} channels "
-                f"(required: {found_required}/{len(required_channels)})"
+                "Channel discovery completed",
+                discovered=len(discovered_channels),
+                required_found=found_required,
+                required_total=len(required_channels),
             )
         else:
             self.logger.warning(

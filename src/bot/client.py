@@ -67,6 +67,7 @@ class DiscordBot(LoggerMixin):
             intents=intents,
             help_command=None,
         )
+        self.client: commands.Bot = self.bot
 
         # Initialize notification system with bot and channel config
         from src.bot.notification_system import NotificationSystem
@@ -123,7 +124,7 @@ class DiscordBot(LoggerMixin):
 
                     # Initialize lifelog system
                     try:
-                        await self.message_handler.initialize_lifelog()
+                        await self.message_handler.initialize_lifelog(self.settings)
 
                         # Register lifelog commands if available
                         if self.message_handler.lifelog_commands:

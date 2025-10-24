@@ -19,6 +19,12 @@ MindBridge を運用する代表的なパターンと、ワークフロー全体
 5. **ヘルスチェック** – `/status`, `/system_status`, (Cloud Run の場合) `gcloud run services list`
 6. **手動テスト** – `tests/manual/` のシナリオを必要に応じて実施し、Vault 出力を確認
 
+## GitHub Vault Sync
+
+Vault の GitHub バックアップ手順と必須シークレットは
+`docs/maintenance/github-sync.md` に集約しています。重複を避けるため、
+環境変数の詳細や運用ノートはそちらを参照してください。
+
 ## 参照ドキュメント
 
 - ローカル/Docker 手順: `docs/deploy/local.md`

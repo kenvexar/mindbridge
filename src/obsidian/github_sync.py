@@ -109,7 +109,11 @@ class GitHubObsidianSync(LoggerMixin):
             return False
 
     async def _setup_remote_repository(self) -> None:
-        """リモートリポジトリの設定"""
+        """リモートリポジトリの設定
+
+        リモート URL には認証トークンを含めず、`git -c credential.helper=...`
+        で指定したヘルパー経由で `GITHUB_TOKEN` を安全に供給する。
+        """
         try:
             # Git リポジトリが初期化されているかチェック
             if not (self.vault_path / ".git").exists():
@@ -126,9 +130,10 @@ class GitHubObsidianSync(LoggerMixin):
             if result.returncode != 0:
                 # リモートが存在しない場合は追加
                 try:
-                    repo_url_with_token = self._get_authenticated_repo_url()
+                    repo_url = self._get_authenticated_repo_url()
                     await self._run_git_command(
-                        ["remote", "add", "origin", repo_url_with_token], check=False
+                        ["remote", "add", "origin", repo_url],
+                        check=False,
                     )
                     self.logger.info("Remote repository added")
                 except Exception as e:
@@ -137,9 +142,9 @@ class GitHubObsidianSync(LoggerMixin):
             else:
                 # 既存のリモートを更新
                 try:
-                    repo_url_with_token = self._get_authenticated_repo_url()
+                    repo_url = self._get_authenticated_repo_url()
                     await self._run_git_command(
-                        ["remote", "set-url", "origin", repo_url_with_token],
+                        ["remote", "set-url", "origin", repo_url],
                         check=False,
                     )
                     self.logger.info("Remote repository URL updated")
@@ -158,7 +163,7 @@ class GitHubObsidianSync(LoggerMixin):
         self.logger.debug("Git user configuration set")
 
     def _build_credential_helper(self) -> str:
-        """Return a credential helper that pulls token from env."""
+        """Return the credential helper script that reads `GITHUB_TOKEN` at runtime."""
         return "!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f"
 
     async def _setup_gitignore(self) -> None:
@@ -184,7 +189,11 @@ Thumbs.db
             self.logger.info("Created .gitignore file")
 
     def _get_authenticated_repo_url(self) -> str:
-        """Return repository URL without embedding secrets."""
+        """Return repository URL without embedding secrets.
+
+        認証情報は `_build_credential_helper` が `GITHUB_TOKEN` を差し込むため、
+        ここではプレーンな HTTPS URL のみを扱う。
+        """
         if self.github_repo_url is None:
             raise GitHubSyncError("GitHub repository URL is not configured")
 
@@ -339,11 +348,11 @@ Thumbs.db
             self.vault_path.parent.mkdir(parents=True, exist_ok=True)
 
             # クローン
-            repo_url_with_token = self._get_authenticated_repo_url()
+            repo_url = self._get_authenticated_repo_url()
             process = await asyncio.create_subprocess_exec(
                 "git",
                 "clone",
-                repo_url_with_token,
+                repo_url,
                 str(self.vault_path),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -375,7 +384,7 @@ Thumbs.db
     async def _run_git_command(
         self, args: list[str], capture_output: bool = False, check: bool = True
     ) -> subprocess.CompletedProcess[str]:
-        """Git コマンドを実行（環境変数による認証）"""
+        """Git コマンドを実行（credential helper を通じたトークン供給）。"""
         # Vault パスが存在しない場合は作成
         if not self.vault_path.exists():
             self.vault_path.mkdir(parents=True, exist_ok=True)

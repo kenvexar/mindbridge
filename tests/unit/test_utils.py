@@ -1,5 +1,7 @@
 """Test utils module functionality."""
 
+import logging
+from collections.abc import Iterator
 from unittest.mock import Mock
 
 import pytest
@@ -9,6 +11,27 @@ from src.utils.logger import get_logger, setup_logging
 from src.utils.mixins import LoggerMixin
 
 
+@pytest.fixture(autouse=True)
+def _required_settings_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+
+
+@pytest.fixture(autouse=True)
+def _reset_logging_state() -> Iterator[None]:
+    root_logger = logging.getLogger()
+    for handler in list(root_logger.handlers):
+        root_logger.removeHandler(handler)
+        handler.close()
+    try:
+        yield
+    finally:
+        for handler in list(root_logger.handlers):
+            root_logger.removeHandler(handler)
+            handler.close()
+        logging.shutdown()
+
+
 class TestLogger:
     """Test logging functionality."""
 
@@ -16,6 +39,37 @@ class TestLogger:
         """Test logging setup doesn't raise errors."""
         setup_logging()
         assert True  # If no exception, test passes
+
+    def test_setup_logging_writes_plain_message_to_file(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test log file output uses raw message format."""
+        monkeypatch.chdir(tmp_path)
+
+        setup_logging()
+
+        test_message = "logging format check"
+        logger = logging.getLogger("format-check")
+        logger.info(test_message)
+
+        root_logger = logging.getLogger()
+        file_handlers = [
+            handler
+            for handler in root_logger.handlers
+            if isinstance(handler, logging.FileHandler)
+        ]
+        assert file_handlers, "FileHandler が設定されていません"
+
+        for handler in file_handlers:
+            handler.flush()
+            handler.close()
+            root_logger.removeHandler(handler)
+
+        log_file = tmp_path / "logs" / "bot.log"
+        assert log_file.exists()
+        lines = log_file.read_text(encoding="utf-8").splitlines()
+        assert lines, "ログファイルが空です"
+        assert lines[-1].endswith(test_message)
 
     def test_get_logger_returns_logger(self):
         """Test get_logger returns a logger instance."""

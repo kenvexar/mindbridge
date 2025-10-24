@@ -2,7 +2,7 @@
 Refactored MessageHandler using specialized handlers
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import discord
 
@@ -12,6 +12,15 @@ from ..message_processor import MessageProcessor
 from .audio_handler import AudioHandler
 from .lifelog_handler import LifelogHandler
 from .note_handler import NoteHandler
+
+if TYPE_CHECKING:
+    from src.config.settings import Settings
+    from src.lifelog import (
+        LifelogAnalyzer,
+        LifelogCommands,
+        LifelogManager,
+        LifelogMessageHandler,
+    )
 
 
 class MessageHandler(LoggerMixin):
@@ -86,11 +95,87 @@ class MessageHandler(LoggerMixin):
         """メッセージハンドラーの初期化"""
         self.logger.info("MessageHandler initialized successfully")
 
-    async def initialize_lifelog(self) -> None:
+    def _load_lifelog_components(
+        self,
+    ) -> tuple[
+        type["LifelogManager"],
+        type["LifelogAnalyzer"],
+        type["LifelogMessageHandler"],
+        type["LifelogCommands"],
+    ]:
+        from src.lifelog import (
+            LifelogAnalyzer,
+            LifelogCommands,
+            LifelogManager,
+            LifelogMessageHandler,
+        )
+
+        return (LifelogManager, LifelogAnalyzer, LifelogMessageHandler, LifelogCommands)
+
+    async def initialize_lifelog(
+        self,
+        settings: "Settings | None" = None,
+    ) -> None:
         """ライフログ機能の初期化"""
-        if self.lifelog_manager:
-            await self.lifelog_manager.initialize()
-            self.logger.info("ライフログ機能を初期化しました")
+        try:
+            (
+                manager_cls,
+                analyzer_cls,
+                message_handler_cls,
+                commands_cls,
+            ) = self._load_lifelog_components()
+        except Exception as exc:
+            self.logger.warning("ライフログモジュールの読み込みに失敗", error=str(exc))
+            return
+
+        manager = self.lifelog_manager
+        if manager is None:
+            if settings is None:
+                self.logger.info("ライフログ設定が未提供のため初期化をスキップします")
+                return
+            manager = manager_cls(settings)
+            self.lifelog_manager = manager
+
+        await manager.initialize()
+
+        analyzer = self.lifelog_analyzer
+        if analyzer is None:
+            if self.ai_processor is None:
+                self.logger.warning(
+                    "AI プロセッサーが未設定のためライフログアナライザーを構築できません"
+                )
+            else:
+                analyzer = analyzer_cls(manager, self.ai_processor)
+                self.lifelog_analyzer = analyzer
+
+        message_handler = self.lifelog_message_handler
+        if message_handler is None:
+            if self.ai_processor is None:
+                self.logger.warning(
+                    "AI プロセッサーが未設定のためライフログメッセージハンドラーを構築できません"
+                )
+            else:
+                message_handler = message_handler_cls(manager, self.ai_processor)
+                self.lifelog_message_handler = message_handler
+
+        commands = self.lifelog_commands
+        if commands is None:
+            if analyzer is None:
+                self.logger.warning(
+                    "ライフログアナライザーが未初期化のためコマンド登録をスキップします"
+                )
+            else:
+                commands = commands_cls(manager, analyzer)
+                self.lifelog_commands = commands
+
+        self.lifelog_handler = LifelogHandler(
+            lifelog_manager=manager,
+            lifelog_analyzer=analyzer,
+            lifelog_message_handler=message_handler,
+            lifelog_commands=commands,
+        )
+
+        self.logger.info("ライフログ機能を初期化しました")
 
     async def process_message(
         self,
