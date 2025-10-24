@@ -1,7 +1,7 @@
-"""Discord bot client implementation"""
+"""
+Discord bot client implementation
+"""
 
-import asyncio
-from collections.abc import Coroutine
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -55,8 +55,6 @@ class DiscordBot(LoggerMixin):
         self.system_metrics = SystemMetrics()
         self.api_usage_monitor = APIUsageMonitor()
 
-        self._startup_tasks: set[asyncio.Task[Any]] = set()
-
         # Create Discord bot instance first
         intents = discord.Intents.default()
         intents.message_content = True
@@ -97,21 +95,94 @@ class DiscordBot(LoggerMixin):
                 guild_id = int(str(self.settings.discord_guild_id))
                 guild = discord.utils.get(self.bot.guilds, id=guild_id)
                 if guild:
-                    try:
-                        await self._initialize_channel_config(guild)
-                    except Exception:
-                        return
-
-                    self._schedule_startup_task(
-                        "post-ready-startup",
-                        self._post_ready_startup(guild),
-                    )
-
+                    # Initialize ChannelConfig with guild channels
+                    await self.channel_config.initialize_channels(guild)
                     self.logger.info(
-                        "Connected to guild; background startup tasks scheduled",
-                        guild=guild.name,
-                        pending_tasks=len(self._startup_tasks),
+                        f"ChannelConfig initialized with channels from guild: {guild.name}"
                     )
+
+                    # Import here to avoid circular imports
+                    from src.bot.commands import (
+                        setup_commands,
+                        setup_integration_commands,
+                    )
+
+                    try:
+                        await setup_commands(self.bot, self.channel_config)
+                        self.logger.info("基本コマンド登録完了")
+                    except Exception as e:
+                        self.logger.error(f"基本コマンド登録失敗: {e}", exc_info=True)
+
+                    # IntegrationCommands を安全に登録
+                    try:
+                        await setup_integration_commands(self.bot, self.settings)
+                        self.logger.info("IntegrationCommands 登録完了")
+                    except Exception as e:
+                        self.logger.error(
+                            f"IntegrationCommands 登録失敗: {e}", exc_info=True
+                        )
+
+                    # Initialize lifelog system
+                    try:
+                        await self.message_handler.initialize_lifelog(self.settings)
+
+                        # Register lifelog commands if available
+                        if self.message_handler.lifelog_commands:
+                            await (
+                                self.message_handler.lifelog_commands.register_commands(
+                                    self.bot
+                                )
+                            )
+                            self.logger.info("ライフログコマンドを登録しました")
+
+                    except Exception as e:
+                        self.logger.error(f"ライフログ初期化失敗: {e}", exc_info=True)
+
+                    # Slash Commands を Discord に同期（全コマンド登録後）
+                    try:
+                        # 登録済みコマンド数を確認
+                        total_commands = len(self.bot.tree.get_commands())
+                        guild_commands = len(self.bot.tree.get_commands(guild=guild))
+                        self.logger.info(
+                            f"同期前の状況 - グローバル: {total_commands}, ギルド: {guild_commands}"
+                        )
+
+                        self.logger.info(
+                            "Discord に Slash Commands を同期（ギルド専用）中..."
+                        )
+
+                        # 1) まず現在のグローバル定義をギルドへコピー
+                        try:
+                            self.bot.tree.copy_global_to(guild=guild)
+                        except Exception as copy_err:
+                            self.logger.warning(f"copy_global_to で警告: {copy_err}")
+
+                        # 2) グローバルコマンドを消去してから同期（＝グローバルからは削除）
+                        self.bot.tree.clear_commands(guild=None)
+                        cleared = await self.bot.tree.sync()
+                        self.logger.info(
+                            f"🧹 グローバルコマンド消去＆同期: {len(cleared)} 件（通常 0 ）"
+                        )
+
+                        # 3) ギルドにのみ同期（即時反映）
+                        guild_synced = await self.bot.tree.sync(guild=guild)
+                        self.logger.info(
+                            f"✅ ギルド ({guild.id}) 同期: {len(guild_synced)} 個のコマンド"
+                        )
+
+                        if guild_synced:
+                            names = [cmd.name for cmd in guild_synced]
+                            self.logger.info(f"ギルド同期コマンド: {names}")
+                        else:
+                            self.logger.warning(
+                                "ギルドに同期されたコマンドがありません"
+                            )
+
+                    except Exception as e:
+                        self.logger.error(
+                            f"❌ Slash Commands 同期失敗: {e}", exc_info=True
+                        )
+
                     self.logger.info(f"Connected to guild: {guild.name}")
                 else:
                     self.logger.error(f"Guild with ID {guild_id} not found")
@@ -277,128 +348,6 @@ class DiscordBot(LoggerMixin):
                     )
             except Exception as e:
                 self.logger.error(f"Failed to send error response: {e}")
-
-    def _schedule_startup_task(
-        self,
-        name: str,
-        coro: Coroutine[Any, Any, Any],
-    ) -> None:
-        """Schedule and monitor a background startup task."""
-
-        task: asyncio.Task[Any] = asyncio.create_task(coro, name=f"startup:{name}")
-        self._startup_tasks.add(task)
-        self.logger.info("起動タスクをスケジュールしました", task=name)
-
-        def _finalize(completed: asyncio.Task[Any]) -> None:
-            self._startup_tasks.discard(completed)
-            try:
-                completed.result()
-            except Exception as exc:  # pragma: no cover - defensive logging path
-                self.logger.error(
-                    "起動タスクが失敗しました",
-                    task=name,
-                    error=str(exc),
-                    exc_info=True,
-                )
-            else:
-                self.logger.info("起動タスクが完了しました", task=name)
-
-        task.add_done_callback(_finalize)
-
-    async def _initialize_channel_config(self, guild: discord.Guild) -> None:
-        """Initialize channel configuration for the connected guild."""
-
-        await self.channel_config.initialize_channels(guild)
-        self.logger.info(
-            "ChannelConfig initialized with guild channels",
-            guild=guild.name,
-            discovered=len(self.channel_config.channels),
-        )
-
-    async def _register_commands(self) -> None:
-        """Register base and integration commands."""
-
-        from src.bot.commands import setup_commands, setup_integration_commands
-
-        try:
-            await setup_commands(self.bot, self.channel_config)
-            self.logger.info("基本コマンド登録完了")
-        except Exception as exc:
-            self.logger.error(f"基本コマンド登録失敗: {exc}", exc_info=True)
-
-        try:
-            await setup_integration_commands(self.bot, self.settings)
-            self.logger.info("IntegrationCommands 登録完了")
-        except Exception as exc:
-            self.logger.error(f"IntegrationCommands 登録失敗: {exc}", exc_info=True)
-
-    async def _initialize_lifelog(self) -> None:
-        """Initialize lifelog subsystem and register related commands."""
-
-        try:
-            await self.message_handler.initialize_lifelog(self.settings)
-
-            if self.message_handler.lifelog_commands:
-                await self.message_handler.lifelog_commands.register_commands(self.bot)
-                self.logger.info("ライフログコマンドを登録しました")
-        except Exception as exc:
-            self.logger.error(f"ライフログ初期化失敗: {exc}", exc_info=True)
-
-    async def _sync_slash_commands(self, guild: discord.Guild) -> None:
-        """Synchronize slash commands for the guild."""
-
-        total_commands = len(self.bot.tree.get_commands())
-        guild_commands = len(self.bot.tree.get_commands(guild=guild))
-        self.logger.info(
-            "Slash コマンド同期前の状況",
-            total_commands=total_commands,
-            guild_commands=guild_commands,
-        )
-
-        self.logger.info("Discord に Slash Commands を同期（ギルド専用）中...")
-
-        try:
-            self.bot.tree.copy_global_to(guild=guild)
-        except Exception as copy_err:
-            self.logger.warning(f"copy_global_to で警告: {copy_err}")
-
-        self.bot.tree.clear_commands(guild=None)
-        cleared = await self.bot.tree.sync()
-        self.logger.info("🧹 グローバルコマンド消去＆同期", cleared=len(cleared))
-
-        guild_synced = await self.bot.tree.sync(guild=guild)
-        self.logger.info(
-            "✅ ギルド同期完了",
-            guild_id=guild.id,
-            synced=len(guild_synced),
-            commands=[cmd.name for cmd in guild_synced],
-        )
-
-        if not guild_synced:
-            self.logger.warning("ギルドに同期されたコマンドがありません")
-
-    async def _post_ready_startup(self, guild: discord.Guild) -> None:
-        """Run non-blocking startup routines after the bot becomes ready."""
-
-        steps = [
-            ("command-registration", self._register_commands()),
-            ("lifelog-initialization", self._initialize_lifelog()),
-            ("slash-sync", self._sync_slash_commands(guild)),
-        ]
-
-        for step_name, coroutine in steps:
-            self.logger.info("起動ステップ開始", step=step_name)
-            try:
-                await coroutine
-            except Exception as exc:  # pragma: no cover - defensive logging path
-                self.logger.error(
-                    "起動ステップでエラーが発生しました",
-                    step=step_name,
-                    error=str(exc),
-                    exc_info=True,
-                )
-            else:
-                self.logger.info("起動ステップ完了", step=step_name)
 
     async def run_async(self) -> None:
         """Run the bot asynchronously"""
