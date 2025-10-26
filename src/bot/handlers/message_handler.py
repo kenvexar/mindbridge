@@ -1,7 +1,6 @@
-"""
-Refactored MessageHandler using specialized handlers
-"""
+"""Refactored MessageHandler using specialized handlers."""
 
+from collections import deque
 from typing import TYPE_CHECKING, Any
 
 import discord
@@ -83,6 +82,7 @@ class MessageHandler(LoggerMixin):
 
         # Message processing state
         self._processed_messages = set()
+        self._processed_order: deque[int] = deque()
         self._creating_notes = set()
         self._max_processed_messages = 1000
 
@@ -196,7 +196,7 @@ class MessageHandler(LoggerMixin):
                 )
                 return
 
-            self._processed_messages.add(message_id)
+            self._remember_processed_message(message_id)
 
             # メッセージタイプによる処理の分岐
             metadata = message_data.get("metadata")
@@ -244,6 +244,19 @@ class MessageHandler(LoggerMixin):
                 message_id=message.id,
                 exc_info=True,
             )
+
+    def _remember_processed_message(self, message_id: int) -> None:
+        """Record a processed message id, trimming the cache if it grows too large."""
+
+        if message_id in self._processed_messages:
+            return
+
+        self._processed_messages.add(message_id)
+        self._processed_order.append(message_id)
+
+        while len(self._processed_order) > self._max_processed_messages:
+            oldest_id = self._processed_order.popleft()
+            self._processed_messages.discard(oldest_id)
 
     async def _handle_text_message(
         self,
