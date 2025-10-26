@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: mindbridge
   annotations:
-    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
 spec:
   template:
     metadata:
@@ -79,6 +79,16 @@ spec:
           value: "MindBridge Bot"
         - name: GIT_USER_EMAIL
           value: "mindbridge-bot@example.com"
+        - name: HEALTH_ENDPOINT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: health-endpoint-token
+              key: latest
+        - name: HEALTH_CALLBACK_STATE
+          valueFrom:
+            secretKeyRef:
+              name: health-callback-state
+              key: latest
         resources:
           requests:
             cpu: 1000m

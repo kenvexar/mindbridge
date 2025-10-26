@@ -83,8 +83,10 @@ export PROJECT_ID="your-mindbridge-project"
 | `github-token`, `obsidian-backup-repo` | GitHub バックアップ（任意） |
 | `garmin-username`, `garmin-password` | Garmin 連携（オプション） |
 | `google-cloud-speech-credentials` | Speech-to-Text サービスアカウント（自動生成可能） |
+| `health-endpoint-token` | `/metrics` など敏感なヘルスエンドポイント保護用の共有トークン |
+| `health-callback-state` | OAuth リダイレクト `/callback` で検証する CSRF 対策トークン |
 
-Secret Manager へ登録すると、Cloud Run では `SECRET_MANAGER_STRATEGY=google` と `SECRET_MANAGER_PROJECT_ID` を通じて自動的に読み込みます。
+Secret Manager へ登録すると、Cloud Run では `SECRET_MANAGER_STRATEGY=google` と `SECRET_MANAGER_PROJECT_ID` を通じて自動的に読み込みます。`health-endpoint-token` と `health-callback-state` はそれぞれ環境変数 `HEALTH_ENDPOINT_TOKEN`、`HEALTH_CALLBACK_STATE` にマッピングされ、 `/metrics`・`/callback` で必須となります。
 
 ---
 
@@ -140,7 +142,8 @@ gcloud run deploy mindbridge \
   --image="us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:latest" \
   --region="us-central1" \
   --platform="managed" \
-  --allow-unauthenticated \
+  --ingress internal-and-cloud-load-balancing \
+  --no-allow-unauthenticated \
   --memory=512Mi \
   --cpu=1 \
   --set-env-vars="ENVIRONMENT=production,SECRET_MANAGER_STRATEGY=google,SECRET_MANAGER_PROJECT_ID=$PROJECT_ID"
@@ -161,7 +164,7 @@ gcloud run deploy mindbridge \
     gcloud artifacts docker images list "us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge" --sort-by=~CREATE_TIME --limit=5
     ```
 - サービスアカウント `mindbridge-service@$PROJECT_ID.iam.gserviceaccount.com` が `roles/secretmanager.secretAccessor` と `roles/speech.client` を保持している。
-- Secret Manager に `discord-bot-token`、`discord-guild-id`、`gemini-api-key`、`google-cloud-speech-credentials` など必須シークレットが存在し、最新版のステータスが `ENABLED` になっている。
+- Secret Manager に `discord-bot-token`、`discord-guild-id`、`gemini-api-key`、`google-cloud-speech-credentials`、`health-endpoint-token`、`health-callback-state` など必須シークレットが存在し、最新版のステータスが `ENABLED` になっている。
 - Cloud Run 用の環境変数が変わった場合は `deploy/cloud-run.yaml` を更新済みである。
 
 ---
@@ -186,7 +189,8 @@ gcloud run deploy mindbridge \
    - `/status` で Bot がオンラインか確認。
    - `/integration_status` で Garmin / Calendar などの連携状況を確認。
 4. **ヘルスチェック**
-   - Cloud Run サービス URL `/healthz` にアクセスすると `HealthServer` がレスポンスを返します。
+   - Cloud Run サービス URL `/health` にアクセスすると `HealthServer` がレスポンスを返します。
+   - `/metrics` を確認する場合は `X-Health-Token: <health-endpoint-token>` または `Authorization: Bearer <token>` を必ず付与してください。
 5. **音声処理の動作確認**
    - Discord へ短い音声メッセージを送信し、チャンネルの転記ノートが生成されるかを確認。
    - もしくは Cloud Run のログで `SpeechProcessor` のジョブ完了ログと使用分数を確認し、無料枠内に収まっているかをチェックします。

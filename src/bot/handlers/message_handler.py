@@ -1,7 +1,8 @@
-"""
-Refactored MessageHandler using specialized handlers
-"""
+"""Refactored MessageHandler using specialized handlers."""
 
+from __future__ import annotations
+
+from collections import deque
 from typing import TYPE_CHECKING, Any
 
 import discord
@@ -31,18 +32,18 @@ class MessageHandler(LoggerMixin):
 
     def __init__(
         self,
-        ai_processor=None,
-        obsidian_manager=None,
-        note_template=None,
-        daily_integration=None,
-        template_engine=None,
-        note_analyzer=None,
-        speech_processor=None,
-        lifelog_manager=None,
-        lifelog_analyzer=None,
-        lifelog_message_handler=None,
-        lifelog_commands=None,
-    ):
+        ai_processor: Any | None = None,
+        obsidian_manager: Any | None = None,
+        note_template: Any | None = None,
+        daily_integration: Any | None = None,
+        template_engine: Any | None = None,
+        note_analyzer: Any | None = None,
+        speech_processor: Any | None = None,
+        lifelog_manager: Any | None = None,
+        lifelog_analyzer: Any | None = None,
+        lifelog_message_handler: Any | None = None,
+        lifelog_commands: Any | None = None,
+    ) -> None:
         # Core components
         self.ai_processor = ai_processor
         self.obsidian_manager = obsidian_manager
@@ -82,11 +83,16 @@ class MessageHandler(LoggerMixin):
         self.api_usage_monitor = None
 
         # Message processing state
-        self._processed_messages = set()
-        self._creating_notes = set()
+        self._processed_messages: set[int] = set()
+        self._processed_order: deque[int] = deque()
+        self._creating_notes: set[int] = set()
         self._max_processed_messages = 1000
 
-    def set_monitoring_systems(self, system_metrics=None, api_usage_monitor=None):
+    def set_monitoring_systems(
+        self,
+        system_metrics: Any | None = None,
+        api_usage_monitor: Any | None = None,
+    ) -> None:
         """モニタリングシステムの設定"""
         self.system_metrics = system_metrics
         self.api_usage_monitor = api_usage_monitor
@@ -98,10 +104,10 @@ class MessageHandler(LoggerMixin):
     def _load_lifelog_components(
         self,
     ) -> tuple[
-        type["LifelogManager"],
-        type["LifelogAnalyzer"],
-        type["LifelogMessageHandler"],
-        type["LifelogCommands"],
+        type[LifelogManager],
+        type[LifelogAnalyzer],
+        type[LifelogMessageHandler],
+        type[LifelogCommands],
     ]:
         from src.lifelog import (
             LifelogAnalyzer,
@@ -114,7 +120,7 @@ class MessageHandler(LoggerMixin):
 
     async def initialize_lifelog(
         self,
-        settings: "Settings | None" = None,
+        settings: Settings | None = None,
     ) -> None:
         """ライフログ機能の初期化"""
         try:
@@ -196,7 +202,7 @@ class MessageHandler(LoggerMixin):
                 )
                 return
 
-            self._processed_messages.add(message_id)
+            self._remember_processed_message(message_id)
 
             # メッセージタイプによる処理の分岐
             metadata = message_data.get("metadata")
@@ -244,6 +250,19 @@ class MessageHandler(LoggerMixin):
                 message_id=message.id,
                 exc_info=True,
             )
+
+    def _remember_processed_message(self, message_id: int) -> None:
+        """Record a processed message id, trimming the cache if it grows too large."""
+
+        if message_id in self._processed_messages:
+            return
+
+        self._processed_messages.add(message_id)
+        self._processed_order.append(message_id)
+
+        while len(self._processed_order) > self._max_processed_messages:
+            oldest_id = self._processed_order.popleft()
+            self._processed_messages.discard(oldest_id)
 
     async def _handle_text_message(
         self,
