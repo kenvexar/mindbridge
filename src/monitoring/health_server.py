@@ -12,6 +12,7 @@ from threading import Thread
 from typing import Any
 
 from cryptography.fernet import Fernet
+from pydantic import SecretStr
 
 from src import __version__
 from src.config import get_settings
@@ -128,6 +129,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def _handle_health(self) -> None:
         """Basic health check - always returns healthy if server is running"""
+        if not self._authorize_request("health"):
+            return
+
         health_data = {
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
@@ -138,6 +142,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def _handle_ready(self) -> None:
         """Readiness check - checks if bot is connected and operational"""
+        if not self._authorize_request("ready"):
+            return
+
         if not self.bot_instance:
             self._send_response(
                 503, {"status": "not_ready", "reason": "bot_not_initialized"}
@@ -407,6 +414,8 @@ class HealthServer:
     def start(self) -> None:
         """Start the health check server"""
 
+        self._validate_security_requirements()
+
         def handler(*args: Any, **kwargs: Any) -> HealthCheckHandler:
             return HealthCheckHandler(*args, bot_instance=self.bot_instance, **kwargs)
 
@@ -429,6 +438,62 @@ class HealthServer:
         except Exception as e:
             self.logger.error(f"Failed to start health server: {e}")
             raise
+
+    def _validate_security_requirements(self) -> None:
+        """Ensure runtime secrets for health endpoints are present."""
+        settings = get_settings()
+        secure_settings = get_secure_settings()
+
+        missing: list[str] = []
+
+        endpoint_token = self._resolve_secret_value(
+            getattr(settings, "health_endpoint_token", None)
+        )
+        if not endpoint_token:
+            missing.append("HEALTH_ENDPOINT_TOKEN")
+
+        callback_state = self._resolve_secret_value(
+            getattr(settings, "health_callback_state", None)
+        )
+        if not callback_state:
+            missing.append("HEALTH_CALLBACK_STATE")
+
+        encryption_key = secure_settings.get_secure_setting("encryption_key")
+        if not encryption_key or not encryption_key.strip():
+            missing.append("ENCRYPTION_KEY")
+
+        if missing:
+            self.logger.error(
+                "Health server security requirements not satisfied",
+                missing=missing,
+            )
+            raise RuntimeError(
+                "Missing required HealthServer secrets: " + ", ".join(missing)
+            )
+
+    @staticmethod
+    def _resolve_secret_value(secret: Any) -> str | None:
+        """Normalize SecretStr or raw string into sanitized value."""
+        if secret is None:
+            return None
+
+        if isinstance(secret, SecretStr):
+            value = secret.get_secret_value()
+        else:
+            getter = getattr(secret, "get_secret_value", None)
+            if callable(getter):
+                try:
+                    value = getter()
+                except Exception:
+                    return None
+            else:
+                value = str(secret)
+
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        return normalized or None
 
     def stop(self) -> None:
         """Stop the health check server"""

@@ -90,6 +90,22 @@ Secret Manager へ登録すると、Cloud Run では `SECRET_MANAGER_STRATEGY=go
 
 ---
 
+### 3.1 ヘルスチェック公開ポリシー
+
+Cloud Run 上で MindBridge を運用する際は、ヘルスサーバーを完全にクローズドに保護してください。
+
+- `/health`・`/ready`・`/metrics` へのアクセスには必ず `X-Health-Token: <health-endpoint-token>` または `Authorization: Bearer <token>` を付与します。トークンが無いリクエストは 503/401 で拒否されます。
+- アプリ起動時に `HEALTH_ENDPOINT_TOKEN`・`HEALTH_CALLBACK_STATE`・`ENCRYPTION_KEY` がいずれか欠けている場合、`HealthServer` は起動に失敗します。Secret Manager もしくは `.env` で必ず定義してください。
+- Cloud Run デプロイでは `--no-allow-unauthenticated` と `--ingress internal-and-cloud-load-balancing` を指定し、Serverless VPC Access や Cloud Load Balancing を併用して内部ネットワークのみから到達できるようにします。
+- 外部公開が必要な場合は、GCLB/IAP のバックエンド構成でカスタムヘッダーに `X-Health-Token` を注入し、Cloud Armor で許可 IP をホワイトリスト化します。
+- ローカル確認時は `.env` に上記 3 つの値を設定し、次のようにヘッダー付きで確認します。
+
+    ```bash
+    curl -H "X-Health-Token: ${HEALTH_ENDPOINT_TOKEN}" http://localhost:8080/ready
+    ```
+
+---
+
 ## 4. 追加設定（任意）
 
 ```bash
