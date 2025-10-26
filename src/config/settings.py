@@ -1,8 +1,12 @@
-"""
-Configuration settings for MindBridge
-"""
+"""Configuration settings for MindBridge with caching utilities."""
 
+from __future__ import annotations
+
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from threading import RLock
+from typing import Any
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -62,6 +66,8 @@ class Settings(BaseSettings):
     log_format: str = "json"
     access_log_rotation_size_mb: float = 5.0
     access_log_rotation_backups: int = 5
+    health_endpoint_token: SecretStr | None = None
+    health_callback_state: SecretStr | None = None
 
     # Environment
     environment: str = "personal"
@@ -118,6 +124,58 @@ class Settings(BaseSettings):
         return ["memo", "notifications", "commands"]
 
 
-def get_settings() -> Settings:
-    """Get application settings instance"""
-    return Settings()
+_SETTINGS_LOCK = RLock()
+_SETTINGS_CACHE: Settings | None = None
+
+
+def get_settings(*, refresh: bool = False) -> Settings:
+    """Return a cached ``Settings`` instance.
+
+    Parameters
+    ----------
+    refresh:
+        When ``True`` the cached instance is discarded and a new one is created.
+    """
+
+    global _SETTINGS_CACHE
+
+    with _SETTINGS_LOCK:
+        if refresh or _SETTINGS_CACHE is None:
+            _SETTINGS_CACHE = Settings()
+        return _SETTINGS_CACHE
+
+
+def clear_settings_cache() -> None:
+    """Clear the cached settings instance."""
+
+    global _SETTINGS_CACHE
+
+    with _SETTINGS_LOCK:
+        _SETTINGS_CACHE = None
+
+
+get_settings.cache_clear = clear_settings_cache  # type: ignore[attr-defined]
+
+
+@contextmanager
+def override_settings(**overrides: Any) -> Iterator[Settings]:
+    """Temporarily override the cached settings within a context."""
+
+    global _SETTINGS_CACHE
+
+    with _SETTINGS_LOCK:
+        previous_settings = _SETTINGS_CACHE
+
+    base_settings = previous_settings or Settings()
+    patched_settings = Settings(
+        **{**base_settings.model_dump(mode="python"), **overrides}
+    )
+
+    with _SETTINGS_LOCK:
+        _SETTINGS_CACHE = patched_settings
+
+    try:
+        yield patched_settings
+    finally:
+        with _SETTINGS_LOCK:
+            _SETTINGS_CACHE = previous_settings

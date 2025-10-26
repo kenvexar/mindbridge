@@ -13,10 +13,43 @@ from rich.logging import RichHandler
 from src.config import get_settings
 
 
+def _configure_fallback_logging() -> None:
+    """Fallback logging setup when settings cannot be loaded."""
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+        force=True,
+        handlers=[logging.StreamHandler()],
+    )
+
+    structlog.configure(
+        processors=[
+            structlog.stdlib.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.format_exc_info,
+            structlog.dev.ConsoleRenderer(),
+        ],
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+
 def setup_logging() -> None:
     """Set up structured logging with rich formatting"""
 
-    settings = get_settings()
+    try:
+        settings = get_settings()
+    except Exception as exc:  # pragma: no cover - defensive path
+        _configure_fallback_logging()
+        logging.getLogger("mindbridge").exception(
+            "Failed to initialize logging configuration via settings",
+            extra={"exception_type": exc.__class__.__name__},
+        )
+        raise
 
     # Configure log level
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)

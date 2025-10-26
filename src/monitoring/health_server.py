@@ -14,6 +14,7 @@ from typing import Any
 from cryptography.fernet import Fernet
 
 from src import __version__
+from src.config import get_settings
 from src.config.secure_settings import get_secure_settings
 from src.utils import get_logger
 
@@ -83,6 +84,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def __init__(self, *args: Any, bot_instance: Any = None, **kwargs: Any) -> None:
         self.bot_instance = bot_instance
         self.logger = get_logger("health_server")
+        self.settings = get_settings()
         self.oauth_vault = OAuthCodeVault()
         super().__init__(*args, **kwargs)
 
@@ -141,6 +143,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def _handle_metrics(self) -> None:
         """Expose basic metrics for monitoring"""
+        if not self._authorize_request("metrics"):
+            return
+
         if not self.bot_instance:
             self._send_response(503, {"error": "bot_not_available"})
             return
@@ -198,6 +203,70 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(html.encode("utf-8"))
 
+    def _authorize_request(self, scope: str) -> bool:
+        """Ensure sensitive endpoints require an authorization token."""
+
+        token_secret = self._expected_endpoint_token()
+        if not token_secret:
+            self.logger.warning(
+                "Health endpoint token missing; rejecting request",
+                scope=scope,
+            )
+            self._send_response(503, {"error": "health_token_not_configured"})
+            return False
+
+        provided_token = self._extract_token_from_headers()
+        if provided_token != token_secret:
+            self.logger.warning(
+                "Unauthorized health endpoint access attempt",
+                scope=scope,
+                client=self.client_address[0] if self.client_address else "unknown",
+            )
+            self._send_response(401, {"error": "unauthorized"})
+            return False
+
+        return True
+
+    def _extract_token_from_headers(self) -> str | None:
+        header_token = self.headers.get("X-Health-Token")
+        if header_token:
+            return header_token.strip()
+
+        auth_header = self.headers.get("Authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            return auth_header.split(" ", 1)[1].strip()
+
+        return None
+
+    def _expected_endpoint_token(self) -> str | None:
+        token = getattr(self.settings, "health_endpoint_token", None)
+        if token is None:
+            return None
+
+        if hasattr(token, "get_secret_value"):
+            try:
+                return token.get_secret_value()
+            except Exception:
+                return None
+
+        return str(token)
+
+    def _validate_callback_state(self, state: str | None) -> tuple[bool, str | None]:
+        expected = getattr(self.settings, "health_callback_state", None)
+        if expected is None:
+            return False, "state_not_configured"
+
+        expected_value: str
+        if hasattr(expected, "get_secret_value"):
+            expected_value = expected.get_secret_value()
+        else:
+            expected_value = str(expected)
+
+        if not state or state != expected_value:
+            return False, "invalid_state"
+
+        return True, None
+
     def _handle_callback(self) -> None:
         """Handle OAuth callback to capture 'code' and show a friendly page"""
         try:
@@ -206,6 +275,26 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             parsed = urlparse(self.path)
             params = parse_qs(parsed.query)
             code = params.get("code", [None])[0]
+            state = params.get("state", [None])[0]
+
+            state_valid, state_issue = self._validate_callback_state(state)
+            if not state_valid:
+                self.logger.warning(
+                    "OAuth callback rejected",
+                    reason=state_issue,
+                    client=self.client_address[0] if self.client_address else "unknown",
+                )
+                status_code = 503 if state_issue == "state_not_configured" else 403
+                self._send_html(
+                    status_code,
+                    """
+                    <html><body>
+                    <h1>Authorization Error</h1>
+                    <p>OAuth state token is invalid or missing. Please restart the authorization flow.</p>
+                    </body></html>
+                    """,
+                )
+                return
 
             if not code:
                 self._send_html(
@@ -303,7 +392,12 @@ class HealthServer:
             self.logger.info("Available endpoints:")
             self.logger.info("  - GET /health  - Basic health check")
             self.logger.info("  - GET /ready   - Readiness probe")
-            self.logger.info("  - GET /metrics - Application metrics")
+            self.logger.info(
+                "  - GET /metrics - Application metrics (requires X-Health-Token)"
+            )
+            self.logger.info(
+                "  - GET /callback - OAuth redirect (requires configured state token)"
+            )
 
         except Exception as e:
             self.logger.error(f"Failed to start health server: {e}")
