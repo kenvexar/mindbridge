@@ -36,30 +36,55 @@ class OAuthCodeVault:
 
     def store_code(self, code: str) -> Path | None:
         """Encrypt and persist the OAuth code if possible."""
+        return self._store_secret_blob("oauth_code", code)
+
+    def store_secret_blob(
+        self, label: str, payload: dict[str, Any] | str | bytes
+    ) -> Path | None:
+        """Encrypt and persist arbitrary secret payloads."""
+        return self._store_secret_blob(label, payload)
+
+    def _store_secret_blob(
+        self, label: str, payload: dict[str, Any] | str | bytes
+    ) -> Path | None:
         encryption_key = self.secure_settings.get_secure_setting("encryption_key")
         if not encryption_key:
             self.logger.warning(
-                "Encryption key not configured; OAuth code will not be persisted"
+                "Encryption key not configured; secret payload was not persisted",
+                label=label,
             )
             return None
 
         try:
             fernet = Fernet(self._normalize_key(encryption_key))
-            encrypted_code = fernet.encrypt(code.encode("utf-8")).decode("utf-8")
+            if isinstance(payload, bytes):
+                serialized_bytes = payload
+            elif isinstance(payload, str):
+                serialized_bytes = payload.encode("utf-8")
+            else:
+                serialized_bytes = json.dumps(payload, ensure_ascii=False).encode(
+                    "utf-8"
+                )
+
+            encrypted_payload = fernet.encrypt(serialized_bytes).decode("utf-8")
             record = {
                 "timestamp": datetime.now().isoformat(),
-                "payload": encrypted_code,
+                "label": label,
+                "payload": encrypted_payload,
             }
             with self.storage_path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(record) + "\n")
 
             self.logger.info(
-                "Encrypted OAuth code stored",
+                "Encrypted secret payload stored",
                 storage=str(self.storage_path),
+                label=label,
             )
             return self.storage_path
         except Exception as exc:
-            self.logger.error("Failed to store OAuth code securely", error=str(exc))
+            self.logger.error(
+                "Failed to store secret payload securely", error=str(exc), label=label
+            )
             return None
 
     def _normalize_key(self, key: str) -> bytes:
@@ -316,7 +341,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             )
 
             self.logger.info(
-                "Received OAuth code", path=self.path, persisted=bool(storage_path)
+                "Received OAuth code",
+                persisted=bool(storage_path),
+                state_valid=True,
             )
 
             self._send_html(

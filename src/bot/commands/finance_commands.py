@@ -14,6 +14,7 @@ from src.finance.expense_manager import ExpenseManager
 from src.finance.models import BudgetCategory, SubscriptionFrequency
 from src.finance.subscription_manager import SubscriptionManager
 from src.obsidian import ObsidianFileManager
+from src.security.simple_admin import admin_required
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
@@ -43,6 +44,7 @@ class FinanceCommands(commands.Cog, CommandMixin):
         return self.subscription_manager
 
     @app_commands.command(name="finance_help", description="家計管理機能のヘルプを表示")
+    @admin_required
     async def finance_help(self, interaction: discord.Interaction) -> None:
         """Show finance management help."""
         help_text = """
@@ -91,6 +93,7 @@ class FinanceCommands(commands.Cog, CommandMixin):
         category="支出カテゴリ（ food/transportation/entertainment/utilities/healthcare/education/shopping/other ）",
         notes="メモ（オプション）",
     )
+    @admin_required
     async def expense_add(
         self,
         interaction: discord.Interaction,
@@ -189,6 +192,7 @@ class FinanceCommands(commands.Cog, CommandMixin):
     @app_commands.describe(
         amount="収入金額", description="収入の説明", notes="メモ（オプション）"
     )
+    @admin_required
     async def income_add(
         self,
         interaction: discord.Interaction,
@@ -253,6 +257,7 @@ class FinanceCommands(commands.Cog, CommandMixin):
         category="カテゴリでフィルタ（オプション）",
         days="過去何日分を表示するか（デフォルト: 30 ）",
     )
+    @admin_required
     async def expense_list(
         self,
         interaction: discord.Interaction,
@@ -370,6 +375,7 @@ class FinanceCommands(commands.Cog, CommandMixin):
         start_date="開始日（ YYYY-MM-DD 形式、オプション）",
         category="カテゴリ（オプション）",
     )
+    @admin_required
     async def subscription_add(
         self,
         interaction: discord.Interaction,
@@ -489,6 +495,7 @@ class FinanceCommands(commands.Cog, CommandMixin):
 
     @app_commands.command(name="subscription_list", description="定期購入一覧を表示")
     @app_commands.describe(active_only="アクティブな定期購入のみ表示")
+    @admin_required
     async def subscription_list(
         self, interaction: discord.Interaction, active_only: bool = True
     ) -> None:
@@ -576,6 +583,7 @@ class FinanceCommands(commands.Cog, CommandMixin):
 
     @app_commands.command(name="finance_summary", description="家計サマリーを表示")
     @app_commands.describe(days="過去何日分を表示するか（デフォルト: 30 ）")
+    @admin_required
     async def finance_summary(
         self, interaction: discord.Interaction, days: int = 30
     ) -> None:

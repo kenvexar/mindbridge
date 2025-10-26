@@ -3,6 +3,7 @@ Garmin health data caching system
 """
 
 import json
+import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,15 @@ class GarminDataCache(LoggerMixin):
         self.cache_dir = Path(cache_dir)
         self.max_age_hours = max_age_hours
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        if hasattr(os, "chmod"):
+            try:
+                os.chmod(self.cache_dir, 0o700)
+            except OSError:
+                self.logger.warning(
+                    "Failed to tighten cache directory permissions",
+                    cache_dir=str(self.cache_dir),
+                )
 
         self.logger.info(
             "Garmin data cache initialized",
@@ -67,6 +77,15 @@ class GarminDataCache(LoggerMixin):
                     indent=2,
                     default=json_serializer,
                 )
+
+            if hasattr(os, "chmod"):
+                try:
+                    os.chmod(cache_file, 0o600)
+                except OSError:
+                    self.logger.warning(
+                        "Failed to tighten cache file permissions",
+                        cache_file=str(cache_file),
+                    )
 
             self.logger.info(
                 "Health data cached successfully",

@@ -9,6 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from src.bot.mixins.command_base import CommandMixin
+from src.security.simple_admin import admin_required
 
 logger = structlog.get_logger(__name__)
 
@@ -89,6 +90,7 @@ class BasicCommands(commands.Cog, CommandMixin):
         query="検索キーワード",
         limit="検索結果の最大表示数",
     )
+    @admin_required
     async def search_command(
         self,
         interaction: discord.Interaction,
@@ -147,6 +149,7 @@ class BasicCommands(commands.Cog, CommandMixin):
             )
 
     @app_commands.command(name="random", description="ランダムなノートを表示")
+    @admin_required
     async def random_note_command(self, interaction: discord.Interaction) -> None:
         """Display a random note."""
         try:

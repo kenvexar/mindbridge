@@ -4,6 +4,7 @@ Access logging and security monitoring for MindBridge
 
 import asyncio
 import json
+import os
 from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
@@ -126,6 +127,27 @@ class AccessLogger(LoggerMixin):
         self.log_file = log_file or Path("logs/security_access.jsonl")
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
 
+        if hasattr(os, "chmod"):
+            try:
+                os.chmod(self.log_file.parent, 0o700)
+            except OSError:
+                self.logger.warning(
+                    "Failed to tighten security log directory permissions",
+                    directory=str(self.log_file.parent),
+                )
+
+        if not self.log_file.exists():
+            self.log_file.touch()
+
+        if hasattr(os, "chmod"):
+            try:
+                os.chmod(self.log_file, 0o600)
+            except OSError:
+                self.logger.warning(
+                    "Failed to tighten security log file permissions",
+                    log_file=str(self.log_file),
+                )
+
         # In-memory tracking for real-time analysis
         self.recent_events: list[SecurityEvent] = []  # Last 1000 events
         self.failed_attempts: defaultdict[str, list[datetime]] = defaultdict(
@@ -208,6 +230,14 @@ class AccessLogger(LoggerMixin):
         if self.max_backup_files < 1:
             self.log_file.unlink(missing_ok=True)
             self.log_file.touch()
+            if hasattr(os, "chmod"):
+                try:
+                    os.chmod(self.log_file, 0o600)
+                except OSError:
+                    self.logger.warning(
+                        "Failed to tighten security log file permissions",
+                        log_file=str(self.log_file),
+                    )
             return
 
         if self.log_file.stat().st_size < self.max_log_file_size:
@@ -230,7 +260,23 @@ class AccessLogger(LoggerMixin):
         if backup_path.exists():
             backup_path.unlink()
         self.log_file.replace(backup_path)
+        if hasattr(os, "chmod"):
+            try:
+                os.chmod(backup_path, 0o600)
+            except OSError:
+                self.logger.warning(
+                    "Failed to tighten rotated log permissions",
+                    log_file=str(backup_path),
+                )
         self.log_file.touch()
+        if hasattr(os, "chmod"):
+            try:
+                os.chmod(self.log_file, 0o600)
+            except OSError:
+                self.logger.warning(
+                    "Failed to tighten new log file permissions",
+                    log_file=str(self.log_file),
+                )
         self.logger.info("Rotated security access log", backup=str(backup_path.name))
 
     def _cleanup_old_attempts(self, user_id: str) -> None:
