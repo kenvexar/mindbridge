@@ -167,9 +167,7 @@ def override_settings(**overrides: Any) -> Iterator[Settings]:
         previous_settings = _SETTINGS_CACHE
 
     base_settings = previous_settings or Settings()
-    patched_settings = Settings(
-        **{**base_settings.model_dump(mode="python"), **overrides}
-    )
+    patched_settings = base_settings.model_copy(update=overrides)
 
     with _SETTINGS_LOCK:
         _SETTINGS_CACHE = patched_settings

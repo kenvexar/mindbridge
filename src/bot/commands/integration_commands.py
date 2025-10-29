@@ -7,6 +7,7 @@
 import asyncio
 import os
 from datetime import datetime
+from pathlib import Path
 
 import discord
 import structlog
@@ -20,6 +21,8 @@ from ...lifelog.integrations.pipelines.scheduler import (
     ScheduleType,
 )
 from ...lifelog.manager import LifelogManager
+from ...monitoring.health_server import OAuthCodeVault
+from ...security.simple_admin import admin_required
 
 logger = structlog.get_logger(__name__)
 
@@ -224,6 +227,28 @@ class IntegrationCommands(commands.Cog):
                 integration_name, integration_config
             )
 
+    def _google_token_vault_path(self) -> Path:
+        """Google Calendar トークンの暗号化保存先"""
+        return Path("logs") / "google_calendar_tokens.enc"
+
+    def _persist_google_calendar_tokens(
+        self, access_token: str, refresh_token: str
+    ) -> tuple[bool, str]:
+        """Google Calendar トークンを暗号化して保存する"""
+        vault = OAuthCodeVault(storage_path=self._google_token_vault_path())
+        stored_path = vault.store_secret_blob(
+            "google_calendar_tokens",
+            {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "stored_at": datetime.now().isoformat(),
+            },
+        )
+
+        if stored_path:
+            return True, str(stored_path)
+        return False, str(self._google_token_vault_path())
+
     async def _save_integration_settings(self):
         """統合設定をファイルに保存"""
         if self.integration_manager is None:
@@ -276,6 +301,7 @@ class IntegrationCommands(commands.Cog):
     @discord.app_commands.command(
         name="integration_status", description="外部連携の状態を確認"
     )
+    @admin_required
     async def integration_status(self, interaction: discord.Interaction):
         """外部連携の状態を表示"""
         await interaction.response.defer()
@@ -372,6 +398,7 @@ class IntegrationCommands(commands.Cog):
     @discord.app_commands.command(
         name="system_status", description="システム全体の状態を確認"
     )
+    @admin_required
     async def system_status(self, interaction: discord.Interaction):
         """システム全体の状態を表示"""
         await interaction.response.defer()
@@ -439,6 +466,7 @@ class IntegrationCommands(commands.Cog):
         integration="同期する外部連携名（省略時は全て）",
         force="強制実行（実行中でも再実行）",
     )
+    @admin_required
     async def manual_sync(
         self,
         interaction: discord.Interaction,
@@ -691,6 +719,7 @@ class IntegrationCommands(commands.Cog):
         enabled="有効/無効の切り替え",
         interval="同期間隔（秒）",
     )
+    @admin_required
     async def integration_config(
         self,
         interaction: discord.Interaction,
@@ -808,6 +837,7 @@ class IntegrationCommands(commands.Cog):
     @discord.app_commands.command(
         name="scheduler_status", description="自動同期スケジューラーの状態を確認"
     )
+    @admin_required
     async def scheduler_status(self, interaction: discord.Interaction):
         """スケジューラー状態表示"""
         await interaction.response.defer()
@@ -897,6 +927,7 @@ class IntegrationCommands(commands.Cog):
         name="lifelog_stats", description="外部連携から取得したライフログ統計を表示"
     )
     @discord.app_commands.describe(days="表示期間（日数、デフォルト 30 日）")
+    @admin_required
     async def lifelog_integration_stats(
         self, interaction: discord.Interaction, days: int = 30
     ):
@@ -1004,6 +1035,7 @@ class IntegrationCommands(commands.Cog):
     @discord.app_commands.command(
         name="calendar_auth", description="Google Calendar の OAuth 認証を開始"
     )
+    @admin_required
     async def calendar_auth(self, interaction: discord.Interaction):
         """Google Calendar OAuth 認証"""
         await interaction.response.defer()
@@ -1078,6 +1110,7 @@ class IntegrationCommands(commands.Cog):
         name="calendar_token", description="Google Calendar 認証コードを設定"
     )
     @discord.app_commands.describe(code="Google から取得した認証コード")
+    @admin_required
     async def calendar_token(self, interaction: discord.Interaction, code: str):
         """Google Calendar 認証コード処理"""
         await interaction.response.defer(ephemeral=True)  # プライベート応答
@@ -1117,29 +1150,39 @@ class IntegrationCommands(commands.Cog):
                         refresh_token = token_response.get("refresh_token")
 
                         if access_token and refresh_token:
+                            stored, storage_path = self._persist_google_calendar_tokens(
+                                access_token, refresh_token
+                            )
+
+                            if not stored:
+                                await interaction.followup.send(
+                                    "⚠️ ENCRYPTION_KEY が未設定のため取得したトークンを保存できませんでした。\n"
+                                    "`ENCRYPTION_KEY` を安全な 32 バイトキーで設定し、再度コマンドを実行してください。",
+                                    ephemeral=True,
+                                )
+                                return
+
                             embed = discord.Embed(
                                 title="✅ Google Calendar 認証成功",
-                                description="認証が正常に完了しました！",
+                                description="トークンを暗号化して保存しました。",
                                 color=discord.Color.green(),
                             )
 
                             embed.add_field(
-                                name="📝 次の手順",
+                                name="🔐 保存先",
                                 value=(
-                                    "以下のトークンを `.env` ファイルに追加してください：\n"
-                                    f"```\n"
-                                    f"GOOGLE_CALENDAR_ACCESS_TOKEN={access_token}\n"
-                                    f"GOOGLE_CALENDAR_REFRESH_TOKEN={refresh_token}\n"
-                                    f"```"
+                                    f"暗号化ファイル: `{storage_path}`\n"
+                                    "復号には設定済みの `ENCRYPTION_KEY` (32 バイトのFernetキー) が必要です。"
                                 ),
                                 inline=False,
                             )
 
                             embed.add_field(
-                                name="🔄 有効化",
+                                name="📝 復号後の手順",
                                 value=(
-                                    "その後、`/integration_config integration:google_calendar "
-                                    "enabled:true` で有効化してください。"
+                                    "1. `ENCRYPTION_KEY` で暗号化レコードを復号\n"
+                                    "2. `.env` 等に `GOOGLE_CALENDAR_ACCESS_TOKEN` と `GOOGLE_CALENDAR_REFRESH_TOKEN` を設定\n"
+                                    "3. `/integration_config integration:google_calendar enabled:true` を実行"
                                 ),
                                 inline=False,
                             )
@@ -1167,6 +1210,7 @@ class IntegrationCommands(commands.Cog):
     @discord.app_commands.command(
         name="calendar_test", description="Google Calendar 接続をテスト"
     )
+    @admin_required
     async def calendar_test(self, interaction: discord.Interaction):
         """Google Calendar 接続テスト"""
         await interaction.response.defer()
@@ -1271,6 +1315,7 @@ class IntegrationCommands(commands.Cog):
     @discord.app_commands.command(
         name="garmin_sleep", description="Garmin 睡眠データを取得・表示"
     )
+    @admin_required
     async def garmin_sleep(self, interaction: discord.Interaction) -> None:
         """Garmin 睡眠データ表示"""
         await interaction.response.defer()
@@ -1426,6 +1471,7 @@ class IntegrationCommands(commands.Cog):
     @discord.app_commands.command(
         name="garmin_today", description="Garmin 今日のアクティビティデータを表示"
     )
+    @admin_required
     async def garmin_today(self, interaction: discord.Interaction) -> None:
         """Garmin 今日のデータ表示"""
         await interaction.response.defer()
