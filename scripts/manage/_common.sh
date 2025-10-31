@@ -34,7 +34,9 @@ require_cmd() {
   for c in "$@"; do
     command -v "$c" >/dev/null 2>&1 || missing+=("$c")
   done
-  (( ${#missing[@]} )) && die "必要なコマンドが見つかりません: ${missing[*]}"
+  if (( ${#missing[@]} )); then
+    die "必要なコマンドが見つかりません: ${missing[*]}"
+  fi
 }
 
 ensure_repo_root() {
