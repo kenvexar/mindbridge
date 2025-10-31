@@ -95,9 +95,15 @@ HELP
     local missing=()
     local secret
     for secret in "${secrets[@]}"; do
-      local state
-      state=$(gcloud secrets describe "$secret" --project="$PROJECT_ID" --format='value(state)' 2>/dev/null || true)
-      if [[ "$state" != "ENABLED" ]]; then
+      local exists
+      exists=$(gcloud secrets describe "$secret" --project="$PROJECT_ID" --format='value(name)' 2>/dev/null || true)
+      if [[ -z "$exists" ]]; then
+        missing+=("$secret")
+        continue
+      fi
+      local version_state
+      version_state=$(gcloud secrets versions list "$secret" --project="$PROJECT_ID" --filter="state=ENABLED" --limit=1 --format='value(state)' 2>/dev/null || true)
+      if [[ -z "$version_state" ]]; then
         missing+=("$secret")
       fi
     done
