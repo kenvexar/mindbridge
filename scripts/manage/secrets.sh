@@ -44,7 +44,9 @@ generate_speech_credentials() {
 cmd_secrets() {
   PROJECT_ID=${1:-}
   shift || true
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
   ensure_gcloud_auth
   ensure_project_id
   SKIP_EXISTING=false

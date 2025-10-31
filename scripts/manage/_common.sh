@@ -55,7 +55,9 @@ ensure_project_id() {
   if [[ -z "${PROJECT_ID:-}" ]]; then
     PROJECT_ID=$(gcloud config get-value project 2>/dev/null || true)
   fi
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID が未設定です。引数または 'gcloud config set project' で指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID が未設定です。引数または 'gcloud config set project' で指定してください"
+  fi
 }
 
 confirm() {

@@ -3,7 +3,9 @@
 cmd_deploy_precheck() {
   local PROJECT_ID=${1:-}
   shift || true
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
 
   local REGION="us-central1" SKIP_TESTS=false SKIP_MYPY=false SKIP_SECRET_CHECK=false SKIP_SA_CHECK=false SKIP_ARTIFACT_CHECK=false
   while (($#)); do
@@ -82,7 +84,9 @@ HELP
   log_step "gcloud 認証状態"
   local ACTIVE_ACCOUNT
   ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null || true)
-  [[ -z "$ACTIVE_ACCOUNT" ]] && die "gcloud にアクティブなアカウントがありません"
+  if [[ -z "$ACTIVE_ACCOUNT" ]]; then
+    die "gcloud にアクティブなアカウントがありません"
+  fi
   log "Active account: $ACTIVE_ACCOUNT"
 
   if [[ "$SKIP_SECRET_CHECK" == false ]]; then
@@ -140,7 +144,9 @@ HELP
 cmd_deploy() {
   PROJECT_ID=${1:-}
   REGION=${2:-us-central1}
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
   ensure_gcloud_auth
   ensure_project_id
   local SERVICE_NAME=mindbridge
@@ -190,7 +196,9 @@ cmd_deploy() {
 cmd_deploy_auto() {
   local PROJECT_ID=${1:-}
   shift || true
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
   local REGION="us-central1"
   if (($#)) && [[ $1 != --* ]]; then
     REGION=$1
@@ -207,7 +215,9 @@ cmd_deploy_auto() {
 
 cmd_full_deploy() {
   PROJECT_ID=${1:-}
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
   shift || true
   local FLAGS=("$@")
   cmd_env "$PROJECT_ID"
