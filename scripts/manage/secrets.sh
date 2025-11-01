@@ -21,6 +21,39 @@ prompt_secret() {
   log_success "$secret_name 設定完了"
 }
 
+generate_random_secret() {
+  local secret_name=$1 desc=$2 length=${3:-48}
+  local create_mode=create
+  if gcloud secrets describe "$secret_name" --project="$PROJECT_ID" &>/dev/null; then
+    warn "Secret '$secret_name' は既に存在します"
+    if [[ "$SKIP_EXISTING" == true ]]; then
+      log "--skip-existing によりスキップ"
+      return 0
+    fi
+    confirm "再生成しますか?" || { log "スキップ: $secret_name"; return 0; }
+    create_mode=update
+  else
+    log "自動生成: $secret_name ($desc)"
+  fi
+
+  local token
+  token=$(python3 - <<PY
+import secrets
+import sys
+print(secrets.token_urlsafe(${length}))
+PY
+)
+
+  [[ -z "$token" ]] && die "$secret_name の生成に失敗しました"
+
+  if [[ "$create_mode" == create ]]; then
+    printf %s "$token" | gcloud secrets create "$secret_name" --project="$PROJECT_ID" --data-file=-
+  else
+    printf %s "$token" | gcloud secrets versions add "$secret_name" --project="$PROJECT_ID" --data-file=-
+  fi
+  log_success "$secret_name 自動設定完了"
+}
+
 generate_speech_credentials() {
   local SA_NAME="mindbridge-speech"
   local SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -61,6 +94,9 @@ cmd_secrets() {
   prompt_secret gemini-api-key "Google Gemini API Key"
   prompt_secret github-token "GitHub Personal Access Token (repo)"
   prompt_secret obsidian-backup-repo "GitHub repo URL for Obsidian backup"
+  generate_random_secret health-endpoint-token "Health server shared token"
+  generate_random_secret health-callback-state "OAuth callback CSRF token"
+  generate_random_secret encryption-key "Application encryption key" 64
 
   if [[ "$WITH_OPTIONAL" == true ]]; then
     log_step "オプション（Garmin/Speech）"
@@ -76,7 +112,7 @@ cmd_secrets() {
   log_step "サービスアカウントへのアクセス許可付与"
   local SA_MAIN_EMAIL="mindbridge-service@${PROJECT_ID}.iam.gserviceaccount.com"
   local s
-  for s in discord-bot-token discord-guild-id gemini-api-key garmin-username garmin-password github-token obsidian-backup-repo google-cloud-speech-credentials; do
+  for s in discord-bot-token discord-guild-id gemini-api-key garmin-username garmin-password github-token obsidian-backup-repo google-cloud-speech-credentials health-endpoint-token health-callback-state encryption-key; do
     gcloud secrets describe "$s" --project="$PROJECT_ID" &>/dev/null || continue
     gcloud secrets add-iam-policy-binding "$s" --member="serviceAccount:$SA_MAIN_EMAIL" --role="roles/secretmanager.secretAccessor" --project="$PROJECT_ID" 2>/dev/null || true
   done

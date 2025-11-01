@@ -24,35 +24,16 @@ steps:
     args: [
       'build',
       '-f', 'Dockerfile.cloudrun',
-      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:$COMMIT_SHA',
+      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:${_IMAGE_TAG}',
       '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:latest',
       '.'
     ]
 
   # イメージを Artifact Registry にプッシュ
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:$COMMIT_SHA']
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:${_IMAGE_TAG}']
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:latest']
-
-  # Cloud Run にデプロイ (無料枠設定)
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args: [
-      'run', 'deploy', 'mindbridge',
-      '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/mindbridge/mindbridge:$COMMIT_SHA',
-      '--region', 'us-central1',  # 無料枠対象リージョン
-      '--platform', 'managed',
-      '--allow-unauthenticated',
-      '--memory', '512Mi',
-      '--cpu', '1',
-      '--concurrency', '10',
-      '--max-instances', '3',
-      '--min-instances', '0',
-      '--timeout', '300',
-      '--set-env-vars', 'ENVIRONMENT=production,LOG_LEVEL=INFO,ENABLE_MOCK_MODE=false',
-      '--port', '8080'
-    ]
 
 # ビルドタイムアウト: 無料枠内で完了
 timeout: '600s'  # 10 分
@@ -63,17 +44,5 @@ options:
   diskSizeGb: '10'
   logging: 'CLOUD_LOGGING_ONLY'
 
-# 環境変数 (Secret Manager から取得)
-availableSecrets:
-  secretManager:
-    - versionName: 'projects/$PROJECT_ID/secrets/discord-bot-token/versions/latest'
-      env: 'DISCORD_BOT_TOKEN'
-    - versionName: 'projects/$PROJECT_ID/secrets/gemini-api-key/versions/latest'
-      env: 'GEMINI_API_KEY'
-    - versionName: 'projects/$PROJECT_ID/secrets/google-cloud-speech-credentials/versions/latest'
-      env: 'GOOGLE_CLOUD_SPEECH_CREDENTIALS'
-    # GitHub 同期用シークレット（無料永続化用）
-    - versionName: 'projects/$PROJECT_ID/secrets/github-token/versions/latest'
-      env: 'GITHUB_TOKEN'
-    - versionName: 'projects/$PROJECT_ID/secrets/obsidian-backup-repo/versions/latest'
-      env: 'OBSIDIAN_BACKUP_REPO'
+substitutions:
+  _IMAGE_TAG: latest

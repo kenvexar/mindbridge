@@ -35,21 +35,29 @@ spec:
         - containerPort: 8080
           name: http1
         env:
-        - name: DISCORD_GUILD_ID
-          valueFrom:
-            secretKeyRef:
-              name: discord-guild-id
-              key: latest
         - name: OBSIDIAN_VAULT_PATH
           value: "/app/vault"
         - name: GOOGLE_CLOUD_PROJECT
           value: "PROJECT_ID"
         - name: ENVIRONMENT
           value: "production"
+        # Optional integrations (例: Garmin) は初期コスト抑制のためデフォルト無効。
+        # 必要になった段階で個別の manifest overlay や manage.sh optional コマンドで追加する。
+        - name: OBSIDIAN_BACKUP_BRANCH
+          value: "main"
+        - name: GIT_USER_NAME
+          value: "MindBridge Bot"
+        - name: GIT_USER_EMAIL
+          value: "mindbridge-bot@example.com"
         - name: DISCORD_BOT_TOKEN
           valueFrom:
             secretKeyRef:
               name: discord-bot-token
+              key: latest
+        - name: DISCORD_GUILD_ID
+          valueFrom:
+            secretKeyRef:
+              name: discord-guild-id
               key: latest
         - name: GEMINI_API_KEY
           valueFrom:
@@ -71,14 +79,6 @@ spec:
             secretKeyRef:
               name: google-cloud-speech-credentials
               key: latest
-        # Optional integrations (例: Garmin) は初期コスト抑制のためデフォルト無効。
-        # 必要になった段階で個別の manifest overlay や manage.sh optional コマンドで追加する。
-        - name: OBSIDIAN_BACKUP_BRANCH
-          value: "main"
-        - name: GIT_USER_NAME
-          value: "MindBridge Bot"
-        - name: GIT_USER_EMAIL
-          value: "mindbridge-bot@example.com"
         - name: HEALTH_ENDPOINT_TOKEN
           valueFrom:
             secretKeyRef:
@@ -89,6 +89,15 @@ spec:
             secretKeyRef:
               name: health-callback-state
               key: latest
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: encryption-key
+              key: latest
+        - name: SECRET_MANAGER_PROJECT_ID
+          value: "PROJECT_ID"
+        - name: SECRET_MANAGER_STRATEGY
+          value: "google"
         resources:
           requests:
             cpu: 1000m

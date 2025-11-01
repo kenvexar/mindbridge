@@ -91,7 +91,7 @@ HELP
 
   if [[ "$SKIP_SECRET_CHECK" == false ]]; then
     log_step "Secret Manager 必須項目"
-    local secrets=(discord-bot-token discord-guild-id gemini-api-key github-token obsidian-backup-repo google-cloud-speech-credentials)
+    local secrets=(discord-bot-token discord-guild-id gemini-api-key github-token obsidian-backup-repo google-cloud-speech-credentials health-endpoint-token health-callback-state)
     local missing=()
     local secret
     for secret in "${secrets[@]}"; do
@@ -166,8 +166,14 @@ cmd_deploy() {
   log_step "Cloud Build によるビルド/デプロイ"
   local CB_CONFIG="deploy/cloudbuild.yaml"
   [[ -f "$CB_CONFIG" ]] || die "deploy/cloudbuild.yaml が見つかりません"
+  local IMAGE_TAG
+  IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)
   local BUILD_ID
-  BUILD_ID=$(gcloud builds submit --config "$CB_CONFIG" --project="$PROJECT_ID" --format='value(id)') || die "Cloud Build 失敗"
+  BUILD_ID=$(gcloud builds submit \
+    --config "$CB_CONFIG" \
+    --project="$PROJECT_ID" \
+    --substitutions="_IMAGE_TAG=${IMAGE_TAG}" \
+    --format='value(id)') || die "Cloud Build 失敗"
   log_success "Cloud Build 完了 (Build ID: $BUILD_ID)"
 
   log_step "Cloud Run へ反映"
@@ -179,9 +185,13 @@ cmd_deploy() {
     cp "$CR_CONFIG" /tmp/cloud-run-deploy.yaml
   fi
   gcloud run services replace /tmp/cloud-run-deploy.yaml --region="$REGION" --project="$PROJECT_ID"
-  local GIT_SHA
-  GIT_SHA=$(git rev-parse --short HEAD || echo latest)
-  gcloud run services update "$SERVICE_NAME" --image="${IMAGE_NAME}:${GIT_SHA}" --region="$REGION" --project="$PROJECT_ID" || true
+  local SECRET_BINDINGS="DISCORD_BOT_TOKEN=discord-bot-token:latest,DISCORD_GUILD_ID=discord-guild-id:latest,GEMINI_API_KEY=gemini-api-key:latest,GITHUB_TOKEN=github-token:latest,OBSIDIAN_BACKUP_REPO=obsidian-backup-repo:latest,GOOGLE_CLOUD_SPEECH_CREDENTIALS=google-cloud-speech-credentials:latest,HEALTH_ENDPOINT_TOKEN=health-endpoint-token:latest,HEALTH_CALLBACK_STATE=health-callback-state:latest,ENCRYPTION_KEY=encryption-key:latest"
+  gcloud run services update "$SERVICE_NAME" \
+    --image="${IMAGE_NAME}:${IMAGE_TAG}" \
+    --region="$REGION" \
+    --project="$PROJECT_ID" \
+    --set-secrets="${SECRET_BINDINGS}" \
+    --set-env-vars="SECRET_MANAGER_PROJECT_ID=${PROJECT_ID},SECRET_MANAGER_STRATEGY=google" || true
   rm -f /tmp/cloud-run-deploy.yaml
 
   log_step "Health Check"
