@@ -122,6 +122,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self._handle_ready()
         elif self.path == "/metrics":
             self._handle_metrics()
+        elif self.path in {"/probe", "/healthz", "/_ah/health"}:
+            self._handle_probe()
         elif self.path.startswith("/callback"):
             self._handle_callback()
         else:
@@ -172,6 +174,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             ).total_seconds(),
         }
         self._send_response(200, ready_data)
+
+    def _handle_probe(self) -> None:
+        """Unauthenticated probe endpoint for Cloud Run liveness checks."""
+        probe_data = {
+            "status": "ok",
+            "timestamp": datetime.now().isoformat(),
+            "service": "mindbridge",
+        }
+        self._send_response(200, probe_data)
 
     def _handle_metrics(self) -> None:
         """Expose basic metrics for monitoring"""

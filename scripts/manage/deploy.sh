@@ -199,10 +199,26 @@ cmd_deploy() {
   URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')
   if [[ -n "$URL" ]]; then
     printf "%s\n" "URL: $URL"
-    if curl -fsS "$URL/health" >/dev/null 2>&1; then
-      log_success "Health OK"
+    if curl -fsS "$URL/probe" >/dev/null 2>&1; then
+      log_success "Probe OK"
     else
-      warn "Health 未確認"
+      warn "Probe 未確認"
+    fi
+
+    local HEALTH_TOKEN=""
+    HEALTH_TOKEN=$(gcloud secrets versions access latest \
+      --secret=health-endpoint-token \
+      --project="$PROJECT_ID" 2>/dev/null || true)
+    HEALTH_TOKEN=$(printf '%s' "$HEALTH_TOKEN" | tr -d '\r\n')
+
+    if [[ -n "$HEALTH_TOKEN" ]]; then
+      if curl -fsS -H "X-Health-Token: $HEALTH_TOKEN" "$URL/health" >/dev/null 2>&1; then
+        log_success "Health OK"
+      else
+        warn "Health 未確認 (/health)"
+      fi
+    else
+      warn "Health token を取得できませんでした"
     fi
   else
     warn "Cloud Run URL を取得できませんでした"
