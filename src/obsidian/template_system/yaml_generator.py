@@ -1,10 +1,13 @@
 """YAML フロントマター生成器"""
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 
 class YAMLFrontmatterGenerator:
     """YAML フロントマターを生成するクラス（拡張版）"""
+
+    DEFAULT_TZ = timezone(timedelta(hours=9))
 
     # Obsidian 特有のフィールド（特別な処理が必要）
     OBSIDIAN_SPECIAL_FIELDS = {
@@ -216,7 +219,7 @@ class YAMLFrontmatterGenerator:
         """
         値の前処理を行う（日付フォーマット、特殊な値の変換など）
         """
-        from datetime import date, datetime
+        from datetime import date
 
         processed: dict[str, Any] = {}
 
@@ -232,7 +235,7 @@ class YAMLFrontmatterGenerator:
 
             # 日付の自動フォーマット
             if isinstance(value, datetime):
-                processed[key] = value.strftime("%Y-%m-%d %H:%M:%S")
+                processed[key] = self._format_datetime_value(value)
             elif isinstance(value, date):
                 processed[key] = value.strftime("%Y-%m-%d")
             # タグの正規化
@@ -287,6 +290,19 @@ class YAMLFrontmatterGenerator:
 
         return processed
 
+    def _normalize_datetime(self, value: datetime) -> datetime:
+        """デフォルトタイムゾーン (JST) の datetime に正規化する"""
+
+        if value.tzinfo is None:
+            return value.replace(tzinfo=self.DEFAULT_TZ)
+        return value.astimezone(self.DEFAULT_TZ)
+
+    def _format_datetime_value(self, value: datetime) -> str:
+        """タイムゾーン付き datetime を YAML 向けの文字列に変換する"""
+
+        normalized = self._normalize_datetime(value)
+        return normalized.strftime("%Y-%m-%d %H:%M:%S %z")
+
     def _order_fields(
         self, frontmatter_dict: dict[str, Any], sort_fields: bool
     ) -> list[tuple[str, Any]]:
@@ -335,11 +351,21 @@ class YAMLFrontmatterGenerator:
             包括的なフロントマター
         """
         import re
-        from datetime import datetime
+
+        created_ts: datetime | None = None
+
+        if context:
+            ctx_ts = context.get("timestamp")
+            if isinstance(ctx_ts, datetime):
+                created_ts = self._normalize_datetime(ctx_ts)
+
+        if created_ts is None:
+            created_ts = datetime.now(self.DEFAULT_TZ)
 
         frontmatter: dict[str, Any] = {
             "title": title,
-            "created": datetime.now(),
+            "created": created_ts,
+            "modified": created_ts,
             "type": content_type,
         }
 
@@ -384,6 +410,9 @@ class YAMLFrontmatterGenerator:
 
         # コンテキスト情報の統合
         if context:
+            # タイムゾーン情報が無い場合はフロントマター側で補完
+            if context.get("timezone") is None:
+                frontmatter.setdefault("timezone", "Asia/Tokyo")
             # Discord 特有の情報
             if context.get("source") == "Discord":
                 frontmatter["source"] = "Discord"
@@ -533,9 +562,7 @@ class YAMLFrontmatterGenerator:
             ai_data["ai_model"] = "gemini-pro"
 
         # 分析日時（現在時刻を設定）
-        from datetime import datetime
-
-        ai_data["processing_date"] = datetime.now()
+        ai_data["processing_date"] = datetime.now(self.DEFAULT_TZ)
 
         return ai_data
 
@@ -622,11 +649,9 @@ class YAMLFrontmatterGenerator:
         """
         ノート用の標準的なフロントマターを生成する便利メソッド
         """
-        from datetime import datetime
-
         frontmatter = {
             "title": title,
-            "created": datetime.now(),
+            "created": datetime.now(self.DEFAULT_TZ),
             "type": note_type,
         }
 
@@ -642,7 +667,7 @@ class YAMLFrontmatterGenerator:
         """
         デイリーノート用のフロントマターを生成する便利メソッド
         """
-        from datetime import date, datetime
+        from datetime import date
 
         if date_obj is None:
             date_obj = date.today()
@@ -651,7 +676,7 @@ class YAMLFrontmatterGenerator:
             "title": f"Daily Note - {date_obj.strftime('%Y-%m-%d')}",
             "type": "daily",
             "date": date_obj,
-            "created": datetime.now(),
+            "created": datetime.now(self.DEFAULT_TZ),
             "tags": ["daily", "journal"],
             "template_used": "daily_template",
             "automated_tags": ["daily", "journal"],
@@ -742,11 +767,9 @@ class YAMLFrontmatterGenerator:
         Returns:
             Obsidian 最適化された YAML フロントマター
         """
-        from datetime import datetime
-
         frontmatter = {
             "title": title,
-            "created": datetime.now(),
+            "created": datetime.now(self.DEFAULT_TZ),
         }
 
         # AI 結果の統合
@@ -1070,7 +1093,9 @@ class YAMLFrontmatterGenerator:
             # 日付形式の判定（YYYY-MM-DD HH:MM:SS など）
             import re
 
-            date_pattern = r"^\d{4}-\d{2}-\d{2}(\s+\d{2}:\d{2}(:\d{2})?)?$"
+            date_pattern = (
+                r"^\d{4}-\d{2}-\d{2}(\s+\d{2}:\d{2}(:\d{2})?)?(\s+[+-]\d{2}:?\d{2})?$"
+            )
             if re.match(date_pattern, value.strip()):
                 # 日付形式の場合はクォートなしで出力
                 return value

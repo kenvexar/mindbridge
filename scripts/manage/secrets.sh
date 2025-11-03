@@ -99,7 +99,9 @@ cmd_secrets() {
   generate_random_secret encryption-key "Application encryption key" 64
 
   if [[ "$WITH_OPTIONAL" == true ]]; then
-    log_step "オプション（Garmin/Speech）"
+    log_step "オプション（Google Calendar/Garmin/Speech）"
+    prompt_secret google-calendar-client-id "Google Calendar OAuth Client ID"
+    prompt_secret google-calendar-client-secret "Google Calendar OAuth Client Secret"
     prompt_secret garmin-username "Garmin Connect ユーザー名/メール"
     prompt_secret garmin-password "Garmin Connect パスワード"
     if gcloud secrets describe google-cloud-speech-credentials --project="$PROJECT_ID" &>/dev/null; then
@@ -112,9 +114,11 @@ cmd_secrets() {
   log_step "サービスアカウントへのアクセス許可付与"
   local SA_MAIN_EMAIL="mindbridge-service@${PROJECT_ID}.iam.gserviceaccount.com"
   local s
-  for s in discord-bot-token discord-guild-id gemini-api-key garmin-username garmin-password github-token obsidian-backup-repo google-cloud-speech-credentials health-endpoint-token health-callback-state encryption-key; do
+  for s in discord-bot-token discord-guild-id gemini-api-key garmin-username garmin-password github-token obsidian-backup-repo google-cloud-speech-credentials health-endpoint-token health-callback-state encryption-key google-calendar-client-id google-calendar-client-secret google-calendar-access-token google-calendar-refresh-token; do
     gcloud secrets describe "$s" --project="$PROJECT_ID" &>/dev/null || continue
     gcloud secrets add-iam-policy-binding "$s" --member="serviceAccount:$SA_MAIN_EMAIL" --role="roles/secretmanager.secretAccessor" --project="$PROJECT_ID" 2>/dev/null || true
+    gcloud secrets add-iam-policy-binding "$s" --member="serviceAccount:$SA_MAIN_EMAIL" --role="roles/secretmanager.secretVersionAdder" --project="$PROJECT_ID" 2>/dev/null || true
+    gcloud secrets add-iam-policy-binding "$s" --member="serviceAccount:$SA_MAIN_EMAIL" --role="roles/secretmanager.admin" --project="$PROJECT_ID" 2>/dev/null || true
   done
   log_success "Secrets setup 完了"
 }

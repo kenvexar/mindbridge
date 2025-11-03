@@ -5,6 +5,7 @@ Simple admin authentication for personal use.
 
 import os
 from collections.abc import Callable
+from functools import wraps
 from typing import Any
 
 import discord
@@ -79,6 +80,7 @@ def get_simple_admin() -> SimpleAdminAuth:
 def admin_required(func: Callable[..., Any]) -> Callable[..., Any]:
     """管理者権限が必要なコマンドのデコレータ（個人使用向け）"""
 
+    @wraps(func)
     async def wrapper(
         self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any
     ) -> Any:

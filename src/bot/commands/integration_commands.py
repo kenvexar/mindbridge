@@ -8,6 +8,7 @@ import asyncio
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import discord
 import structlog
@@ -40,6 +41,51 @@ class IntegrationCommands(commands.Cog):
         self.lifelog_manager: LifelogManager | None = None
 
         self._initialized = False
+        self._calendar_env_cache: tuple[str, str, str, str] | None = None
+
+    def _hydrate_google_calendar_from_env(self):
+        """環境変数の Google Calendar 認証情報を統合へ反映"""
+        if not self.integration_manager:
+            return None
+
+        integration = self.integration_manager.integrations.get("google_calendar")
+        if integration is None:
+            return None
+
+        env_access = os.getenv("GOOGLE_CALENDAR_ACCESS_TOKEN", "").strip()
+        env_refresh = os.getenv("GOOGLE_CALENDAR_REFRESH_TOKEN", "").strip()
+        env_client_id = os.getenv("GOOGLE_CALENDAR_CLIENT_ID", "").strip()
+        env_client_secret = os.getenv("GOOGLE_CALENDAR_CLIENT_SECRET", "").strip()
+
+        cache = (env_access, env_refresh, env_client_id, env_client_secret)
+        if self._calendar_env_cache == cache:
+            return integration
+
+        config = integration.config
+        updated = False
+
+        if env_client_id and env_client_id != (config.client_id or ""):
+            config.client_id = env_client_id
+            updated = True
+
+        if env_client_secret and env_client_secret != (config.client_secret or ""):
+            config.client_secret = env_client_secret
+            updated = True
+
+        if env_access and env_access != (config.access_token or ""):
+            config.access_token = env_access
+            updated = True
+
+        if env_refresh and env_refresh != (config.refresh_token or ""):
+            config.refresh_token = env_refresh
+            updated = True
+
+        if updated:
+            config.enabled = bool(config.access_token or config.refresh_token)
+            integration._authenticated = False
+            self._calendar_env_cache = cache
+
+        return integration
 
     async def _ensure_initialized(self):
         """外部連携システムの初期化を確認"""
@@ -107,6 +153,112 @@ class IntegrationCommands(commands.Cog):
             logger.error(f"外部連携システムの初期化に失敗: {e}")
             # 最低限の状態で動作を継続
             self._initialized = True
+
+    async def _store_google_calendar_tokens_in_secret_manager(
+        self, access_token: str, refresh_token: str
+    ) -> bool:
+        """Save Google Calendar tokens to Google Secret Manager when available."""
+
+        strategy = (self.settings.secret_manager_strategy or "env").lower()
+        if strategy not in {"google", "gcp", "google-secret-manager"}:
+            logger.info(
+                "Secret Manager strategy is not Google; skipping token persistence",
+                strategy=strategy,
+            )
+            return False
+
+        project_id = (
+            self.settings.secret_manager_project_id
+            or os.getenv("SECRET_MANAGER_PROJECT_ID", "").strip()
+        )
+        if not project_id:
+            logger.warning(
+                "SECRET_MANAGER_PROJECT_ID が設定されていないためトークン保存をスキップ"
+            )
+            return False
+
+        try:  # pragma: no cover - optional dependency
+            from google.api_core import exceptions as google_exceptions
+            from google.cloud import secretmanager
+        except ImportError as exc:  # pragma: no cover - optional dependency
+            logger.warning(
+                "google-cloud-secret-manager が利用できないためトークン保存をスキップ",
+                error=str(exc),
+            )
+            return False
+
+        client: Any | None = None
+        stored_all = True
+        secrets_payload = {
+            "google-calendar-access-token": access_token,
+            "google-calendar-refresh-token": refresh_token,
+        }
+
+        try:
+            client = secretmanager.SecretManagerServiceAsyncClient()
+
+            for secret_name, value in secrets_payload.items():
+                parent = f"projects/{project_id}/secrets/{secret_name}"
+                try:
+                    await client.add_secret_version(
+                        request={
+                            "parent": parent,
+                            "payload": {"data": value.encode("utf-8")},
+                        }
+                    )
+                except google_exceptions.NotFound:
+                    await client.create_secret(
+                        request={
+                            "parent": f"projects/{project_id}",
+                            "secret_id": secret_name,
+                            "secret": {"replication": {"automatic": {}}},
+                        }
+                    )
+                    await client.add_secret_version(
+                        request={
+                            "parent": parent,
+                            "payload": {"data": value.encode("utf-8")},
+                        }
+                    )
+                except google_exceptions.PermissionDenied as exc:
+                    stored_all = False
+                    logger.warning(
+                        "Permission denied while accessing Secret Manager",
+                        secret=secret_name,
+                        project_id=project_id,
+                        error=str(exc),
+                    )
+                    continue
+
+                logger.info(
+                    "Stored Google Calendar token in Secret Manager",
+                    secret=secret_name,
+                    project_id=project_id,
+                )
+
+        except Exception as exc:  # pragma: no cover - defensive
+            stored_all = False
+            logger.warning(
+                "Failed to persist Google Calendar tokens to Secret Manager",
+                error=str(exc),
+            )
+        finally:
+            if client is not None:
+                close_method = getattr(client, "close", None)
+                if callable(close_method):
+                    maybe_coroutine = close_method()
+                    if asyncio.iscoroutine(maybe_coroutine):
+                        await maybe_coroutine
+                else:  # pragmatic fallback for older client versions
+                    transport = getattr(client, "transport", None)
+                    if transport is not None:
+                        transport_close = getattr(transport, "close", None)
+                        if callable(transport_close):
+                            maybe_coroutine = transport_close()
+                            if asyncio.iscoroutine(maybe_coroutine):
+                                await maybe_coroutine
+
+        return stored_all
 
     async def _setup_default_integrations(self):
         """デフォルト外部連携を設定"""
@@ -1162,6 +1314,11 @@ class IntegrationCommands(commands.Cog):
                                 )
                                 return
 
+                            secret_manager_synced = await self._store_google_calendar_tokens_in_secret_manager(
+                                access_token, refresh_token
+                            )
+                            self._calendar_env_cache = None
+
                             embed = discord.Embed(
                                 title="✅ Google Calendar 認証成功",
                                 description="トークンを暗号化して保存しました。",
@@ -1177,15 +1334,34 @@ class IntegrationCommands(commands.Cog):
                                 inline=False,
                             )
 
-                            embed.add_field(
-                                name="📝 復号後の手順",
-                                value=(
-                                    "1. `ENCRYPTION_KEY` で暗号化レコードを復号\n"
-                                    "2. `.env` 等に `GOOGLE_CALENDAR_ACCESS_TOKEN` と `GOOGLE_CALENDAR_REFRESH_TOKEN` を設定\n"
-                                    "3. `/integration_config integration:google_calendar enabled:true` を実行"
-                                ),
-                                inline=False,
-                            )
+                            if secret_manager_synced:
+                                embed.add_field(
+                                    name="☁️ Secret Manager",
+                                    value=(
+                                        "Google Cloud Secret Manager に `google-calendar-access-token` と `google-calendar-refresh-token` の最新バージョンを保存しました。"
+                                        "Cloud Run 側では次回デプロイ時に自動的に参照されます。"
+                                    ),
+                                    inline=False,
+                                )
+                                embed.add_field(
+                                    name="🚀 次の手順",
+                                    value=(
+                                        "1. `./scripts/manage.sh deploy <PROJECT_ID>` を実行して Cloud Run を更新\n"
+                                        "2. Discord で `/integration_config integration:google_calendar enabled:true`\n"
+                                        "3. `/calendar_test` で連携確認"
+                                    ),
+                                    inline=False,
+                                )
+                            else:
+                                embed.add_field(
+                                    name="📝 復号後の手順",
+                                    value=(
+                                        "1. `ENCRYPTION_KEY` で暗号化レコードを復号\n"
+                                        "2. `.env` 等に `GOOGLE_CALENDAR_ACCESS_TOKEN` と `GOOGLE_CALENDAR_REFRESH_TOKEN` を設定\n"
+                                        "3. `/integration_config integration:google_calendar enabled:true` を実行"
+                                    ),
+                                    inline=False,
+                                )
 
                             await interaction.followup.send(embed=embed, ephemeral=True)
                         else:
@@ -1230,10 +1406,32 @@ class IntegrationCommands(commands.Cog):
                     "❌ Google Calendar 統合が見つかりません。認証を先に実行してください。"
                 )
                 return
+            calendar_integration = self._hydrate_google_calendar_from_env()
+            if calendar_integration is None:
+                await interaction.followup.send(
+                    "❌ Google Calendar 統合が初期化されていません。"
+                )
+                return
 
-            calendar_integration = self.integration_manager.integrations[
-                "google_calendar"
-            ]
+            if not await calendar_integration.authenticate():
+                recent_errors = getattr(
+                    calendar_integration.metrics, "recent_errors", []
+                )
+                error_text = (
+                    "\n".join(recent_errors[-3:])
+                    if recent_errors
+                    else "Google Calendar 認証に失敗しました。`/calendar_auth` で再認証してください。"
+                )
+                embed = discord.Embed(
+                    title="❌ Google Calendar 認証失敗",
+                    description="Google Calendar への認証に失敗しました。",
+                    color=discord.Color.red(),
+                )
+                embed.add_field(
+                    name="エラー詳細", value=error_text[:1024], inline=False
+                )
+                await interaction.followup.send(embed=embed)
+                return
 
             # 接続テスト実行
             test_result = await calendar_integration.test_connection()
@@ -1283,9 +1481,13 @@ class IntegrationCommands(commands.Cog):
 
                 await interaction.followup.send(embed=embed)
             else:
-                error_messages = getattr(calendar_integration, "error_messages", [])
+                recent_errors = getattr(
+                    calendar_integration.metrics, "recent_errors", []
+                )
                 error_text = (
-                    "\n".join(error_messages[-3:]) if error_messages else "認証エラー"
+                    "\n".join(recent_errors[-3:])
+                    if recent_errors
+                    else "Google Calendar 接続テストでエラーが発生しました。"
                 )
 
                 embed = discord.Embed(
