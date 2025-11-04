@@ -1,5 +1,6 @@
 """Audio handling functionality for Discord messages."""
 
+from collections import deque
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,9 @@ class AudioHandler(LoggerMixin):
 
     def __init__(self, speech_processor=None):
         self.speech_processor = speech_processor
+        self._processed_attachment_keys: dict[str, set[str]] = {}
+        self._recent_messages = deque()
+        self._max_recent_messages = 512
 
     @staticmethod
     def _get_channel_name(channel_info: Any) -> str:
@@ -26,6 +30,73 @@ class AudioHandler(LoggerMixin):
             if isinstance(name, str):
                 return name
         return "unknown"
+
+    @staticmethod
+    def _build_attachment_identity(attachment: dict[str, Any]) -> str:
+        """添付ファイルを一意に識別するキーを生成"""
+        attachment_id = attachment.get("id")
+        if attachment_id is not None:
+            return f"id:{attachment_id}"
+
+        url = attachment.get("url")
+        if url:
+            return f"url:{url}"
+
+        proxy_url = attachment.get("proxy_url")
+        if proxy_url:
+            return f"proxy:{proxy_url}"
+
+        filename = attachment.get("filename")
+        size = attachment.get("size")
+        if filename and size is not None:
+            return f"name:{filename}|size:{size}"
+        if filename:
+            return f"name:{filename}"
+
+        # 最後の手段として辞書内容を利用（順序を固定化）
+        items = tuple(sorted(attachment.items()))
+        return f"data:{items}"
+
+    def _normalize_message_identity(
+        self,
+        message_data: dict[str, Any],
+        original_message: discord.Message | None,
+    ) -> str | None:
+        """メッセージを一意に識別する ID を取得"""
+        if original_message and getattr(original_message, "id", None) is not None:
+            return str(original_message.id)
+
+        metadata = (
+            message_data.get("metadata") if isinstance(message_data, dict) else None
+        )
+        if isinstance(metadata, dict):
+            basic_info = metadata.get("basic")
+            if isinstance(basic_info, dict):
+                message_id = basic_info.get("id")
+                if message_id is not None:
+                    return str(message_id)
+
+        message_id = message_data.get("id") if isinstance(message_data, dict) else None
+        if message_id is not None:
+            return str(message_id)
+
+        return None
+
+    def _get_or_create_processed_set(self, message_identity: str | None) -> set[str]:
+        """メッセージ単位の処理済み添付セットを取得"""
+        if message_identity is None:
+            return set()
+
+        processed = self._processed_attachment_keys.get(message_identity)
+        if processed is None:
+            processed = set()
+            self._processed_attachment_keys[message_identity] = processed
+            self._recent_messages.append(message_identity)
+            while len(self._recent_messages) > self._max_recent_messages:
+                oldest = self._recent_messages.popleft()
+                self._processed_attachment_keys.pop(oldest, None)
+
+        return processed
 
     async def handle_audio_attachments(
         self,
@@ -80,6 +151,11 @@ class AudioHandler(LoggerMixin):
                     )
 
             channel_name = self._get_channel_name(channel_info)
+            message_identity = self._normalize_message_identity(
+                message_data, original_message
+            )
+            processed_for_message = self._get_or_create_processed_set(message_identity)
+            seen_attachments: set[str] = set()
 
             # Log attachment information
             self.logger.debug(
@@ -113,13 +189,61 @@ class AudioHandler(LoggerMixin):
                 self.logger.debug("No audio attachments found, returning early")
                 return
 
+            unique_audio_attachments: list[dict[str, Any]] = []
+            for att in audio_attachments:
+                identity = self._build_attachment_identity(att)
+                already_processed = identity in processed_for_message
+                has_transcription = bool(
+                    message_data.get("metadata", {})
+                    .get("content", {})
+                    .get("audio_transcription_data")
+                )
+
+                if identity in seen_attachments:
+                    self.logger.debug(
+                        "Skipping duplicate audio attachment in current batch",
+                        identity=identity,
+                        filename=att.get("filename"),
+                    )
+                    continue
+
+                seen_attachments.add(identity)
+
+                suppress_feedback = False
+                if already_processed:
+                    if has_transcription:
+                        self.logger.debug(
+                            "Skipping already processed audio attachment with existing transcription",
+                            identity=identity,
+                            filename=att.get("filename"),
+                        )
+                        continue
+
+                    self.logger.debug(
+                        "Reprocessing audio attachment to generate transcription data",
+                        identity=identity,
+                        filename=att.get("filename"),
+                    )
+                    suppress_feedback = True
+
+                unique_audio_attachments.append((att, suppress_feedback))
+                if message_identity is not None:
+                    processed_for_message.add(identity)
+
+            if len(unique_audio_attachments) != len(audio_attachments):
+                self.logger.info(
+                    "Detected duplicate audio attachments",
+                    original_count=len(audio_attachments),
+                    unique_count=len(unique_audio_attachments),
+                )
+
             self.logger.info(
                 "Processing audio attachments",
-                count=len(audio_attachments),
+                count=len(unique_audio_attachments),
                 channel=channel_name,
             )
 
-            for attachment in audio_attachments:
+            for attachment, suppress_feedback in unique_audio_attachments:
                 self.logger.debug(
                     f"Processing audio attachment: {attachment.get('filename', 'N/A')}"
                 )
@@ -130,7 +254,11 @@ class AudioHandler(LoggerMixin):
                         f"About to call process_single_audio_attachment for {attachment.get('filename', 'N/A')}"
                     )
                     await self.process_single_audio_attachment(
-                        attachment, message_data, channel_info, original_message
+                        attachment,
+                        message_data,
+                        channel_info,
+                        original_message,
+                        suppress_feedback=suppress_feedback,
                     )
                     self.logger.info(
                         f"Completed process_single_audio_attachment for {attachment.get('filename', 'N/A')}"
@@ -158,6 +286,8 @@ class AudioHandler(LoggerMixin):
         message_data: dict[str, Any],
         channel_info: Any,
         original_message: discord.Message | None = None,
+        *,
+        suppress_feedback: bool = False,
     ) -> None:
         """単一の音声添付ファイルを処理"""
         feedback_message = None
@@ -173,7 +303,7 @@ class AudioHandler(LoggerMixin):
                 return
 
             # Discord へのリアルタイムフィードバックを開始
-            if original_message:
+            if original_message and not suppress_feedback:
                 try:
                     feedback_message = await original_message.reply(
                         f"🎤 音声ファイル `{filename}` の文字起こしを開始します..."

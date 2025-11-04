@@ -43,6 +43,7 @@ class TestAudioHandler:
             "file_category": "audio",
             "content_type": "audio/wav",
             "file_extension": "wav",
+            "id": 1,
         }
         message_data = {"metadata": {"attachments": [attachment]}}
         channel_info = MagicMock(name="test-channel")
@@ -52,6 +53,108 @@ class TestAudioHandler:
         ) as mock_process:
             await audio_handler.handle_audio_attachments(message_data, channel_info)
             mock_process.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_audio_attachments_deduplicates(self, audio_handler):
+        """Deduplicate audio attachments before processing"""
+        attachment = {
+            "filename": "duplicate.wav",
+            "file_category": "audio",
+            "content_type": "audio/wav",
+            "file_extension": "wav",
+            "id": 42,
+        }
+        duplicate = dict(attachment)
+
+        message_data = {"metadata": {"attachments": [attachment, duplicate]}}
+        channel_info = MagicMock(name="test-channel")
+
+        with patch.object(
+            audio_handler, "process_single_audio_attachment", new_callable=AsyncMock
+        ) as mock_process:
+            await audio_handler.handle_audio_attachments(message_data, channel_info)
+            mock_process.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_audio_attachments_skip_if_already_processed(
+        self, audio_handler
+    ):
+        """Avoid reprocessing attachments for the same message"""
+        attachment = {
+            "filename": "repeat.wav",
+            "file_category": "audio",
+            "content_type": "audio/wav",
+            "file_extension": "wav",
+            "id": 99,
+        }
+        message_data = {
+            "metadata": {
+                "attachments": [attachment],
+                "basic": {"id": 555},
+                "content": {},
+            }
+        }
+        channel_info = MagicMock(name="test-channel")
+        original_message = MagicMock()
+        original_message.id = 555
+
+        with patch.object(
+            audio_handler, "process_single_audio_attachment", new_callable=AsyncMock
+        ) as mock_process:
+
+            async def _side_effect(*args, **kwargs):
+                message_data["metadata"]["content"]["audio_transcription_data"] = {
+                    "transcript": "done"
+                }
+
+            mock_process.side_effect = _side_effect
+
+            await audio_handler.handle_audio_attachments(
+                message_data, channel_info, original_message
+            )
+            await audio_handler.handle_audio_attachments(
+                message_data, channel_info, original_message
+            )
+            mock_process.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_audio_attachments_reprocess_without_transcription(
+        self, audio_handler
+    ):
+        """Reprocess when transcription data is missing on subsequent calls"""
+        attachment = {
+            "filename": "repeat.wav",
+            "file_category": "audio",
+            "content_type": "audio/wav",
+            "file_extension": "wav",
+            "id": 100,
+        }
+        message_data = {
+            "metadata": {
+                "attachments": [attachment],
+                "basic": {"id": 999},
+                "content": {},
+            }
+        }
+        channel_info = MagicMock(name="test-channel")
+        original_message = MagicMock()
+        original_message.id = 999
+
+        with patch.object(
+            audio_handler, "process_single_audio_attachment", new_callable=AsyncMock
+        ) as mock_process:
+            await audio_handler.handle_audio_attachments(
+                message_data, channel_info, original_message
+            )
+            await audio_handler.handle_audio_attachments(
+                message_data, channel_info, original_message
+            )
+
+            assert mock_process.await_count == 2
+            first_call = mock_process.await_args_list[0]
+            second_call = mock_process.await_args_list[1]
+            assert not first_call.kwargs.get("suppress_feedback")
+            assert second_call.kwargs.get("suppress_feedback")
 
     @pytest.mark.asyncio
     async def test_update_feedback_message_success(self, audio_handler):
@@ -197,6 +300,19 @@ class TestNoteHandler:
         # エラーが起きても辞書形式で返される
         assert isinstance(result, dict)
         assert "status" in result
+
+    def test_generate_title_preview_first_sentence(self):
+        """Ensure the first sentence is used for the title preview"""
+        content = "音声メモのテストです。音声メモを繰り返します。"
+        result = NoteHandler._generate_title_preview(content, None)
+        assert result == "音声メモのテストです"
+
+    def test_generate_title_preview_audio_transcript(self):
+        """Prefer audio transcript over markdown content"""
+        content = "## 🎤 音声文字起こし\n\n音声メモのテストです。"
+        audio_data = {"transcript": "音声メモのテストです。二文目です。"}
+        result = NoteHandler._generate_title_preview(content, audio_data)
+        assert result == "音声メモのテストです"
 
     @pytest.mark.asyncio
     async def test_organize_note_by_ai_category(self, note_handler):
