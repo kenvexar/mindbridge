@@ -47,8 +47,21 @@ class BasicCommands(commands.Cog, CommandMixin):
     @app_commands.command(name="status", description="ボットの現在のステータスを表示")
     async def status_command(self, interaction: discord.Interaction) -> None:
         """Display bot status."""
+        response_sent = False
+        fallback_channel = False
         try:
-            await self.defer_if_needed(interaction)
+            try:
+                await self.defer_if_needed(interaction)
+            except discord.NotFound as error:
+                # Interaction が期限切れの場合はチャンネルへの直接送信にフォールバック
+                logger.warning("Interaction expired before defer", error=str(error))
+                fallback_channel = True
+            except discord.HTTPException as error:
+                if getattr(error, "code", None) == 40060:
+                    # 他ハンドラがすでに ack 済みの場合はフォローアップ送信に切り替える
+                    logger.warning("Interaction already acknowledged", error=str(error))
+                else:
+                    raise
 
             # Get basic status information
             status_info = await self._get_status_info()
@@ -71,6 +84,23 @@ class BasicCommands(commands.Cog, CommandMixin):
             for service, status in service_status.items():
                 fields.append((f"{service} サービス", status, True))
 
+            if fallback_channel:
+                channel = getattr(interaction, "channel", None)
+                if channel is None:
+                    raise RuntimeError("Interaction channel not available")
+
+                embed = discord.Embed(
+                    title="✅ ボットステータス",
+                    color=discord.Color.blue(),
+                    timestamp=datetime.now(),
+                )
+                for name, value, inline in fields:
+                    embed.add_field(name=name, value=value, inline=inline)
+
+                await channel.send(embed=embed)
+                response_sent = True
+                return
+
             await self.send_success_response(
                 interaction,
                 "ボットステータス",
@@ -78,12 +108,14 @@ class BasicCommands(commands.Cog, CommandMixin):
                 color=discord.Color.blue(),
                 followup=True,
             )
+            response_sent = True
 
         except Exception as e:
             logger.error("Failed to get status", error=str(e))
-            await self.send_error_response(
-                interaction, "ステータス情報の取得に失敗しました。", followup=True
-            )
+            if not response_sent:
+                await self.send_error_response(
+                    interaction, "ステータス情報の取得に失敗しました。", followup=True
+                )
 
     @app_commands.command(name="search", description="Obsidian ノートを検索")
     @app_commands.describe(

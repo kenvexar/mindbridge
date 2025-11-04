@@ -2,7 +2,9 @@
 
 cmd_optional() {
   PROJECT_ID=${1:-}
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
   ensure_gcloud_auth
   ensure_project_id
 

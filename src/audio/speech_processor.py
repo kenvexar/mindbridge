@@ -1,9 +1,8 @@
-"""
-Speech processing and transcription using Google Cloud Speech-to-Text API
-"""
+"""Speech processing and transcription using Google Cloud Speech-to-Text API."""
 
 import json
 import os
+import re
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +25,36 @@ from src.audio.models import (
 )
 from src.config import get_settings
 from src.utils.mixins import LoggerMixin
+
+_FILLER_VARIANTS = [
+    r"(?:え|ぇ|エ)(?:ー|〜|～)?っ?と(?:ね|ですね|ですか|で)?",
+    r"(?:え|ぇ|エ)(?:ー|〜|～)+",
+    r"(?:え|ぇ|エ)っ+",
+    r"(?:あ|ア)(?:ー|〜|～)+",
+    r"(?:あ|ア)の(?:ね|(?:ー|〜|～)+)",
+    r"(?:う|ウ)(?:ー|〜|～)+ん+",
+    r"(?:う|ウ)(?:ー|〜|～)+ん?と",
+    r"(?:ま|マ)(?:あ|ぁ|ー|〜|～)+",
+    r"(?:そ|ソ)の(?:ー|〜|～)+",
+    r"(?:で|デ)ですね",
+    r"(?:で|デ)ま(?:あ|ぁ|ー|〜|～)+",
+]
+
+_FILLER_BOUNDARY = r"(?:^|(?<=\s)|(?<=[、。．，,.！？!?〜～…]))"
+_FILLER_LOOKAHEAD = r"(?=(?:\s|[、。．，,.！？!?〜～…]|$))"
+_FILLER_REGEX = re.compile(
+    _FILLER_BOUNDARY + r"(?:" + "|".join(_FILLER_VARIANTS) + r")" + _FILLER_LOOKAHEAD
+)
+_PARTICLE_FILLER_REGEX = re.compile(
+    r"([はがをにでとやもねさよへし])" + r"(?:" + "|".join(_FILLER_VARIANTS) + r")"
+)
+
+_LEADING_PUNCT_REGEX = re.compile(r"^[\s、。．，,.！？!?〜～…]+")
+_SPACE_BEFORE_PUNCT_REGEX = re.compile(r"\s+([、。．，,.！？!?〜～…])")
+_SPACE_AFTER_OPENING_PUNCT_REGEX = re.compile(r"([（「『【])\s+")
+_SPACE_BEFORE_CLOSING_PUNCT_REGEX = re.compile(r"\s+([）』】」])")
+_MULTI_SPACE_REGEX = re.compile(r"[ \t]{2,}")
+_DUPLICATE_PUNCT_REGEX = re.compile(r"([、。．，,.！？!?〜～…]){2,}")
 
 
 class RetryableAPIError(Exception):
@@ -290,6 +319,9 @@ class SpeechProcessor(LoggerMixin):
 
             # Google Cloud Speech-to-Text API で文字起こし
             transcription_result = await self._transcribe_audio(file_data, audio_format)
+            transcription_result = self._apply_transcript_postprocessing(
+                transcription_result
+            )
 
             processing_time = int((datetime.now() - start_time).total_seconds() * 1000)
 
@@ -392,6 +424,76 @@ class SpeechProcessor(LoggerMixin):
                 remaining_minutes=round(remaining, 2),
             )
             self._speech_usage_alerted_month = current_month
+
+    @classmethod
+    def _apply_transcript_postprocessing(
+        cls, transcription: TranscriptionResult
+    ) -> TranscriptionResult:
+        """フィラー除去や整形を行って文字起こし結果を整備"""
+        if not transcription.transcript:
+            return transcription
+
+        cleaned_transcript = cls._normalize_transcript_text(
+            cls._remove_filler_words(transcription.transcript)
+        )
+
+        alternatives = transcription.alternatives
+        cleaned_alternatives = alternatives
+        if alternatives:
+            updated_alternatives: list[dict[str, Any]] = []
+            changed = False
+            for alternative in alternatives:
+                alt_transcript = alternative.get("transcript")
+                if isinstance(alt_transcript, str):
+                    cleaned_alt = cls._normalize_transcript_text(
+                        cls._remove_filler_words(alt_transcript)
+                    )
+                    if cleaned_alt != alt_transcript:
+                        alt_copy = dict(alternative)
+                        alt_copy["transcript"] = cleaned_alt
+                        updated_alternatives.append(alt_copy)
+                        changed = True
+                    else:
+                        updated_alternatives.append(alternative)
+                else:
+                    updated_alternatives.append(alternative)
+            if changed:
+                cleaned_alternatives = updated_alternatives
+
+        if (
+            cleaned_transcript == transcription.transcript
+            and cleaned_alternatives == alternatives
+        ):
+            return transcription
+
+        payload = transcription.model_dump()
+        payload["transcript"] = cleaned_transcript
+        payload["alternatives"] = cleaned_alternatives
+        return TranscriptionResult(**payload)
+
+    @staticmethod
+    def _remove_filler_words(text: str) -> str:
+        """音声認識結果に含まれる代表的なフィラーを除去"""
+        if not text:
+            return text
+        cleaned = _FILLER_REGEX.sub("", text)
+        cleaned = _PARTICLE_FILLER_REGEX.sub(r"\1", cleaned)
+        return cleaned
+
+    @staticmethod
+    def _normalize_transcript_text(text: str) -> str:
+        """フィラー除去後に残った空白や句読点を整形"""
+        if not text:
+            return text
+
+        normalized = _LEADING_PUNCT_REGEX.sub("", text)
+        normalized = _SPACE_AFTER_OPENING_PUNCT_REGEX.sub(r"\1", normalized)
+        normalized = _SPACE_BEFORE_CLOSING_PUNCT_REGEX.sub(r"\1", normalized)
+        normalized = _SPACE_BEFORE_PUNCT_REGEX.sub(r"\1", normalized)
+        normalized = _MULTI_SPACE_REGEX.sub(" ", normalized)
+        normalized = _DUPLICATE_PUNCT_REGEX.sub(r"\1", normalized)
+
+        return normalized.strip()
 
     async def _transcribe_audio(
         self, file_data: bytes, audio_format: AudioFormat

@@ -1,7 +1,6 @@
-"""
-Note creation and Obsidian integration handler
-"""
+"""Note creation and Obsidian integration handler."""
 
+import re
 from typing import Any
 
 from src.utils.mixins import LoggerMixin
@@ -109,28 +108,7 @@ class NoteHandler(LoggerMixin):
 
                 content = "\n".join(result_lines)
 
-            # Clean up markdown symbols and audio-related text for title generation
-            title_preview = content[:30].replace("\n", " ").strip()
-            # Remove markdown header symbols (#) and asterisks (*)
-            import re
-
-            title_preview = re.sub(
-                r"^[#\s*]+", "", title_preview
-            )  # Remove leading # and *
-            title_preview = re.sub(
-                r"[#*]+$", "", title_preview
-            )  # Remove trailing # and *
-            title_preview = re.sub(
-                r"#{1,6}\s*", "", title_preview
-            )  # Remove intermediate ##
-            # Remove audio-related text
-            title_preview = re.sub(
-                r"🎤\s*音声文字起こし\s*", "", title_preview
-            )  # Remove 🎤 音声文字起こし
-            title_preview = re.sub(
-                r"音声文字起こし\s*", "", title_preview
-            )  # Remove 音声文字起こし
-            title_preview = title_preview.strip()
+            title_preview = self._generate_title_preview(content, audio_data)
 
             # AI 分析に基づくカテゴリ決定（シンプル化）
             category = "memo"
@@ -360,6 +338,29 @@ class NoteHandler(LoggerMixin):
 
         except Exception as e:
             return {"status": "error", "error": str(e)}
+
+    @staticmethod
+    def _generate_title_preview(content: str, audio_data: dict[str, Any] | None) -> str:
+        """ノートタイトルとなるプレビュー文字列を生成"""
+        if audio_data and audio_data.get("transcript"):
+            title_source = audio_data["transcript"].strip()
+        else:
+            title_source = content.replace("\n", " ").strip()
+
+        title_source = re.sub(r"^[#\s*]+", "", title_source)
+        title_source = re.sub(r"[#*]+$", "", title_source)
+        title_source = re.sub(r"#{1,6}\s*", "", title_source)
+        title_source = re.sub(r"🎤\s*音声文字起こし\s*", "", title_source)
+        title_source = re.sub(r"音声文字起こし\s*", "", title_source)
+        title_source = re.sub(r"\s{2,}", " ", title_source).strip()
+
+        if not title_source:
+            return "音声メモ"
+
+        sentence_candidates = re.split(r"[。！？?!]", title_source, maxsplit=1)
+        primary_sentence = sentence_candidates[0].strip() if sentence_candidates else ""
+        title_preview = primary_sentence or title_source
+        return title_preview[:30]
 
     async def organize_note_by_ai_category(
         self, note_path: str, ai_category: str, ai_result: Any

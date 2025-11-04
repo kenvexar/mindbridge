@@ -14,7 +14,7 @@ spec:
         run.googleapis.com/execution-environment: gen2
 
         # Autoscaling (コスト最適化)
-        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/minScale: "1"
         autoscaling.knative.dev/maxScale: "3"
 
         # Health checks
@@ -35,21 +35,29 @@ spec:
         - containerPort: 8080
           name: http1
         env:
-        - name: DISCORD_GUILD_ID
-          valueFrom:
-            secretKeyRef:
-              name: discord-guild-id
-              key: latest
         - name: OBSIDIAN_VAULT_PATH
           value: "/app/vault"
         - name: GOOGLE_CLOUD_PROJECT
           value: "PROJECT_ID"
         - name: ENVIRONMENT
           value: "production"
+        # Optional integrations (例: Garmin) は初期コスト抑制のためデフォルト無効。
+        # 必要になった段階で個別の manifest overlay や manage.sh optional コマンドで追加する。
+        - name: OBSIDIAN_BACKUP_BRANCH
+          value: "main"
+        - name: GIT_USER_NAME
+          value: "MindBridge Bot"
+        - name: GIT_USER_EMAIL
+          value: "mindbridge-bot@example.com"
         - name: DISCORD_BOT_TOKEN
           valueFrom:
             secretKeyRef:
               name: discord-bot-token
+              key: latest
+        - name: DISCORD_GUILD_ID
+          valueFrom:
+            secretKeyRef:
+              name: discord-guild-id
               key: latest
         - name: GEMINI_API_KEY
           valueFrom:
@@ -66,19 +74,26 @@ spec:
             secretKeyRef:
               name: obsidian-backup-repo
               key: latest
+        - name: GARMIN_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: garmin-username
+              key: latest
+        - name: GARMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: garmin-username
+              key: latest
+        - name: GARMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: garmin-password
+              key: latest
         - name: GOOGLE_CLOUD_SPEECH_CREDENTIALS
           valueFrom:
             secretKeyRef:
               name: google-cloud-speech-credentials
               key: latest
-        # Optional integrations (例: Garmin) は初期コスト抑制のためデフォルト無効。
-        # 必要になった段階で個別の manifest overlay や manage.sh optional コマンドで追加する。
-        - name: OBSIDIAN_BACKUP_BRANCH
-          value: "main"
-        - name: GIT_USER_NAME
-          value: "MindBridge Bot"
-        - name: GIT_USER_EMAIL
-          value: "mindbridge-bot@example.com"
         - name: HEALTH_ENDPOINT_TOKEN
           valueFrom:
             secretKeyRef:
@@ -89,6 +104,35 @@ spec:
             secretKeyRef:
               name: health-callback-state
               key: latest
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: encryption-key
+              key: latest
+        - name: GOOGLE_CALENDAR_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: google-calendar-client-id
+              key: latest
+        - name: GOOGLE_CALENDAR_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: google-calendar-client-secret
+              key: latest
+        - name: GOOGLE_CALENDAR_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: google-calendar-access-token
+              key: latest
+        - name: GOOGLE_CALENDAR_REFRESH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: google-calendar-refresh-token
+              key: latest
+        - name: SECRET_MANAGER_PROJECT_ID
+          value: "PROJECT_ID"
+        - name: SECRET_MANAGER_STRATEGY
+          value: "google"
         resources:
           requests:
             cpu: 1000m
@@ -98,7 +142,7 @@ spec:
             memory: 512Mi
         livenessProbe:
           httpGet:
-            path: /health
+            path: /probe
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 60

@@ -1,10 +1,11 @@
 # Cloud Run 用 Dockerfile （セキュリティ強化版）
-FROM python:3.14.0-slim
+FROM python:3.13-slim
 
 # セキュリティ: セキュリティアップデートを適用
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     git \
     curl \
+    build-essential \
     ca-certificates \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
@@ -33,7 +34,7 @@ COPY --chown=mindbridge:mindbridge src/ ./src/
 
 # セキュリティ: 必要なディレクトリの作成と権限設定
 RUN mkdir -p /app/vault /app/logs /app/.cache /app/.config && \
-    chown -R mindbridge:mindbridge /app/vault /app/logs /app/.cache /app/.config && \
+    chown -R mindbridge:mindbridge /app && \
     chmod 750 /app/vault /app/logs /app/.cache /app/.config
 
 # セキュリティ: 非特権ユーザーに切り替え

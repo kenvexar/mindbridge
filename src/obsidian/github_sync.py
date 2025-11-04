@@ -185,7 +185,7 @@ Thumbs.db
 *.temp
 *~
 """.strip()
-            gitignore_path.write_text(gitignore_content)
+            gitignore_path.write_text(gitignore_content, encoding="utf-8")
             self.logger.info("Created .gitignore file")
 
     def _get_authenticated_repo_url(self) -> str:
@@ -282,6 +282,46 @@ Thumbs.db
             if push_result.returncode == 0:
                 self.logger.info(f"Push successful to {target_branch}")
                 return
+
+            stderr_lower = push_result.stderr.lower()
+
+            # リモートに新しいコミットがある場合は pull --rebase を試行
+            if "fetch first" in stderr_lower or "non-fast-forward" in stderr_lower:
+                self.logger.info(
+                    f"Remote ahead detected, rebasing before push to {target_branch}"
+                )
+                # 進行中のリベースが残っている場合に備えて abort を試みる
+                await self._run_git_command(
+                    ["rebase", "--abort"], check=False, capture_output=True
+                )
+                pull_result = await self._run_git_command(
+                    ["pull", "--rebase", "origin", target_branch],
+                    check=False,
+                    capture_output=True,
+                )
+
+                if pull_result.returncode != 0:
+                    # リベースが失敗した場合は必ず abort しておく
+                    await self._run_git_command(
+                        ["rebase", "--abort"], check=False, capture_output=True
+                    )
+                    raise GitHubSyncError(
+                        f"Pull before push failed: {pull_result.stderr}"
+                    )
+
+                retry_result = await self._run_git_command(
+                    ["push", "origin", target_branch],
+                    check=False,
+                    capture_output=True,
+                )
+
+                if retry_result.returncode == 0:
+                    self.logger.info(f"Push successful after rebase to {target_branch}")
+                    return
+
+                raise GitHubSyncError(
+                    f"Push failed after rebase to {target_branch}: {retry_result.stderr}"
+                )
 
             # 初回プッシュの場合は upstream を設定してリトライ
             if (

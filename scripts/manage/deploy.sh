@@ -3,7 +3,9 @@
 cmd_deploy_precheck() {
   local PROJECT_ID=${1:-}
   shift || true
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
 
   local REGION="us-central1" SKIP_TESTS=false SKIP_MYPY=false SKIP_SECRET_CHECK=false SKIP_SA_CHECK=false SKIP_ARTIFACT_CHECK=false
   while (($#)); do
@@ -82,18 +84,26 @@ HELP
   log_step "gcloud 認証状態"
   local ACTIVE_ACCOUNT
   ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null || true)
-  [[ -z "$ACTIVE_ACCOUNT" ]] && die "gcloud にアクティブなアカウントがありません"
+  if [[ -z "$ACTIVE_ACCOUNT" ]]; then
+    die "gcloud にアクティブなアカウントがありません"
+  fi
   log "Active account: $ACTIVE_ACCOUNT"
 
   if [[ "$SKIP_SECRET_CHECK" == false ]]; then
     log_step "Secret Manager 必須項目"
-    local secrets=(discord-bot-token discord-guild-id gemini-api-key github-token obsidian-backup-repo google-cloud-speech-credentials)
+    local secrets=(discord-bot-token discord-guild-id gemini-api-key github-token obsidian-backup-repo google-cloud-speech-credentials health-endpoint-token health-callback-state)
     local missing=()
     local secret
     for secret in "${secrets[@]}"; do
-      local state
-      state=$(gcloud secrets describe "$secret" --project="$PROJECT_ID" --format='value(state)' 2>/dev/null || true)
-      if [[ "$state" != "ENABLED" ]]; then
+      local exists
+      exists=$(gcloud secrets describe "$secret" --project="$PROJECT_ID" --format='value(name)' 2>/dev/null || true)
+      if [[ -z "$exists" ]]; then
+        missing+=("$secret")
+        continue
+      fi
+      local version_state
+      version_state=$(gcloud secrets versions list "$secret" --project="$PROJECT_ID" --filter="state=ENABLED" --limit=1 --format='value(state)' 2>/dev/null || true)
+      if [[ -z "$version_state" ]]; then
         missing+=("$secret")
       fi
     done
@@ -140,7 +150,9 @@ HELP
 cmd_deploy() {
   PROJECT_ID=${1:-}
   REGION=${2:-us-central1}
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
   ensure_gcloud_auth
   ensure_project_id
   local SERVICE_NAME=mindbridge
@@ -154,8 +166,14 @@ cmd_deploy() {
   log_step "Cloud Build によるビルド/デプロイ"
   local CB_CONFIG="deploy/cloudbuild.yaml"
   [[ -f "$CB_CONFIG" ]] || die "deploy/cloudbuild.yaml が見つかりません"
+  local IMAGE_TAG
+  IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)
   local BUILD_ID
-  BUILD_ID=$(gcloud builds submit --config "$CB_CONFIG" --project="$PROJECT_ID" --format='value(id)') || die "Cloud Build 失敗"
+  BUILD_ID=$(gcloud builds submit \
+    --config "$CB_CONFIG" \
+    --project="$PROJECT_ID" \
+    --substitutions="_IMAGE_TAG=${IMAGE_TAG}" \
+    --format='value(id)') || die "Cloud Build 失敗"
   log_success "Cloud Build 完了 (Build ID: $BUILD_ID)"
 
   log_step "Cloud Run へ反映"
@@ -167,9 +185,13 @@ cmd_deploy() {
     cp "$CR_CONFIG" /tmp/cloud-run-deploy.yaml
   fi
   gcloud run services replace /tmp/cloud-run-deploy.yaml --region="$REGION" --project="$PROJECT_ID"
-  local GIT_SHA
-  GIT_SHA=$(git rev-parse --short HEAD || echo latest)
-  gcloud run services update "$SERVICE_NAME" --image="${IMAGE_NAME}:${GIT_SHA}" --region="$REGION" --project="$PROJECT_ID" || true
+  local SECRET_BINDINGS="DISCORD_BOT_TOKEN=discord-bot-token:latest,DISCORD_GUILD_ID=discord-guild-id:latest,GEMINI_API_KEY=gemini-api-key:latest,GITHUB_TOKEN=github-token:latest,OBSIDIAN_BACKUP_REPO=obsidian-backup-repo:latest,GOOGLE_CLOUD_SPEECH_CREDENTIALS=google-cloud-speech-credentials:latest,HEALTH_ENDPOINT_TOKEN=health-endpoint-token:latest,HEALTH_CALLBACK_STATE=health-callback-state:latest,ENCRYPTION_KEY=encryption-key:latest,GARMIN_EMAIL=garmin-username:latest,GARMIN_USERNAME=garmin-username:latest,GARMIN_PASSWORD=garmin-password:latest,GOOGLE_CALENDAR_CLIENT_ID=google-calendar-client-id:latest,GOOGLE_CALENDAR_CLIENT_SECRET=google-calendar-client-secret:latest,GOOGLE_CALENDAR_ACCESS_TOKEN=google-calendar-access-token:latest,GOOGLE_CALENDAR_REFRESH_TOKEN=google-calendar-refresh-token:latest"
+  gcloud run services update "$SERVICE_NAME" \
+    --image="${IMAGE_NAME}:${IMAGE_TAG}" \
+    --region="$REGION" \
+    --project="$PROJECT_ID" \
+    --set-secrets="${SECRET_BINDINGS}" \
+    --set-env-vars="SECRET_MANAGER_PROJECT_ID=${PROJECT_ID},SECRET_MANAGER_STRATEGY=google" || true
   rm -f /tmp/cloud-run-deploy.yaml
 
   log_step "Health Check"
@@ -177,10 +199,26 @@ cmd_deploy() {
   URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')
   if [[ -n "$URL" ]]; then
     printf "%s\n" "URL: $URL"
-    if curl -fsS "$URL/health" >/dev/null 2>&1; then
-      log_success "Health OK"
+    if curl -fsS "$URL/probe" >/dev/null 2>&1; then
+      log_success "Probe OK"
     else
-      warn "Health 未確認"
+      warn "Probe 未確認"
+    fi
+
+    local HEALTH_TOKEN=""
+    HEALTH_TOKEN=$(gcloud secrets versions access latest \
+      --secret=health-endpoint-token \
+      --project="$PROJECT_ID" 2>/dev/null || true)
+    HEALTH_TOKEN=$(printf '%s' "$HEALTH_TOKEN" | tr -d '\r\n')
+
+    if [[ -n "$HEALTH_TOKEN" ]]; then
+      if curl -fsS -H "X-Health-Token: $HEALTH_TOKEN" "$URL/health" >/dev/null 2>&1; then
+        log_success "Health OK"
+      else
+        warn "Health 未確認 (/health)"
+      fi
+    else
+      warn "Health token を取得できませんでした"
     fi
   else
     warn "Cloud Run URL を取得できませんでした"
@@ -190,7 +228,9 @@ cmd_deploy() {
 cmd_deploy_auto() {
   local PROJECT_ID=${1:-}
   shift || true
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
   local REGION="us-central1"
   if (($#)) && [[ $1 != --* ]]; then
     REGION=$1
@@ -207,7 +247,9 @@ cmd_deploy_auto() {
 
 cmd_full_deploy() {
   PROJECT_ID=${1:-}
-  [[ -z "$PROJECT_ID" ]] && die "PROJECT_ID を指定してください"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "PROJECT_ID を指定してください"
+  fi
   shift || true
   local FLAGS=("$@")
   cmd_env "$PROJECT_ID"

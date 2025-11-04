@@ -10,7 +10,9 @@ cmd_ar_clean() {
   local OLDER_DAYS=${6:-30}
   local DRY_RUN=true
   [[ " $* " == *" --no-dry-run "* ]] && DRY_RUN=false
-  [[ -z "$PROJECT_ID" ]] && die "Usage: mindbridge ar-clean <PROJECT_ID> [REGION] [REPO] [IMAGE] [KEEP] [OLDER_DAYS] [--no-dry-run]"
+  if [[ -z "$PROJECT_ID" ]]; then
+    die "Usage: mindbridge ar-clean <PROJECT_ID> [REGION] [REPO] [IMAGE] [KEEP] [OLDER_DAYS] [--no-dry-run]"
+  fi
   local AR_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE}"
   printf "%s\n" "[INFO] 対象: ${AR_PATH} KEEP=${KEEP} OLDER_THAN=${OLDER_DAYS}d DRY_RUN=${DRY_RUN}"
   local IMAGES_JSON
