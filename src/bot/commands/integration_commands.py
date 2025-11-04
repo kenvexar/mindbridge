@@ -1318,7 +1318,6 @@ class IntegrationCommands(commands.Cog):
                                 access_token, refresh_token
                             )
                             self._calendar_env_cache = None
-
                             embed = discord.Embed(
                                 title="✅ Google Calendar 認証成功",
                                 description="トークンを暗号化して保存しました。",
@@ -1338,7 +1337,8 @@ class IntegrationCommands(commands.Cog):
                                 embed.add_field(
                                     name="☁️ Secret Manager",
                                     value=(
-                                        "Google Cloud Secret Manager に `google-calendar-access-token` と `google-calendar-refresh-token` の最新バージョンを保存しました。"
+                                        "Google Cloud Secret Manager に `google-calendar-access-token` と "
+                                        "`google-calendar-refresh-token` の最新バージョンを保存しました。"
                                         "Cloud Run 側では次回デプロイ時に自動的に参照されます。"
                                     ),
                                     inline=False,
@@ -1357,7 +1357,8 @@ class IntegrationCommands(commands.Cog):
                                     name="📝 復号後の手順",
                                     value=(
                                         "1. `ENCRYPTION_KEY` で暗号化レコードを復号\n"
-                                        "2. `.env` 等に `GOOGLE_CALENDAR_ACCESS_TOKEN` と `GOOGLE_CALENDAR_REFRESH_TOKEN` を設定\n"
+                                        "2. `.env` 等に `GOOGLE_CALENDAR_ACCESS_TOKEN` と "
+                                        "`GOOGLE_CALENDAR_REFRESH_TOKEN` を設定\n"
                                         "3. `/integration_config integration:google_calendar enabled:true` を実行"
                                     ),
                                     inline=False,
