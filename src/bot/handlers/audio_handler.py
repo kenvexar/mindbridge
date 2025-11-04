@@ -189,7 +189,7 @@ class AudioHandler(LoggerMixin):
                 self.logger.debug("No audio attachments found, returning early")
                 return
 
-            unique_audio_attachments: list[dict[str, Any]] = []
+            unique_audio_attachments: list[tuple[dict[str, Any], bool]] = []
             for att in audio_attachments:
                 identity = self._build_attachment_identity(att)
                 already_processed = identity in processed_for_message

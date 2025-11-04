@@ -427,10 +427,10 @@ class SpeechProcessor(LoggerMixin):
 
     @classmethod
     def _apply_transcript_postprocessing(
-        cls, transcription: TranscriptionResult | None
-    ) -> TranscriptionResult | None:
+        cls, transcription: TranscriptionResult
+    ) -> TranscriptionResult:
         """フィラー除去や整形を行って文字起こし結果を整備"""
-        if transcription is None or not transcription.transcript:
+        if not transcription.transcript:
             return transcription
 
         cleaned_transcript = cls._normalize_transcript_text(
