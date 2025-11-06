@@ -91,7 +91,7 @@ HELP
 
   if [[ "$SKIP_SECRET_CHECK" == false ]]; then
     log_step "Secret Manager 必須項目"
-    local secrets=(discord-bot-token discord-guild-id gemini-api-key github-token obsidian-backup-repo google-cloud-speech-credentials health-endpoint-token health-callback-state)
+    local secrets=(discord-bot-token discord-guild-id gemini-api-key github-token obsidian-backup-repo health-endpoint-token health-callback-state)
     local missing=()
     local secret
     for secret in "${secrets[@]}"; do
@@ -185,11 +185,50 @@ cmd_deploy() {
     cp "$CR_CONFIG" /tmp/cloud-run-deploy.yaml
   fi
   gcloud run services replace /tmp/cloud-run-deploy.yaml --region="$REGION" --project="$PROJECT_ID"
-  local SECRET_BINDINGS="DISCORD_BOT_TOKEN=discord-bot-token:latest,DISCORD_GUILD_ID=discord-guild-id:latest,GEMINI_API_KEY=gemini-api-key:latest,GITHUB_TOKEN=github-token:latest,OBSIDIAN_BACKUP_REPO=obsidian-backup-repo:latest,GOOGLE_CLOUD_SPEECH_CREDENTIALS=google-cloud-speech-credentials:latest,HEALTH_ENDPOINT_TOKEN=health-endpoint-token:latest,HEALTH_CALLBACK_STATE=health-callback-state:latest,ENCRYPTION_KEY=encryption-key:latest,GARMIN_EMAIL=garmin-username:latest,GARMIN_USERNAME=garmin-username:latest,GARMIN_PASSWORD=garmin-password:latest,GOOGLE_CALENDAR_CLIENT_ID=google-calendar-client-id:latest,GOOGLE_CALENDAR_CLIENT_SECRET=google-calendar-client-secret:latest,GOOGLE_CALENDAR_ACCESS_TOKEN=google-calendar-access-token:latest,GOOGLE_CALENDAR_REFRESH_TOKEN=google-calendar-refresh-token:latest"
+  local required_secret_bindings=(
+    "DISCORD_BOT_TOKEN=discord-bot-token:latest"
+    "DISCORD_GUILD_ID=discord-guild-id:latest"
+    "GEMINI_API_KEY=gemini-api-key:latest"
+    "GITHUB_TOKEN=github-token:latest"
+    "OBSIDIAN_BACKUP_REPO=obsidian-backup-repo:latest"
+    "HEALTH_ENDPOINT_TOKEN=health-endpoint-token:latest"
+    "HEALTH_CALLBACK_STATE=health-callback-state:latest"
+    "ENCRYPTION_KEY=encryption-key:latest"
+  )
+  local optional_secret_bindings=(
+    "GOOGLE_CLOUD_SPEECH_CREDENTIALS=google-cloud-speech-credentials:latest"
+    "GOOGLE_CALENDAR_CLIENT_ID=google-calendar-client-id:latest"
+    "GOOGLE_CALENDAR_CLIENT_SECRET=google-calendar-client-secret:latest"
+    "GOOGLE_CALENDAR_ACCESS_TOKEN=google-calendar-access-token:latest"
+    "GOOGLE_CALENDAR_REFRESH_TOKEN=google-calendar-refresh-token:latest"
+    "GARMIN_EMAIL=garmin-username:latest"
+    "GARMIN_USERNAME=garmin-username:latest"
+    "GARMIN_PASSWORD=garmin-password:latest"
+  )
+
+  local secret_bindings=()
+  secret_bindings+=("${required_secret_bindings[@]}")
+
+  local binding secret_name
+  for binding in "${optional_secret_bindings[@]}"; do
+    secret_name=${binding#*=}
+    secret_name=${secret_name%:*}
+    if gcloud secrets describe "$secret_name" --project="$PROJECT_ID" >/dev/null 2>&1; then
+      secret_bindings+=("$binding")
+    else
+      log "任意シークレット '$secret_name' は未設定のためスキップ"
+    fi
+  done
+
+  local SECRET_BINDINGS
+  IFS=, SECRET_BINDINGS="${secret_bindings[*]}"
+  unset IFS
   gcloud run services update "$SERVICE_NAME" \
     --image="${IMAGE_NAME}:${IMAGE_TAG}" \
     --region="$REGION" \
     --project="$PROJECT_ID" \
+    --min-instances=1 \
+    --max-instances=1 \
     --set-secrets="${SECRET_BINDINGS}" \
     --set-env-vars="SECRET_MANAGER_PROJECT_ID=${PROJECT_ID},SECRET_MANAGER_STRATEGY=google" || true
   rm -f /tmp/cloud-run-deploy.yaml
