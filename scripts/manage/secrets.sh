@@ -116,6 +116,11 @@ cmd_secrets() {
       --role="roles/secretmanager.admin" \
       --project="$PROJECT_ID" \
       2>/dev/null || true
+    gcloud secrets remove-iam-policy-binding "$s" \
+      --member="serviceAccount:$SA_MAIN_EMAIL" \
+      --role="roles/secretmanager.secretVersionAdder" \
+      --project="$PROJECT_ID" \
+      2>/dev/null || true
   done
 
   for s in "${read_only_secrets[@]}"; do
@@ -129,6 +134,11 @@ cmd_secrets() {
 
   for s in "${write_secrets[@]}"; do
     gcloud secrets describe "$s" --project="$PROJECT_ID" &>/dev/null || continue
+    gcloud secrets add-iam-policy-binding "$s" \
+      --member="serviceAccount:$SA_MAIN_EMAIL" \
+      --role="roles/secretmanager.secretAccessor" \
+      --project="$PROJECT_ID" \
+      2>/dev/null || true
     gcloud secrets add-iam-policy-binding "$s" \
       --member="serviceAccount:$SA_MAIN_EMAIL" \
       --role="roles/secretmanager.secretVersionAdder" \
