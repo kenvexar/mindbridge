@@ -1,9 +1,7 @@
 """Speech processing and transcription using Google Cloud Speech-to-Text API."""
 
-import json
 import os
 import re
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -86,7 +84,6 @@ class SpeechProcessor(LoggerMixin):
 
         # 文字起こしエンジンの優先順位と利用可能性確認
         self.transcription_engines: list[dict[str, Any]] = []
-        self._credential_path: Path | None = None
         self._setup_transcription_engines()
 
         # API 利用可能性フラグ
@@ -142,58 +139,9 @@ class SpeechProcessor(LoggerMixin):
         if not self.transcription_engines:
             self.logger.warning("文字起こしエンジンが利用できません")
 
-    def _ensure_service_account_credentials(self) -> None:
-        """サービスアカウント認証情報をファイルとして準備"""
-        existing_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        if existing_path:
-            credential_path = Path(existing_path)
-            if credential_path.exists():
-                self._credential_path = credential_path
-                return
-
-        if self._credential_path and self._credential_path.exists():
-            return
-
-        credentials_payload = os.getenv("GOOGLE_CLOUD_SPEECH_CREDENTIALS")
-        if not credentials_payload:
-            return
-
-        try:
-            parsed = json.loads(credentials_payload)
-        except json.JSONDecodeError:
-            self.logger.warning(
-                "Invalid GOOGLE_CLOUD_SPEECH_CREDENTIALS payload detected; ignoring"
-            )
-            return
-
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                prefix="mb-speech-",
-                suffix=".json",
-                delete=False,
-                encoding="utf-8",
-            ) as credentials_file:
-                credentials_file.write(json.dumps(parsed))
-                temp_path = Path(credentials_file.name)
-
-            temp_path.chmod(0o600)
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(temp_path)
-            self._credential_path = temp_path
-            self.logger.info(
-                "Loaded Google Speech service account credentials from environment",
-                credential_path=str(temp_path),
-            )
-        except Exception as error:
-            self.logger.warning(
-                "Failed to persist Google Speech credentials to disk",
-                error=str(error),
-            )
-
     def _check_google_speech_api_availability(self) -> bool:
         """グーグル Speech API の利用可能性を確認"""
         try:
-            self._ensure_service_account_credentials()
             settings = get_settings()
             # API キーまたは認証情報の確認
             if (
@@ -216,6 +164,21 @@ class SpeechProcessor(LoggerMixin):
 
             if os.environ.get("GOOGLE_CLOUD_SPEECH_API_KEY"):
                 return True
+
+            # Workload Identity やランタイム ADC の確認
+            try:
+                import google.auth  # type: ignore[import-not-found]
+            except ImportError:
+                self.logger.debug("google.auth が見つからないため ADC を確認できません")
+            else:
+                try:
+                    google.auth.default()
+                    return True
+                except google.auth.exceptions.DefaultCredentialsError as error:
+                    self.logger.debug(
+                        "ADC から Speech 認証情報を取得できません",
+                        error=str(error),
+                    )
 
             self.logger.debug("Google Cloud Speech API credentials not found")
             return False
