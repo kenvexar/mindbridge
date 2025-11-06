@@ -74,26 +74,6 @@ spec:
             secretKeyRef:
               name: obsidian-backup-repo
               key: latest
-        - name: GARMIN_EMAIL
-          valueFrom:
-            secretKeyRef:
-              name: garmin-username
-              key: latest
-        - name: GARMIN_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: garmin-username
-              key: latest
-        - name: GARMIN_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: garmin-password
-              key: latest
-        - name: GOOGLE_CLOUD_SPEECH_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              name: google-cloud-speech-credentials
-              key: latest
         - name: HEALTH_ENDPOINT_TOKEN
           valueFrom:
             secretKeyRef:
@@ -108,26 +88,6 @@ spec:
           valueFrom:
             secretKeyRef:
               name: encryption-key
-              key: latest
-        - name: GOOGLE_CALENDAR_CLIENT_ID
-          valueFrom:
-            secretKeyRef:
-              name: google-calendar-client-id
-              key: latest
-        - name: GOOGLE_CALENDAR_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: google-calendar-client-secret
-              key: latest
-        - name: GOOGLE_CALENDAR_ACCESS_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: google-calendar-access-token
-              key: latest
-        - name: GOOGLE_CALENDAR_REFRESH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: google-calendar-refresh-token
               key: latest
         - name: SECRET_MANAGER_PROJECT_ID
           value: "PROJECT_ID"
