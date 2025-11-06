@@ -190,6 +190,8 @@ cmd_deploy() {
     --image="${IMAGE_NAME}:${IMAGE_TAG}" \
     --region="$REGION" \
     --project="$PROJECT_ID" \
+    --min-instances=1 \
+    --max-instances=1 \
     --set-secrets="${SECRET_BINDINGS}" \
     --set-env-vars="SECRET_MANAGER_PROJECT_ID=${PROJECT_ID},SECRET_MANAGER_STRATEGY=google" || true
   rm -f /tmp/cloud-run-deploy.yaml

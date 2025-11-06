@@ -15,7 +15,7 @@ spec:
 
         # Autoscaling (コスト最適化)
         autoscaling.knative.dev/minScale: "1"
-        autoscaling.knative.dev/maxScale: "3"
+        autoscaling.knative.dev/maxScale: "1"
 
         # Health checks
         run.googleapis.com/startup-probe-initial-delay-seconds: "60"
