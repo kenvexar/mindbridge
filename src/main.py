@@ -226,10 +226,18 @@ def start_health_server(
         health_server.start()
         logger.info(f"Health server started on port {health_server.port}")
         return health_server
+    except RuntimeError as exc:
+        logger.warning(
+            "Health server not started due to missing or invalid secrets",
+            error=str(exc),
+        )
     except OSError as exc:
         logger.warning(f"Health server startup failed: {exc}")
-        logger.info("Bot will continue without health server")
-        return None
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(f"Health server unexpected startup error: {exc}")
+
+    logger.info("Bot will continue without health server")
+    return None
 
 
 async def shutdown_runtime(
