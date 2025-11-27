@@ -297,7 +297,6 @@ class TaskManager:
             return False
 
         # Remove task
-        tasks[task_id]
         del tasks[task_id]
         await self._save_tasks(tasks)
 

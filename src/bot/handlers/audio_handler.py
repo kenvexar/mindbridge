@@ -2,20 +2,23 @@
 
 from collections import deque
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import discord
 
 from src.utils.mixins import LoggerMixin
 
+if TYPE_CHECKING:
+    from src.audio.speech_processor import SpeechProcessor
+
 
 class AudioHandler(LoggerMixin):
     """音声ファイル処理専用ハンドラー"""
 
-    def __init__(self, speech_processor=None):
+    def __init__(self, speech_processor: "SpeechProcessor | None" = None) -> None:
         self.speech_processor = speech_processor
         self._processed_attachment_keys: dict[str, set[str]] = {}
-        self._recent_messages = deque()
+        self._recent_messages: deque[str] = deque()
         self._max_recent_messages = 512
 
     @staticmethod
