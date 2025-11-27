@@ -13,10 +13,7 @@ Cloud Run ではなく、Beelink 製 Mini PC (Intel N100 / Alder Lake) 上で常
 
 ```bash
 sudo dnf update -y
-sudo dnf install -y git curl podman podman-docker podman-compose fuse-overlayfs
-# Python ツールチェーン
-pipx install uv
-pipx ensurepath  # 未設定なら shell を再起動
+sudo dnf install -y git curl podman podman-docker podman-compose fuse-overlayfs uv
 ```
 
 SELinux でコンテナボリュームのラベル付けを行うため `:Z` オプションを付けてマウントします（`docker-compose.yml` を更新済み）。
@@ -26,6 +23,7 @@ SELinux でコンテナボリュームのラベル付けを行うため `:Z` オ
 ```bash
 sudo useradd -m -s /bin/bash mindbridge || true
 sudo mkdir -p /opt/mindbridge
+sudo mkdir -p /opt/mindbridge/logs
 sudo chown -R mindbridge:mindbridge /opt/mindbridge
 ```
 
@@ -109,7 +107,7 @@ sudo systemctl enable --now personal-mindbridge.service
 | --- | --- |
 | コンテナ起動時に Permission denied | SELinux が原因のため `:Z` 付きボリュームがマウントされているか確認。`podman unshare chown` で UID/GID を合わせると解決する場合があります。 |
 | ポート 8080 が衝突 | `.env(.docker)` で `PORT` を変更し、`docker-compose.yml` の `ports` も合わせて更新。 |
-| systemd で uv が見つからない | `Environment=PATH=/usr/local/bin:/usr/bin` をユニットに追記、または `which uv` のパスを `ExecStart` に指定。 |
+| systemd で uv が見つからない | `dnf install uv` 済みか確認し、`which uv` が `/usr/bin/uv` を指すことを確認。 |
 
 ---
 
