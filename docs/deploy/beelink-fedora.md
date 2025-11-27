@@ -114,7 +114,7 @@ sudo systemctl enable --now personal-mindbridge.service
 | --- | --- |
 | コンテナ起動時に Permission denied | SELinux が原因のため `:Z` 付きボリュームがマウントされているか確認。`podman unshare chown` で UID/GID を合わせると解決する場合があります。 |
 | ポート 8080 が衝突 | `.env(.docker)` で `PORT` を変更し、`docker-compose.yml` の `ports` も合わせて更新。 |
-| systemd で uv が見つからない | `Environment=PATH=/usr/local/bin:/usr/bin` をユニットに追記、または `which uv` のパスを `ExecStart` に指定。 |
+| systemd で uv が見つからない | mindbridge ユーザーで `pipx install uv` 済みか確認し、`Environment=PATH=/home/mindbridge/.local/bin:/usr/local/bin:/usr/bin` をユニットで調整。 |
 
 ---
 
