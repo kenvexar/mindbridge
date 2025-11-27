@@ -191,6 +191,36 @@ AI Summary: {{ai_summary}}
         )
 
 
+class TestDailyNoteIntegrationHelpers:
+    """Daily note helper behavior"""
+
+    def test_update_section_preserves_header_on_replace(self) -> None:
+        """Replacing section content should not drop the header."""
+        from src.obsidian.daily_integration import DailyNoteIntegration
+
+        helper = DailyNoteIntegration.__new__(DailyNoteIntegration)
+
+        original_content = "\n".join(
+            [
+                "## Health Data",
+                "",
+                "- Steps: 5000",
+                "",
+                "## 📋 Activity Log",
+                "- Note entry",
+            ]
+        )
+
+        updated = helper._update_section(
+            original_content, "Health Data", "New metrics", replace_content=True
+        )
+
+        assert "## Health Data" in updated
+        assert "New metrics" in updated
+        # Activity Log header should remain after replacement block
+        assert "## 📋 Activity Log" in updated
+
+
 @pytest.mark.asyncio
 class TestObsidianFileManager:
     """Test Obsidian file manager"""
