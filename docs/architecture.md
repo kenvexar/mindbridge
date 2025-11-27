@@ -2,12 +2,25 @@
 
 ## システム概要
 
-```
-Discord → MessageProcessor → AIProcessor → TemplateEngine → Obsidian Vault
-                               │                │
-                               └─ AdvancedNoteAnalyzer ─┐
-                             Garmin / Calendar Integrations → Daily Note / Lifelog
-```
+### データフロー（番号付き）
+
+1. **Discord**: Slash コマンドやチャンネル投稿を受信。
+2. **MessageProcessor**: テキスト/添付/メタデータを抽出し、AI へ渡すために整形。
+3. **AIProcessor**: Gemini 呼び出しとレート制御を行い、要約・タグ・カテゴリを生成。
+   - 3a. **AdvancedNoteAnalyzer**: 類似ノート推定や洞察生成を追加で実行し、AI 結果を強化。
+4. **TemplateEngine**: テンプレートへフィールドをバインドし、Markdown ノートを生成。
+5. **Obsidian Vault**: ノートを保存し、GitHub 同期や統計集計へ連携。
+   - 5a. **Integration Schedulers** (`IntegrationSyncScheduler` / `HealthAnalysisScheduler`): Garmin/カレンダー/健康データを定期取得し、Daily Note やライフログへ反映。
+
+### レジェンド（1 行解説）
+
+- **Discord**: 入力イベントの発火源。
+- **MessageProcessor**: 文字列クリーニングとメタデータ抽出のハブ。
+- **AIProcessor**: LLM 推論・キャッシュ・キュー管理を担う処理基盤。
+- **AdvancedNoteAnalyzer**: LLM 出力に対して分類・関連ノート推定を加える分析モジュール。
+- **TemplateEngine**: テンプレートを読み込み、ノート構造を整えるレンダラー。
+- **Obsidian Vault**: Markdown ノートと添付を保存する永続ストア。
+- **Integration Schedulers**: 外部データ連携を定期実行し、Daily Note/ライフログへ書き込むタスクランナー。
 
 `src/main.py` が設定とシークレットを読み込み、必要なコンポーネントを遅延初期化してランタイムコンテキストを構築します。Discord Bot、外部連携スケジューラ、ヘルスチェックサーバが同時に稼働し、Vault への書き込みや統計集計を行います。
 
