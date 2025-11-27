@@ -23,6 +23,7 @@ SELinux でコンテナボリュームのラベル付けを行うため `:Z` オ
 ```bash
 sudo useradd -m -s /bin/bash mindbridge || true
 sudo mkdir -p /opt/mindbridge
+sudo mkdir -p /opt/mindbridge/logs
 sudo chown -R mindbridge:mindbridge /opt/mindbridge
 ```
 

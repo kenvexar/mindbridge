@@ -12,6 +12,7 @@ WorkingDirectory=/opt/mindbridge
 EnvironmentFile=/opt/mindbridge/.env
 Environment=PYTHONUNBUFFERED=1
 Environment=UV_LINK_MODE=copy
+ExecStartPre=/usr/bin/install -d -o mindbridge -g mindbridge /opt/mindbridge/logs
 ExecStart=/usr/bin/env uv run python -m src.main
 Restart=always
 RestartSec=5s
