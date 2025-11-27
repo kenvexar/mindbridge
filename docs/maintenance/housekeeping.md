@@ -37,7 +37,7 @@
 
 ## 3. ドキュメント整備状況
 
-- 2025 Q1 ドキュメント再編済み: `README.md`（概要・機能・開発手順）、`docs/README.md`（インデックス）、`docs/deploy/cloud-run.md`（Cloud Run 手順）、`docs/basic-usage.md`（コマンド一覧）を更新。
+- 2025 Q1 ドキュメント再編済み: `README.md`（概要・機能・開発手順）、`docs/README.md`（インデックス）、`docs/deploy/local.md`（ローカル/コンテナ手順）、`docs/basic-usage.md`（コマンド一覧）を更新。
 - 未整備項目: `tests/manual/` ごとの README、`src/` 各パッケージの内部ドキュメントの更新頻度向上。
 - 追加タスクが発生した際はこのファイルにメモを残し、完了後に履歴として更新。
 

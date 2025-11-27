@@ -34,8 +34,10 @@ uv sync --dev
 ```
 Bot を起動したら Discord の #memo チャンネルに投稿し、`/status` で稼働状況を確認してください。
 
-### Cloud Run (summary)
-`./scripts/manage.sh full-deploy <PROJECT_ID> --with-optional` で環境セットアップからデプロイまでを自動化できます。詳細は `docs/deploy/cloud-run.md` を参照してください。
+### On-prem (Beelink Mini PC / Fedora 43)
+Beelink N100 + Fedora 43 上での常駐運用手順を `docs/deploy/beelink-fedora.md` にまとめました。
+- SELinux 対応済みの `docker-compose.yml` で Podman/Docker どちらでも起動可能。
+- `deploy/systemd/mindbridge.service` を使えば `uv run` 常駐も簡単に設定できます。
 
 ### Container image & self-host
 ```bash
@@ -63,7 +65,7 @@ Compose や systemd サービス化のヒントは `docs/deploy/local.md` と
 - `docs/` – クイックスタート、ユーザーガイド、デプロイ手順、メンテナンスノート。
 - `scripts/manage.sh` – 初期化、デプロイ、メンテ、クリーンアップをまとめた CLI。
 - `tests/` – `unit/`, `integration/`, `manual/` によるテスト群。
-- `deploy/` – Cloud Run・Docker 用のデプロイテンプレート。
+- `deploy/` – Docker / systemd 用のデプロイテンプレート。
 - `vault/`, `logs/` – 実行時に生成される Vault と暗号化ログ（Git 管理対象外）。
 
 ## Development Checklist

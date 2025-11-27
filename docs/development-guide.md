@@ -60,9 +60,7 @@ uv run python tests/manual/quick_voice_test.py       # 手動音声テスト
 ## 管理スクリプトの活用
 
 - `./scripts/manage.sh clean` – `__pycache__`, `.pytest_cache`, `.ruff_cache` などを削除。`--with-uv-cache` フラグで `~/.cache/uv` も削除可能。
-- `./scripts/manage.sh env <PROJECT_ID>` – Cloud Run 用の GCP プロジェクト準備（API 有効化、Artifact Registry 作成）。
 - `./scripts/manage.sh secrets <PROJECT_ID>` – Secret Manager へのシークレット登録。
-- `./scripts/manage.sh full-deploy <PROJECT_ID> --with-optional` – 環境構築からデプロイまで一括実行。
 
 新しいタスクを追加する場合は既存のサブコマンドを調べ、可能なら同スクリプトに統合してください。
 

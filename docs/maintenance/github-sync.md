@@ -13,8 +13,6 @@ Bot の終了時に `git push` を自動実行する仕組みのため、
 | `OBSIDIAN_BACKUP_REPO` | Vault 用の Git リポジトリ | `git@github.com:owner/vault.git` |
 | `OBSIDIAN_BACKUP_BRANCH` | デプロイごとのバックアップブランチ | 例: `main` |
 
-Cloud Run 運用では `scripts/manage.sh secrets <PROJECT_ID> --with-optional` を実行し、
-上記シークレットを Google Secret Manager へ登録してください。
 Secret Manager を使わない場合は `.env` へ同名の環境変数を追記します。
 
 ## 2. 初期同期フロー
@@ -31,9 +29,6 @@ Secret Manager を使わない場合は `.env` へ同名の環境変数を追記
 - `GITHUB_TOKEN` の代わりにデプロイ先へ専用の Deploy Key を登録し、
   `~/.ssh` をボリュームマウントするか
   Secret Manager に暗号化して保存します。
-- Cloud Run の場合は Secret Manager から鍵を取得し、
-  `/app/.ssh/id_ed25519` に展開する
-  カスタムエントリポイントを検討してください。
 
 ## 3. 運用ベストプラクティス
 
@@ -51,7 +46,7 @@ Secret Manager を使わない場合は `.env` へ同名の環境変数を追記
 - `fatal: could not read Username` が出る場合は、
   PAT の権限と Secret Manager のバージョンを再確認してください。
 - `Host key verification failed` の場合は `known_hosts` を更新し、
-  Cloud Run では `ssh-keyscan github.com` を併用します。
+  必要に応じて `ssh-keyscan github.com` を併用します。
 - 自動 push が行われないときはログの `GitHub sync disabled` を確認し、
   `OBSIDIAN_BACKUP_REPO` が設定されているかを見直してください。
 

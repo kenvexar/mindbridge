@@ -112,7 +112,6 @@ class DiscordBot(LoggerMixin):
                         guild=guild.name,
                         pending_tasks=len(self._startup_tasks),
                     )
-                    self.logger.info(f"Connected to guild: {guild.name}")
                 else:
                     self.logger.error(f"Guild with ID {guild_id} not found")
 

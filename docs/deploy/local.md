@@ -69,6 +69,7 @@ docker compose down -v       # ボリュームも削除
 ### ヒント
 
 - `.env.docker` では `OBSIDIAN_VAULT_PATH=/data/vault` などコンテナ内パスを指定し、`docker-compose.yml` のボリュームマウントでローカルディレクトリに接続します。
+- SELinux Enforcing 環境（Fedora など）では、ボリュームマウントの `:Z` オプションで権限エラーを防げます（`docker-compose.yml` で設定済み）。
 - 環境変数が反映されない場合は `docker compose up -d --build` でイメージを再ビルドしてください。
 
 ---

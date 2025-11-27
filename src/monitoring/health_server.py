@@ -1,5 +1,5 @@
 """
-Health check server for Cloud Run
+Health check server for container/on-prem deployments
 """
 
 import base64
@@ -176,7 +176,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self._send_response(200, ready_data)
 
     def _handle_probe(self) -> None:
-        """Unauthenticated probe endpoint for Cloud Run liveness checks."""
+        """Unauthenticated probe endpoint for basic liveness checks."""
         probe_data = {
             "status": "ok",
             "timestamp": datetime.now().isoformat(),
@@ -394,11 +394,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
 
 class HealthServer:
-    """Health check server for Cloud Run deployment"""
+    """Health check server for container/on-prem deployment"""
 
     def __init__(self, bot_instance: Any = None, port: int = 8080) -> None:
         self.bot_instance = bot_instance
-        # Cloud Run uses PORT environment variable
+        # PORT 環境変数を優先（コンテナ環境向け）
         import os
 
         cloud_run_port = int(os.environ.get("PORT", port))

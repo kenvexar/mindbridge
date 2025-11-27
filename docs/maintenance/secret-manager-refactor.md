@@ -18,5 +18,5 @@
 
 ## 導入方法
 
-- Cloud Run 等で使用する場合: `create_secret_manager("google", project_id=...)` を呼び出し、得られたインスタンスを `ConfigManager` に渡す。
+- GCP Secret Manager を使う場合: `create_secret_manager("google", project_id=...)` を呼び出し、得られたインスタンスを `ConfigManager` に渡す。
 - 個人環境では従来通り `PersonalConfigManager` を利用すれば自動的に `PersonalSecretManager` が採用される。
