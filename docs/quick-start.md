@@ -10,6 +10,11 @@
 - Google Gemini API キー
 - Obsidian Vault 用の書き込み可能なディレクトリ
 
+### 事前準備
+
+- Discord: Bot がメッセージを読み書きできるテキストチャンネル（例: `#memo`）と Slash コマンドを登録できる権限を持つこと。
+- Obsidian: Vault の保存先パスを決めておく（例: `~/Obsidian/MindBridge`）。
+
 ## 1. 依存関係インストール
 
 ```bash
@@ -23,6 +28,13 @@ uv sync --dev
 ```
 
 対話式に最低限のシークレット（Discord/Gemini など）を登録します。生成された `.env` はルートに保存されます。
+
+| プロンプト | 説明 | 例 |
+| --- | --- | --- |
+| Discord Bot Token | Discord 開発者ポータルで発行した Bot トークン | `abc.def.ghi` |
+| Discord Guild ID | Bot を使うサーバーのギルド ID（未入力でも可） | `123456789012345678` |
+| Gemini API Key | Google AI Studio で取得した Gemini API キー | `AIzaxxx` |
+| Obsidian Vault パス | ローカルに作成する Vault のパス | `~/Obsidian/MindBridge` |
 
 ## 3. ローカル起動
 
