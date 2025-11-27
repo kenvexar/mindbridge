@@ -23,7 +23,6 @@ SELinux でコンテナボリュームのラベル付けを行うため `:Z` オ
 ```bash
 sudo useradd -m -s /bin/bash mindbridge || true
 sudo mkdir -p /opt/mindbridge
-sudo mkdir -p /opt/mindbridge/logs
 sudo chown -R mindbridge:mindbridge /opt/mindbridge
 ```
 
@@ -33,6 +32,7 @@ sudo chown -R mindbridge:mindbridge /opt/mindbridge
 sudo -u mindbridge git clone https://github.com/<your-fork>/mindbridge.git /opt/mindbridge
 cd /opt/mindbridge
 sudo -u mindbridge ./scripts/manage.sh init   # .env を対話生成（SECRET_MANAGER_STRATEGY=env を維持）
+sudo -u mindbridge mkdir -p /opt/mindbridge/logs
 ```
 
 ### `.env` 最低限の例

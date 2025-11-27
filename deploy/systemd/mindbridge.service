@@ -8,6 +8,7 @@ ConditionPathExists=/opt/mindbridge/.env
 Type=simple
 User=mindbridge
 Group=mindbridge
+PermissionsStartOnly=yes
 WorkingDirectory=/opt/mindbridge
 EnvironmentFile=/opt/mindbridge/.env
 Environment=PYTHONUNBUFFERED=1
