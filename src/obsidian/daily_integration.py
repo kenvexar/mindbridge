@@ -327,11 +327,16 @@ class DailyNoteIntegration(LoggerMixin):
 
         if section_start is not None:
             if replace_content:
-                # セクション内容を完全に置換
+                # セクション内容を完全に置換（ヘッダーは保持）
+                header_line = lines[section_start]
+                new_body_lines = new_content.split("\n")
+
                 new_lines = (
                     lines[:section_start]
-                    + new_content.split("\n")
-                    + [""]  # 空行を追加
+                    + [header_line]
+                    + [""]
+                    + new_body_lines
+                    + [""]
                     + lines[section_end:]
                 )
             else:
