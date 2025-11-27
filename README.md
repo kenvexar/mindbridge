@@ -2,6 +2,13 @@
 
 MindBridge は Discord の会話、添付ファイル、外部連携データを AI で整理し、Obsidian Vault に構造化ノートとして保存する自動化プラットフォームです。ひとつの起動コマンドで要約、タグ付け、統計、バックアップまでを一貫して処理します。
 
+## Setup checklist
+- [Clone the repository and move into `mindbridge`](#clone-and-open-the-repo)
+- [Install dependencies with `uv sync --dev`](#install-dependencies)
+- [Create `.env` via `./scripts/manage.sh init` with required variables](#initialize-the-environment)
+- [Start the runtime with `./scripts/manage.sh run`](#launch-the-bridge)
+- [Confirm `/status` responds in Discord](#verify-discord-status)
+
 ## Core Capabilities
 - **Discord ingestion**: メッセージ/添付/埋め込みを取り込み、詳細なメタデータとテキスト整形を実施。
 - **AI enrichment**: Gemini 2.5 Flash による要約・タグ・分類、URL 解析、類似ノート参照。
@@ -21,18 +28,30 @@ MindBridge は Discord の会話、添付ファイル、外部連携データを
 
 ## Quick Start
 
-### Local runtime
+### Clone and open the repo
 ```bash
-# 1. Install dependencies
+git clone https://github.com/<your-org>/mindbridge.git
+cd mindbridge
+```
+
+### Install dependencies
+```bash
 uv sync --dev
+```
 
-# 2. Create .env with interactive wizard
+### Initialize the environment
+```bash
 ./scripts/manage.sh init
+```
+`.env` に Discord トークンや Google API キーなど必須の変数を入力します（プロンプトで求められます）。
 
-# 3. Launch the bridge
+### Launch the bridge
+```bash
 ./scripts/manage.sh run         # or: uv run python -m src.main
 ```
-Bot を起動したら Discord の #memo チャンネルに投稿し、`/status` で稼働状況を確認してください。
+
+### Verify Discord status
+Bot を起動したら Discord の #memo チャンネルに投稿し、`/status` Slash コマンドが応答することを確認してください。
 
 ### On-prem (Beelink Mini PC / Fedora 43)
 Beelink N100 + Fedora 43 上での常駐運用手順を `docs/deploy/beelink-fedora.md` にまとめました。
