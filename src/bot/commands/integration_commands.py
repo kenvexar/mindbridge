@@ -1339,14 +1339,14 @@ class IntegrationCommands(commands.Cog):
                                     value=(
                                         "Google Cloud Secret Manager に `google-calendar-access-token` と "
                                         "`google-calendar-refresh-token` の最新バージョンを保存しました。"
-                                        "Cloud Run 側では次回デプロイ時に自動的に参照されます。"
+                                        "デプロイ先ではコンテナ再起動後に自動で参照されます。"
                                     ),
                                     inline=False,
                                 )
                                 embed.add_field(
                                     name="🚀 次の手順",
                                     value=(
-                                        "1. `./scripts/manage.sh deploy <PROJECT_ID>` を実行して Cloud Run を更新\n"
+                                        "1. コンテナやサービスを再起動して最新 Secret を読み込み\n"
                                         "2. Discord で `/integration_config integration:google_calendar enabled:true`\n"
                                         "3. `/calendar_test` で連携確認"
                                     ),

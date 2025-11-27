@@ -193,7 +193,7 @@ Bot を再招待した際は `/sync` コマンドは不要です。起動時に 
 - Slash コマンド詳細: `docs/basic-usage.md`
 - システム構成: `docs/architecture.md`
 - 開発フロー: `docs/development-guide.md`
-- デプロイ手順: `docs/deploy/overview.md`, `docs/deploy/cloud-run.md`, `docs/deploy/local.md`
+- デプロイ手順: `docs/deploy/overview.md`, `docs/deploy/local.md`, `docs/deploy/beelink-fedora.md`
 - YAML フロントマター仕様: `docs/yaml-front-matter.md`
 - 継続メンテナンスメモ: `docs/maintenance/housekeeping.md`
 

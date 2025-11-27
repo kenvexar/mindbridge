@@ -10,12 +10,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./vault:/app/vault  # Personal Obsidian vault
-      - ./logs:/app/logs    # Personal logs
-      - ./backups:/app/backups  # Personal backups
-      - ./.cache:/app/.cache    # Personal cache
-      - ./.config:/app/.config  # Personal config
-      - ./.mindbridge:/app/.mindbridge  # Integration settings and state
+      - ./vault:/app/vault:Z  # Personal Obsidian vault (SELinux 対応)
+      - ./logs:/app/logs:Z    # Personal logs
+      - ./backups:/app/backups:Z  # Personal backups
+      - ./.cache:/app/.cache:Z    # Personal cache
+      - ./.config:/app/.config:Z  # Personal config
+      - ./.mindbridge:/app/.mindbridge:Z  # Integration settings and state
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

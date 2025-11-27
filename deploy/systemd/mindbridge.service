@@ -1,0 +1,23 @@
+[Unit]
+Description=MindBridge (uv) - Beelink Fedora 43
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/opt/mindbridge/.env
+
+[Service]
+Type=simple
+User=mindbridge
+Group=mindbridge
+WorkingDirectory=/opt/mindbridge
+EnvironmentFile=/opt/mindbridge/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=UV_LINK_MODE=copy
+ExecStart=/usr/bin/env uv run python -m src.main
+Restart=always
+RestartSec=5s
+StandardOutput=append:/opt/mindbridge/logs/mindbridge.service.log
+StandardError=append:/opt/mindbridge/logs/mindbridge.service.err.log
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

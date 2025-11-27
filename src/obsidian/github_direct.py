@@ -1,6 +1,6 @@
 """
 GitHub API を使用した直接ファイル操作
-Cloud Run 環境での読み取り専用ファイルシステム問題を解決
+コンテナ環境での読み取り専用ファイルシステム問題を解決
 """
 
 from datetime import datetime

@@ -6,7 +6,7 @@ MindBridge links Discord ingestion, AI enrichment, and Obsidian export. Use the 
 - `src/`: Domain packages (`ai/`, `bot/`, `obsidian/`, `finance/`, `tasks/`); `main.py` boots the runtime.
 - `tests/`: `unit/` and `integration/` back CI; `manual/` stores opt-in exploratory checks.
 - `scripts/`: `manage.sh` wraps setup, deployment, and cleanup steps—extend it rather than adding ad-hoc scripts.
-- `deploy/`, `docker-compose.yml`, `Dockerfile*`: Infrastructure templates for Cloud Run and local containers.
+- `deploy/`, `docker-compose.yml`, `Dockerfile*`: Infrastructure templates for local containers.
 - `docs/`, `vault/`, `logs/`: Reference notes and encrypted artifacts; keep secrets out of Git history.
 
 ## Build, Test, and Development Commands
@@ -17,7 +17,7 @@ uv run pytest -q            # Run unit + integration tests
 uv run pytest --cov=src     # Collect coverage during development
 uv run ruff check . --fix   # Lint and auto-fix (line length ≤88)
 uv run mypy src             # Static type checks
-make full-deploy PROJECT_ID=...  # Scripted cloud deployment
+docker compose up -d             # コンテナ起動（Podman も可）
 ```
 
 ## Coding Style & Naming Conventions
