@@ -13,10 +13,7 @@ Cloud Run ではなく、Beelink 製 Mini PC (Intel N100 / Alder Lake) 上で常
 
 ```bash
 sudo dnf update -y
-sudo dnf install -y git curl podman podman-docker podman-compose fuse-overlayfs
-# Python ツールチェーン（後でサービスユーザーにもインストール）
-pipx install uv
-pipx ensurepath  # 未設定なら shell を再起動
+sudo dnf install -y git curl podman podman-docker podman-compose fuse-overlayfs uv
 ```
 
 SELinux でコンテナボリュームのラベル付けを行うため `:Z` オプションを付けてマウントします（`docker-compose.yml` を更新済み）。
@@ -27,10 +24,6 @@ SELinux でコンテナボリュームのラベル付けを行うため `:Z` オ
 sudo useradd -m -s /bin/bash mindbridge || true
 sudo mkdir -p /opt/mindbridge
 sudo chown -R mindbridge:mindbridge /opt/mindbridge
-
-# mindbridge ユーザーに uv をインストール（systemd もこの PATH を使う）
-sudo -u mindbridge pipx install uv
-sudo -u mindbridge pipx ensurepath
 ```
 
 ## 3. ソース配置と環境変数
@@ -68,7 +61,6 @@ sudo -u mindbridge uv sync --dev
 ```bash
 sudo cp deploy/systemd/mindbridge.service /etc/systemd/system/mindbridge.service
 sudo sed -i 's#/opt/mindbridge#/opt/mindbridge#g' /etc/systemd/system/mindbridge.service  # パスを変更する場合のみ
-# uv を pipx で入れた場合は PATH 行が /home/mindbridge/.local/bin を含むことを確認
 sudo systemctl daemon-reload
 sudo systemctl enable --now mindbridge.service
 sudo systemctl status mindbridge.service
@@ -114,7 +106,7 @@ sudo systemctl enable --now personal-mindbridge.service
 | --- | --- |
 | コンテナ起動時に Permission denied | SELinux が原因のため `:Z` 付きボリュームがマウントされているか確認。`podman unshare chown` で UID/GID を合わせると解決する場合があります。 |
 | ポート 8080 が衝突 | `.env(.docker)` で `PORT` を変更し、`docker-compose.yml` の `ports` も合わせて更新。 |
-| systemd で uv が見つからない | mindbridge ユーザーで `pipx install uv` 済みか確認し、`Environment=PATH=/home/mindbridge/.local/bin:/usr/local/bin:/usr/bin` をユニットで調整。 |
+| systemd で uv が見つからない | `dnf install uv` 済みか確認し、`which uv` が `/usr/bin/uv` を指すことを確認。 |
 
 ---
 
