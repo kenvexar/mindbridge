@@ -1,29 +1,24 @@
-# Documentation Index
+# Documentation Map
 
-## Getting Started
+探したい情報に最短で辿り着くためのインデックスです。
 
-- `quick-start.md` – 最短ルートでローカル起動するための 3 ステップ。
-- `USER_GUIDE.md` – 初期セットアップ、環境変数、外部サービス連携の詳細。
-- `basic-usage.md` – Discord での操作方法と Slash / Prefix コマンド一覧。
+## すぐ使う人へ
+- `quick-start.md` — 3 ステップでローカル起動。
+- `basic-usage.md` — Slash/Prefix コマンドとノート生成の挙動。
+- `USER_GUIDE.md` — 環境変数一覧と外部サービス連携の手引き。
 
-## Architecture & Development
+## 仕組み・開発を知りたい人へ
+- `architecture.md` — データフローと主要モジュールの位置付け。
+- `development-guide.md` — 日常開発フローと管理スクリプトの使い方。
+- `testing.md` — 自動テストと手動検証のチェックリスト。
 
-- `architecture.md` – ランタイム、AI パイプライン、Obsidian 連携、各ドメインモジュールの概要。
-- `development-guide.md` – ローカル開発フロー、品質チェック、管理スクリプトの使い方。
-- `testing.md` – 自動テスト、手動検証、モック設定のガイド。
+## 運用・デプロイ
+- `deploy/overview.md` — デプロイ戦略の比較表。
+- `deploy/local.md` — uv 実行 / Docker Compose の手順とトラブル対策。
+- `deploy/beelink-fedora.md` — Beelink N100 + Fedora 43 での常駐ガイド。
 
-## Operations & Deployment
+## リファレンス
+- `yaml-front-matter.md` — ノート先頭の YAML スキーマとサンプル。
+- `maintenance/` — 秘密管理、Vault GitHub 同期、セキュリティ運用のノート群。
 
-- `deploy/overview.md` – デプロイ戦略の比較と選定チャート。
-- `deploy/local.md` – Docker / uv 実行手順とトラブルシューティング。
-- `deploy/beelink-fedora.md` – Beelink Mini PC (Fedora 43) 向け常駐運用手順。
-
-## Reference
-
-- `yaml-front-matter.md` – 生成される YAML フィールドとカスタマイズのベストプラクティス。
-- `maintenance/housekeeping.md` – リポジトリ構造と継続的な整備メモ。
-- `maintenance/secret-manager-refactor.md` – Secret Manager 抽象化の設計ノート。
-- `maintenance/readme-template.md` – パッケージ README 作成用テンプレート。
-- `maintenance/deployment-docs-plan.md` – デプロイ文書メンテナンスの履歴・TODO。
-
-各ドキュメントの更新履歴は該当ファイルの冒頭コメントや Git ログで確認してください。
+更新履歴や詳細は各ファイルの Git ログを参照してください。

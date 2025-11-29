@@ -1,22 +1,23 @@
-# Secret Manager Abstraction
+# Secret Manager 抽象化メモ
 
-## 目的
+環境変数だけで動かす個人利用と、Google Cloud Secret Manager を使う運用の両方を支えるための設計ノートです。
 
-- 個人利用 (環境変数) と Google Cloud Secret Manager の両対応を可能にする。
-- 将来的に他のキーバックエンド (HashiCorp Vault など) を追加しやすくする。
+## ゴール
+- バックエンドを差し替えても呼び出し側のコードをほぼ変えずに済むこと。
+- 将来 HashiCorp Vault など別ストアを増やすときの足場を作ること。
 
-## 実装概要
-
+## 実装ポイント
 - `src/security/secret_manager.py`
-  - `BaseSecretManager`: キャッシュ処理と共通ログを担う抽象基底クラス。
-  - `PersonalSecretManager`: 環境変数を利用する既存実装。`BaseSecretManager` 継承に切り替え。
-  - `GoogleSecretManager`: `google-cloud-secret-manager` を利用する新実装。任意の AsyncClient を DI 可能。
-  - `ConfigManager`: Secret Manager を受け取り、`get_config_value` を共通化。
-  - `create_secret_manager` / `create_config_manager`: デプロイ戦略からクラスを生成するファクトリ。
-- `src/security/__init__.py`: 新しい API を公開。
-- `tests/unit/test_security.py`: Google Secret Manager の挙動とファクトリを検証するテストを追加。
+  - `BaseSecretManager`: キャッシュと共通ログを持つ抽象基底。
+  - `PersonalSecretManager`: 環境変数ベース。既存実装を継承に置き換え。
+  - `GoogleSecretManager`: `google-cloud-secret-manager` をラップ。AsyncClient を DI 可能。
+  - `ConfigManager`: Secret Manager 経由で設定値を取得する共通窓口。
+  - `create_secret_manager` / `create_config_manager`: デプロイ戦略に応じてインスタンスを生成するファクトリ。
+- `src/security/__init__.py`: 新 API の公開場所。
+- `tests/unit/test_security.py`: Google Secret Manager 振る舞いとファクトリの回帰テスト。
 
-## 導入方法
+## 使い方の早見
+- GCP Secret Manager を使う: `create_secret_manager("google", project_id=...)` を呼び、その結果を `ConfigManager` に渡す。
+- 個人環境（env only）: これまで通り `PersonalConfigManager` を使えば内部で `PersonalSecretManager` が選ばれる。
 
-- GCP Secret Manager を使う場合: `create_secret_manager("google", project_id=...)` を呼び出し、得られたインスタンスを `ConfigManager` に渡す。
-- 個人環境では従来通り `PersonalConfigManager` を利用すれば自動的に `PersonalSecretManager` が採用される。
+この方針に沿って新しいバックエンドを追加する場合は、`BaseSecretManager` を継承してキャッシュ・ログの扱いを揃えること。

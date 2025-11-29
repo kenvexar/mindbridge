@@ -1,93 +1,53 @@
 # MindBridge
 
-MindBridge は Discord の会話、添付ファイル、外部連携データを AI で整理し、Obsidian Vault に構造化ノートとして保存する自動化プラットフォームです。ひとつの起動コマンドで要約、タグ付け、統計、バックアップまでを一貫して処理します。
+Discord の会話や添付、Garmin / Google Calendar などの外部データを AI で整理し、Obsidian Vault にきれいなノートとして残すワンストップ自動化ツールです。起動しておけば「投稿 → 要約/タグ付け → ノート化 → バックアップ」まで自走します。
 
-## Setup checklist
-- [Clone the repository and move into `mindbridge`](#clone-and-open-the-repo)
-- [Install dependencies with `uv sync --dev`](#install-dependencies)
-- [Create `.env` via `./scripts/manage.sh init` with required variables](#initialize-the-environment)
-- [Start the runtime with `./scripts/manage.sh run`](#launch-the-bridge)
-- [Confirm `/status` responds in Discord](#verify-discord-status)
+## まず動かす 3 手順
+1. リポジトリ取得: `git clone https://github.com/<your-org>/mindbridge.git && cd mindbridge`
+2. 依存インストール: `uv sync --dev`
+3. 環境作成と起動: `./scripts/manage.sh init && ./scripts/manage.sh run`
 
-## Core Capabilities
-- **Discord ingestion**: メッセージ/添付/埋め込みを取り込み、詳細なメタデータとテキスト整形を実施。
-- **AI enrichment**: Gemini 2.5 Flash による要約・タグ・分類、URL 解析、類似ノート参照。
-- **Obsidian integration**: テンプレート駆動の Markdown 生成、Daily Note 連携、Vault 統計、GitHub バックアップ。
-- **Audio transcription**: Google Cloud Speech-to-Text を優先し、フォールバック保存や使用量監視も実装。
-- **Lifelog & health analytics**: Garmin / Google Calendar との同期、活動・睡眠インサイト、自動スケジューラ、ライフログデータ管理。
-- **Productivity tooling**: タスク管理、家計管理、定期購入集計、各種 Slash コマンドでの統計表示。
-- **Operations & security**: Secret Manager 抽象化、構造化セキュリティログ、軽量ヘルスチェックサーバ、GitHub 同期ワークフロー。
+Discord の監視チャンネルで `/status` が返ってきたら準備完了。必須環境変数は init の対話プロンプトが案内します。
 
-## How It Works
-1. **Runtime bootstrap**: `src/main.py` が設定とシークレットを読み込み、AI/Garmin クライアントを遅延初期化。
-2. **Discord bot**: `DiscordBot` が Slash コマンドとメッセージハンドラを登録、`MessageProcessor` がメタデータを抽出。
-3. **AI & templating**: `AIProcessor`・`AdvancedNoteAnalyzer` が要約やタグを生成し、`TemplateEngine` が YAML フロントマター付きノートを作成。
-4. **Vault sync**: `ObsidianFileManager` がノートを保存し、必要に応じて Daily Note へ統合。GitHub 連携がある場合は差分を同期。
-5. **Schedulers & integrations**: Garmin/Calendar などは `IntegrationManager` と `HealthAnalysisScheduler` がバックグラウンドで同期。
-6. **Monitoring**: `/status` Slash コマンドや HTTP ヘルスサーバが動作状態をレポートし、セキュリティイベントは構造化ログへ記録。
+## できること（ざっくり）
+- **Discord 取り込み**: 投稿・添付・URL を整形し、メタデータ付きで保存。
+- **AI 整理**: Gemini 2.5 Flash で要約・タグ・カテゴリ分類。類似ノート提案も可能。
+- **Obsidian 連携**: テンプレート駆動で Markdown 生成、Daily Note 反映、Vault 統計、GitHub 同期。
+- **音声メモ**: Google Speech-to-Text で文字起こし。失敗時はファイルのみ保存するフォールバック付き。
+- **ライフログ/健康**: Garmin・Calendar を同期し、睡眠/活動インサイトを日次ノートに追加。
+- **タスク/家計**: Slash コマンドでタスクや支出を登録し、集計を返答。
+- **運用機能**: Secret Manager 抽象化、構造化セキュリティログ、軽量ヘルスサーバ。
 
-## Quick Start
+## 動きの流れ
+1. `src/main.py` が設定とシークレットを読み込み、Discord Bot と外部連携を初期化。
+2. 投稿を `MessageProcessor` が整形し、`AIProcessor` / `AdvancedNoteAnalyzer` が要約とタグ付け。
+3. `TemplateEngine` が YAML フロントマター付き Markdown を生成し、`ObsidianFileManager` が Vault に保存。
+4. `DailyNoteIntegration` や各スケジューラが Garmin / Calendar / GitHub 同期をバックグラウンドで処理。
+5. `/status` や HTTP ヘルスエンドポイントが稼働状況を返し、セキュリティイベントは構造化ログに残ります。
 
-### Clone and open the repo
-```bash
-git clone https://github.com/<your-org>/mindbridge.git
-cd mindbridge
-```
+## デプロイの選択肢
+- **ローカル実行 (`uv run`)**: 最軽量。コード変更が即反映。開発・個人運用向け。
+- **Docker / Podman Compose**: `.env.docker` とボリュームで環境を固定化。チーム検証や自宅サーバに便利。
+- **Beelink N100 + Fedora 43**: `docs/deploy/beelink-fedora.md` に常駐手順を記載（SELinux/Podman/systemd 対応）。
 
-### Install dependencies
-```bash
-uv sync --dev
-```
+コンテナイメージが必要なら `docker build -t mindbridge:latest .` で作成し、`.env.docker` と `vault` をマウントしてください。詳しくは `docs/deploy/local.md` / `docs/deploy/overview.md`。
 
-### Initialize the environment
-```bash
-./scripts/manage.sh init
-```
-`.env` に Discord トークンや Google API キーなど必須の変数を入力します（プロンプトで求められます）。
+## ドキュメントへの入口
+- インデックス: `docs/README.md`
+- すぐ使う: `docs/quick-start.md`
+- コマンド一覧: `docs/basic-usage.md`
+- 仕組み: `docs/architecture.md`
+- 開発・テスト: `docs/development-guide.md`, `docs/testing.md`
 
-### Launch the bridge
-```bash
-./scripts/manage.sh run         # or: uv run python -m src.main
-```
+## リポジトリの見取り図
+- `src/` – AI・Bot・Obsidian・Integrations ほかのドメイン別モジュール
+- `docs/` – クイックスタート、ユーザーガイド、デプロイ、メンテ資料
+- `scripts/manage.sh` – 初期化/起動/掃除/デプロイをまとめた CLI
+- `tests/` – `unit/`, `integration/`, `manual/`
+- `deploy/` – Docker・systemd テンプレート
+- `vault/`, `logs/` – 実行時に生成されるデータ（Git 管理対象外）
 
-### Verify Discord status
-Bot を起動したら Discord の #memo チャンネルに投稿し、`/status` Slash コマンドが応答することを確認してください。
-
-### On-prem (Beelink Mini PC / Fedora 43)
-Beelink N100 + Fedora 43 上での常駐運用手順を `docs/deploy/beelink-fedora.md` にまとめました。
-- SELinux 対応済みの `docker-compose.yml` で Podman/Docker どちらでも起動可能。
-- `deploy/systemd/mindbridge.service` を使えば `uv run` 常駐も簡単に設定できます。
-
-### Container image & self-host
-```bash
-# Build a runnable image (tag freely for GHCR/ECR, etc.)
-docker build -t mindbridge:latest .
-
-# Minimal run example for self-hosted VPS
-docker run --rm \
-  --env-file .env.docker \
-  -v "$(pwd)/vault:/app/vault" \
-  mindbridge:latest
-```
-VPS や自前 Kubernetes で運用する場合は上記イメージをレジストリへ push し、
-ホスト側で `.env.docker` を管理してください。
-Compose や systemd サービス化のヒントは `docs/deploy/local.md` と
-`docs/deploy/overview.md` を参照できます。
-
-## Documentation
-- ガイドと詳細な手順は `docs/README.md` を参照。
-- 使用方法のハイライトは `docs/basic-usage.md`。
-- システム構成の概要は `docs/architecture.md`。
-
-## Repository Layout
-- `src/` – ドメイン別モジュール (`ai/`, `audio/`, `bot/`, `config/`, `finance/`, `garmin/`, `health_analysis/`, `integrations/`, `lifelog/`, `monitoring/`, `obsidian/`, `security/`, `tasks/`, `utils/`).
-- `docs/` – クイックスタート、ユーザーガイド、デプロイ手順、メンテナンスノート。
-- `scripts/manage.sh` – 初期化、デプロイ、メンテ、クリーンアップをまとめた CLI。
-- `tests/` – `unit/`, `integration/`, `manual/` によるテスト群。
-- `deploy/` – Docker / systemd 用のデプロイテンプレート。
-- `vault/`, `logs/` – 実行時に生成される Vault と暗号化ログ（Git 管理対象外）。
-
-## Development Checklist
+## 開発時によく使うコマンド
 ```bash
 uv sync --dev
 uv run python -m src.main
@@ -96,8 +56,7 @@ uv run pytest --cov=src --cov-report=term-missing
 uv run ruff check . --fix && uv run ruff format .
 uv run mypy src
 ```
-追加のコマンドやメンテナンス手順は `docs/development-guide.md` と `docs/testing.md` を参照してください。
+追加のフローやヒントは `docs/development-guide.md` と `docs/testing.md` を参照してください。
 
 ## License
-
-MIT License – 詳細は `LICENSE` を参照。
+MIT License（詳細は `LICENSE` を参照）。

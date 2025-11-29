@@ -1,41 +1,29 @@
 # テストガイド
 
-MindBridge の品質確認に使用するテストコマンドと手動検証の手順をまとめます。変更内容に応じて適切なテストセットを選択してください。
+変更規模に合わせてどのテストを回すかを素早く判断できるようにまとめました。
 
 ## 1. 自動テスト
-
 ```bash
-# 全テスト（単体 + 統合）
-uv run pytest -q
-
-# 単体テストのみ
-uv run pytest tests/unit
-
-# 統合テストのみ
-uv run pytest tests/integration
-
-# カバレッジレポート（新規機能や大規模修正時に実行）
-uv run pytest --cov=src --cov-report=term-missing
+uv run pytest -q                                # 単体 + 統合まとめて
+uv run pytest tests/unit                        # 単体だけ
+uv run pytest tests/integration                 # 統合だけ
+uv run pytest --cov=src --cov-report=term-missing   # カバレッジを取りたいとき
 ```
-
-- `pytest.ini` で asyncio プラグインや共通フィクスチャが設定されています。
-- 統合テストではモック済み Discord クライアントやファイルシステムを使用します。実サービスへの接続は行いません。
+- `pytest.ini` で asyncio プラグインや共通フィクスチャを設定済み。
+- 統合テストはモックされた Discord/ファイルシステムを使うため、実サービスには接続しません。
 
 ## 2. 手動テスト / 外部サービス検証
-
-| シナリオ | コマンド | 説明 |
+| シナリオ | コマンド | 目的 |
 | --- | --- | --- |
-| 音声文字起こし | `uv run python tests/manual/quick_voice_test.py` | サンプル音声をアップロードし、Speech-to-Text とノート生成を確認。 |
-| Garmin 連携 | `uv run python tests/manual/test_garmin_integration.py` | 実際の Garmin 認証情報で API を呼び出し、Daily Note への反映を確認。 |
-| 管理スクリプト | `bash tests/manual/test_manage.sh` | `scripts/manage.sh` の主要サブコマンドを dry-run モードで検証。 |
-| Discord UI | Discord クライアント上で `/status`, `/integration_status`, `/task_add` などを実行 | Slash / Prefix コマンドが期待通り動作するか確認。 |
+| 音声文字起こし | `uv run python tests/manual/quick_voice_test.py` | Speech-to-Text とノート生成の確認 |
+| Garmin 連携 | `uv run python tests/manual/test_garmin_integration.py` | 実認証で日次ノート反映を確認 |
+| 管理スクリプト | `bash tests/manual/test_manage.sh` | `scripts/manage.sh` の主要サブコマンドを dry-run |
+| Discord UI | Discord 上で `/status`, `/task_add` などを実行 | Slash / Prefix コマンドの目視確認 |
 
-外部サービスを呼び出す手動テストは、専用のテスト用クレデンシャルやサンドボックス環境を利用してください。
+外部サービスを呼ぶ場合はテスト用クレデンシャルやサンドボックス環境を使用してください。
 
 ## 3. モックモード
-
-外部 API へ接続せずにテストしたい場合は `.env` に以下を設定します。
-
+外部 API を呼びたくない場合は `.env` に以下を設定します。
 ```env
 ENABLE_MOCK_MODE=true
 MOCK_DISCORD_ENABLED=true
@@ -43,13 +31,11 @@ MOCK_GEMINI_ENABLED=true
 MOCK_GARMIN_ENABLED=true
 MOCK_SPEECH_ENABLED=true
 ```
+統合テストでは自動でこれらの設定を前提にしています。
 
-モックモードでは Discord 連携が無効化され、AI/ガーミン/音声処理がモックレスポンスを返します。統合テストではこの設定が自動的に適用されます。
+## 4. 失敗時の後処理
+- ログは `logs/` と `tests/.pytest_cache` に残ります。不要なら `./scripts/manage.sh clean`。
+- GitHub へ送る前に `uv run pre-commit run --all-files` を実行し、lint/format/型結果を確認。
+- CI で落としたい場合は `uv run pytest --maxfail=1 --disable-warnings -q` を参考にしてください。
 
-## 4. レポートと後処理
-
-- テスト失敗時のログは `logs/` と `tests/.pytest_cache` に保存されます。不要になった場合は `./scripts/manage.sh clean` でキャッシュを削除してください。
-- GitHub へプッシュする前に `uv run pre-commit run --all-files` を実行し、フォーマットや静的解析の結果を含めて報告します。
-- CI で追加のテストを走らせる場合は `uv run pytest --maxfail=1 --disable-warnings -q` を参考にします。
-
-テスト結果とカバレッジ状況は PR の Verification セクションに記載することを推奨します。
+テスト結果とカバレッジは PR の Verification セクションへ短く記載することを推奨します。

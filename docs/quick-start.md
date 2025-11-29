@@ -1,63 +1,47 @@
 # クイックスタート
 
-最短 3 ステップで MindBridge をローカル起動します。詳細なセットアップは `docs/USER_GUIDE.md` を参照してください。
+ローカルで最短起動するための 3 ステップだけをまとめました。細かい設定は後で `USER_GUIDE.md` を参照してください。
 
-## 前提条件
-
+## 前提
 - Python 3.13 以上
-- [uv](https://github.com/astral-sh/uv) パッケージマネージャー
+- [uv](https://github.com/astral-sh/uv)
 - Discord Bot（トークンとギルド ID）
 - Google Gemini API キー
-- Obsidian Vault 用の書き込み可能なディレクトリ
+- Obsidian Vault を置くディレクトリ（書き込み可能）
 
-### 事前準備
-
-- Discord: Bot がメッセージを読み書きできるテキストチャンネル（例: `#memo`）と Slash コマンドを登録できる権限を持つこと。
-- Obsidian: Vault の保存先パスを決めておく（例: `~/Obsidian/MindBridge`）。
-
-## 1. 依存関係インストール
-
+## ステップ 1: 依存を入れる
 ```bash
 uv sync --dev
 ```
 
-## 2. 環境設定（.env 自動生成）
-
+## ステップ 2: .env を作る
 ```bash
 ./scripts/manage.sh init
 ```
+対話プロンプトでトークンやパスを入力すると、ルートに `.env` が生成されます。主な項目:
 
-対話式に最低限のシークレット（Discord/Gemini など）を登録します。生成された `.env` はルートに保存されます。
-
-| プロンプト | 説明 | 例 |
+| プロンプト | 例 | メモ |
 | --- | --- | --- |
-| Discord Bot Token | Discord 開発者ポータルで発行した Bot トークン | `abc.def.ghi` |
-| Discord Guild ID | Bot を使うサーバーのギルド ID（未入力でも可） | `123456789012345678` |
-| Gemini API Key | Google AI Studio で取得した Gemini API キー | `AIzaxxx` |
-| Obsidian Vault パス | ローカルに作成する Vault のパス | `~/Obsidian/MindBridge` |
+| Discord Bot Token | `abc.def.ghi` | Discord Developer Portal で取得 |
+| Discord Guild ID | `123456789012345678` | Slash コマンドを同期するサーバ ID |
+| Gemini API Key | `AIzaxxx` | Google AI Studio で発行 |
+| Obsidian Vault path | `~/Obsidian/MindBridge` | ローカル保存先 |
 
-## 3. ローカル起動
-
+## ステップ 3: 起動
 ```bash
-./scripts/manage.sh run    # 内部的に uv run python -m src.main を実行
+./scripts/manage.sh run   # 内部で uv run python -m src.main
 ```
+Discord の監視チャンネルに投稿し、`/status` が返ってくれば成功です。
 
-起動後は Discord の `#memo` チャンネルにメッセージを投稿すると AI が自動でノート化します。`/status` Slash コマンドで稼働状況を確認してください。
+## 動作確認チェック
+- `/help` が表示される
+- `/integration_status` で Garmin/Calendar 状態が見える（設定済みなら）
+- Vault に新しい Markdown ができ、YAML フロントマターが付く
+- `logs/` にランタイムログが追記される
 
-## 動作確認のチェックリスト
+## オプション設定の例
+- 音声文字起こし: `GOOGLE_CLOUD_SPEECH_API_KEY` またはサービスアカウント JSON
+- Garmin / Calendar: `GARMIN_EMAIL`, `GARMIN_PASSWORD`, `GOOGLE_CALENDAR_*`
+- GitHub バックアップ: `GITHUB_TOKEN`, `OBSIDIAN_BACKUP_REPO`
 
-- `/help` が利用可能で、コマンド一覧が表示される。
-- `/integration_status` で Garmin/Calendar などの状態が取得できる（設定済みの場合）。
-- Vault に新しい Markdown ファイルが作成され、YAML フロントマターが付与される。
-- `logs/` にランタイムログが追記される。
-
-## オプション機能
-
-- 音声文字起こしを有効化する場合は `.env` に `GOOGLE_CLOUD_SPEECH_API_KEY` またはサービスアカウント JSON を設定。
-- Garmin / Google Calendar を使う場合は `./scripts/manage.sh init` でスキップした項目を `.env` に追加し、必要に応じて `./scripts/manage.sh secrets` で Secret Manager に登録。
-- GitHub バックアップを利用する場合は `GITHUB_TOKEN` と `OBSIDIAN_BACKUP_REPO` を設定。
-
-## 次のステップ
-
-- Slash コマンドや追加機能は `docs/basic-usage.md` を参照。
-- 外部連携、テンプレート、Troubleshooting は `docs/USER_GUIDE.md` に詳しく記載しています。
+より詳しい操作やトラブル対応は `docs/basic-usage.md` と `docs/USER_GUIDE.md` へ。

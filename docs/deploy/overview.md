@@ -1,34 +1,25 @@
 # デプロイ概要
 
-MindBridge を運用する代表的なパターンと、ワークフロー全体の流れをまとめます。詳細手順は各サブドキュメントを参照してください。
+どの環境でどう動かすかを選ぶための比較表と共通フローです。詳細手順は各サブドキュメントへ。
 
-## デプロイ戦略の比較
-
-| 運用形態 | 特徴 | コスト/運用負荷 | 推奨シナリオ |
+## 戦略別のざっくり比較
+| 形態 | 特徴 | コスト/運用 | こんなときに |
 | --- | --- | --- | --- |
-| ローカル（`uv run`） | 依存関係は `uv` のみ。コード変更が即反映。 | 無料 / 管理者のみ | 開発・デバッグ・検証 |
-| ローカル（Docker/Podman Compose） | `docker compose up` で環境再現。Secrets は `.env.docker` を使用。SELinux でも `:Z` で安全。 | マシンリソース次第 | チーム内共有検証、簡易運用 |
-| オンプレ（Beelink Mini PC / Fedora 43） | rootless Podman か systemd + `uv run` で常時稼働。Cloud 依存なし。 | 固定コストのみ / 低運用負荷 | 個人常時稼働、宅内サーバー運用 |
+| ローカル (`uv run`) | 依存は `uv` だけ。コード変更が即反映。 | 無料 / 個人管理 | 開発・デバッグ・お試し運用 |
+| Docker/Podman Compose | `.env.docker` とボリュームで環境を固定化。SELinux も `:Z` で対応。 | マシンリソース次第 | チーム共有の検証、簡易常駐 |
+| オンプレ (Beelink N100 + Fedora 43) | rootless Podman か systemd + `uv run` で常時稼働。Cloud 依存なし。 | 固定コストのみ / 低運用 | 自宅・個人サーバで 24/7 稼働 |
 
-## 共通ワークフロー
+## どの方式でも共通の流れ
+1. 依存同期: `uv sync --dev`
+2. シークレット生成: `./scripts/manage.sh init` で `.env` 作成
+3. ローカル動作確認: `./scripts/manage.sh run` で Slash コマンドを試す
+4. デプロイ: 選んだ方式で `docker compose up` / `podman-compose up` / systemd 常駐
+5. ヘルスチェック: `/status`, `/system_status`, `curl localhost:8080/health`
+6. 必要なら手動テスト: `tests/manual/` を参照し Vault 出力を確認
 
-1. **依存関係同期** – `uv sync --dev`
-2. **シークレット初期化** – `./scripts/manage.sh init` で `.env` を作成し必要値を入力
-3. **ローカル検証** – `./scripts/manage.sh run` で手動テスト / Slash コマンド確認
-4. **デプロイ** – 選択した戦略に応じて `docker compose up` / `podman-compose up` または systemd で常駐化
-5. **ヘルスチェック** – `/status`, `/system_status`
-6. **手動テスト** – `tests/manual/` のシナリオを必要に応じて実施し、Vault 出力を確認
+## 参考ドキュメント
+- ローカル/Docker 手順: `deploy/local.md`
+- Beelink + Fedora: `deploy/beelink-fedora.md`
+- Vault GitHub 同期やメンテ: `maintenance/github-sync.md`, `maintenance/housekeeping.md`
 
-## GitHub Vault Sync
-
-Vault の GitHub バックアップ手順と必須シークレットは
-`docs/maintenance/github-sync.md` に集約しています。重複を避けるため、
-環境変数の詳細や運用ノートはそちらを参照してください。
-
-## 参照ドキュメント
-
-- ローカル/Docker 手順: `docs/deploy/local.md`
-- Beelink / Fedora 43 手順: `docs/deploy/beelink-fedora.md`
-- 継続メンテナンスや構成変更: `docs/maintenance/housekeeping.md`
-
-デプロイ後は GitHub 同期や Secret Manager の状態を定期的に確認し、`/integration_status` や `./scripts/manage.sh clean` など運用コマンドを活用してください。
+デプロイ後は Secret 管理とバックアップの状態を定期的に確認し、`/integration_status` で外部連携が生きているかチェックしてください。

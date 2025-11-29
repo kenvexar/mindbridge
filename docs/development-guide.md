@@ -1,97 +1,68 @@
 # 開発ガイド
 
-ローカル開発やレビュー時に実施する手順とコマンドをまとめています。スタイル・テスト要件は `AGENTS.md` と `project-doc` のガイドラインに従ってください。
+ローカル開発やレビューで迷わないための最小セットです。詳細なポリシーはルートの `AGENTS.md` を参照してください。
 
-## セットアップ
-
+## 1. いつもの起動手順
 ```bash
-# 依存関係と開発用ツールを取得
-uv sync --dev
-
-# .env を対話式に生成（必要なシークレットを登録）
-./scripts/manage.sh init
-
-# Bot をローカル起動して挙動を確認
-./scripts/manage.sh run        # もしくは: uv run python -m src.main
+uv sync --dev              # 依存と開発ツール
+./scripts/manage.sh init   # .env を対話生成（初回のみ）
+./scripts/manage.sh run    # Bot 起動
 ```
+`./scripts/manage.sh help` でサブコマンド一覧を確認できます。
 
-`./scripts/manage.sh` は初期化・デプロイ・クリーンアップを集約した CLI です。コマンド一覧は `./scripts/manage.sh help` で確認できます。
-
-## 日常作業フロー
-
-1. ブランチ作成後、目的の修正を実装。
-2. 必要に応じて手動テスト（Discord での Slash コマンド、Garmin/Calendar 同期など）を実行。
-3. 変更内容に対して以下の品質チェックを実施。
-
+## 2. 変更後に回すチェック
 ```bash
-# Lint と自動整形
 uv run ruff check . --fix
 uv run ruff format .
-
-# 型チェック
 uv run mypy src
-
-# 単体・統合テスト
 uv run pytest -q
-
-# カバレッジ（新規ロジックを追加した場合）
-uv run pytest --cov=src --cov-report=term-missing
-
-# Pre-commit（コミット直前）
-uv run pre-commit run --all-files
+uv run pytest --cov=src --cov-report=term-missing   # 新規ロジックを追加したとき
+uv run pre-commit run --all-files                   # コミット直前
 ```
+`ruff` の行長は 88 文字。CI も同じ設定です。
 
-> `ruff` の最大行長は 88 文字です。`ruff format` を実行すると PEP 621/pyproject の設定に従って整形されます。
+## 3. テストの粒度
+- `tests/unit/` — ドメイン単位のテスト。モックやフィクスチャは `tests/conftest.py` に集約。
+- `tests/integration/` — Discord モック、AI、ファイル操作を跨る検証。
+- `tests/manual/` — 外部サービスや音声など、手動で走らせるチェック。
 
-## テスト構成
-
-- `tests/unit/` – ドメイン別の単体テスト。モックやフィクスチャは `tests/conftest.py` に集約。
-- `tests/integration/` – Discord モック、AI 処理、Obsidian ファイル操作など複数ドメインを跨る検証。
-- `tests/manual/` – 音声処理・Garmin・管理スクリプトなど外部リソースを必要とするチェック。必要な場合のみ手動で実行。
-
-テストコマンド例:
-
+例:
 ```bash
-uv run pytest tests/unit/test_ai_processor.py        # 個別テスト
-uv run pytest tests/integration -k garmin            # Garmin 関連のみ
-uv run python tests/manual/quick_voice_test.py       # 手動音声テスト
+uv run pytest tests/unit/test_ai_processor.py
+uv run pytest tests/integration -k garmin
+uv run python tests/manual/quick_voice_test.py
 ```
 
-## 管理スクリプトの活用
+## 4. 管理スクリプトの便利機能
+- `./scripts/manage.sh clean` — キャッシュ削除（`--with-uv-cache` で uv キャッシュも削除）
+- `./scripts/manage.sh secrets <PROJECT_ID>` — Secret Manager へ一括登録
+- `./scripts/manage.sh run --once` — 短時間だけ起動したいときに便利
 
-- `./scripts/manage.sh clean` – `__pycache__`, `.pytest_cache`, `.ruff_cache` などを削除。`--with-uv-cache` フラグで `~/.cache/uv` も削除可能。
-- `./scripts/manage.sh secrets <PROJECT_ID>` – Secret Manager へのシークレット登録。
+新しい運用タスクは可能な限りこのスクリプトに統合してください。
 
-新しいタスクを追加する場合は既存のサブコマンドを調べ、可能なら同スクリプトに統合してください。
-
-## 主要ディレクトリのおさらい
-
-| ディレクトリ | 説明 |
+## 5. ディレクトリ早見表
+| パス | 役割 |
 | --- | --- |
-| `src/ai/` | Gemini クライアント、AIProcessor、URL/ベクターストア処理。 |
-| `src/bot/` | Discord Bot クライアント、Slash コマンド、メッセージハンドラ。 |
-| `src/obsidian/` | Vault への書き込み、テンプレート、統計、GitHub 同期。 |
-| `src/lifelog/`, `src/integrations/`, `src/health_analysis/` | Garmin / Calendar / ライフログ統合とスケジューラ。 |
-| `src/tasks/`, `src/finance/` | タスク・家計管理モジュールと Slash コマンド。 |
-| `src/security/`, `src/monitoring/` | Secret Manager 抽象化、アクセスログ、ヘルスチェックサーバ。 |
+| `src/ai/` | Gemini クライアント、AIProcessor、URL/ベクターストア処理 |
+| `src/bot/` | Discord Bot クライアント、Slash コマンド、メッセージハンドラ |
+| `src/obsidian/` | Vault 書き込み、テンプレート、統計、GitHub 同期 |
+| `src/integrations/`, `src/lifelog/`, `src/health_analysis/` | Garmin / Calendar / 健康分析、Scheduler |
+| `src/tasks/`, `src/finance/` | タスク・家計管理モジュール |
+| `src/security/`, `src/monitoring/` | Secret Manager 抽象化、ヘルスチェックサーバ |
 
-モジュール単位のより詳細な説明は各 `src/<package>/README.md` を参照してください。
+## 6. コーディングの心得
+- 4 スペースインデント、公開 API には型ヒント必須。
+- 変数/関数は snake_case（Discord の callback 要件のみ camelCase）。
+- ログは機密を含めないようヘルパーを利用し、必要ならセキュリティログへ出力。
+- コメントは複雑な箇所だけに短く付ける。冗長な説明は避ける。
+- コミットメッセージは Conventional Commits 形式で 72 文字以内。
 
-## コードスタイルとガイドライン
-
-- Python は 4 スペースインデント、公開 API には型ヒント必須。
-- 変数/関数はスネークケース、Discord のイベントハンドラなどフレームワーク要件がある場合のみ camelCase を使用。
-- ログには `structlog` を用い、機密データを出力しないよう `secure_log_message_content` などのヘルパーを活用。
-- コメントは複雑な処理や注意点に限定し、冗長な説明は避ける。
-- コミットは Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`...) に従い、72 文字以内の命令形サマリを使用。
-
-## よく使う補助コマンド
-
+## 7. よく使う補助コマンド
 ```bash
-uv run pip-audit --progress-spinner off    # 依存性の脆弱性チェック
-uv run python -m src.main --help           # 起動オプションの確認
-rg --files docs                            # ドキュメント一覧の確認
-rg "TODO" -g"*.py" src                     # TODO の洗い出し
+uv run pip-audit --progress-spinner off   # 依存脆弱性チェック
+uv run python -m src.main --help          # 起動オプション確認
+rg --files docs                           # ドキュメント一覧
+rg "TODO" -g"*.py" src                   # TODO の洗い出し
 ```
 
-開発フローを終えたら、`docs/testing.md` に記載のテスト実施状況を PR などで共有してください。
+テストの実施状況やカバレッジは PR の Verification セクションに記載してください。
