@@ -52,12 +52,6 @@ cmd_init() {
   read -r -p "Obsidian Vault パス [${DEFAULT_VAULT}]: " OBSIDIAN_VAULT_PATH
   OBSIDIAN_VAULT_PATH=${OBSIDIAN_VAULT_PATH:-$DEFAULT_VAULT}
   read -r -p "Discord Guild ID (任意): " DISCORD_GUILD_ID
-  read -r -p "Secret Manager backend [env/google]: " SECRET_MANAGER_STRATEGY
-  SECRET_MANAGER_STRATEGY=${SECRET_MANAGER_STRATEGY:-env}
-  SECRET_MANAGER_PROJECT_ID=""
-  if [[ "${SECRET_MANAGER_STRATEGY}" == "google" ]]; then
-    read -r -p "Google Secret Manager Project ID: " SECRET_MANAGER_PROJECT_ID
-  fi
   local PREV_UMASK
   PREV_UMASK=$(umask)
   umask 077
@@ -69,15 +63,9 @@ OBSIDIAN_VAULT_PATH=${OBSIDIAN_VAULT_PATH}
 DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
 ENVIRONMENT=personal
 LOG_LEVEL=INFO
-SECRET_MANAGER_STRATEGY=${SECRET_MANAGER_STRATEGY}
 EOF
   umask "${PREV_UMASK}"
   chmod 600 .env
-  if [[ -n "${SECRET_MANAGER_PROJECT_ID}" ]]; then
-    cat >> .env <<EOF
-SECRET_MANAGER_PROJECT_ID=${SECRET_MANAGER_PROJECT_ID}
-EOF
-  fi
   mkdir -p "${OBSIDIAN_VAULT_PATH}"
   log_success ".env を作成しました"
 }

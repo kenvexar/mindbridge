@@ -2,7 +2,7 @@
 
 import json
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
@@ -11,14 +11,6 @@ from pydantic import SecretStr
 from src.config.secure_settings import SecureSettingsManager
 from src.monitoring.health_server import OAuthCodeVault
 from src.security.access_logger import AccessLogger, SecurityEvent, SecurityEventType
-from src.security.secret_manager import (
-    ConfigManager,
-    GoogleSecretManager,
-    PersonalConfigManager,
-    PersonalSecretManager,
-    create_config_manager,
-    create_secret_manager,
-)
 
 
 class DummySecureSettingsManager:
@@ -51,36 +43,14 @@ class TestSecureSettingsManager:
             # Cache should return raw value even after SecretStr is gone
             assert manager.get_secure_setting("discord_bot_token") == "plain-token"
 
-    def test_secret_manager_backend_used_when_configured(self):
-        with patch.dict(
-            os.environ,
-            {
-                "SECRET_MANAGER_STRATEGY": "google",
-                "SECRET_MANAGER_PROJECT_ID": "proj",
-                "DISCORD_BOT_TOKEN": "",
-            },
-            clear=False,
-        ):
-            with (
-                patch("src.config.secure_settings.get_settings") as mock_settings,
-                patch(
-                    "src.security.secret_manager.create_config_manager"
-                ) as mock_factory,
-                patch.object(SecureSettingsManager, "_start_secret_loop") as mock_loop,
-                patch.object(
-                    SecureSettingsManager,
-                    "_fetch_from_secret_manager",
-                    return_value="managed-token",
-                ) as mock_fetch,
-            ):
+    def test_env_used_when_no_secret_manager(self):
+        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "env-token"}, clear=False):
+            with patch("src.config.secure_settings.get_settings") as mock_settings:
                 mock_settings.return_value = DummySettings(None)
-                mock_factory.return_value = AsyncMock()
                 manager = SecureSettingsManager()
                 result = manager.get_secure_setting("discord_bot_token")
 
-        mock_loop.assert_called_once()
-        mock_fetch.assert_called_once()
-        assert result == "managed-token"
+        assert result == "env-token"
 
 
 class TestOAuthCodeVault:
@@ -112,136 +82,6 @@ class TestOAuthCodeVault:
         result = vault.store_code("code")
         assert result is None
         assert not storage_path.exists()
-
-
-class TestPersonalSecretManager:
-    """Test PersonalSecretManager functionality"""
-
-    def test_init(self):
-        """Test initialization"""
-        manager = PersonalSecretManager("test-project")
-        assert manager.project_id == "test-project"
-        assert isinstance(manager._cache, dict)
-
-    @pytest.mark.asyncio
-    async def test_get_secret_from_env(self):
-        """Test getting secret from environment variable"""
-        manager = PersonalSecretManager()
-
-        with patch.dict(os.environ, {"TEST_SECRET": "test_value"}):
-            result = await manager.get_secret("test-secret")
-            assert result == "test_value"
-
-    @pytest.mark.asyncio
-    async def test_get_secret_not_found(self):
-        """Test getting non-existent secret"""
-        manager = PersonalSecretManager()
-
-        with patch.dict(os.environ, {}, clear=True):
-            result = await manager.get_secret("nonexistent-secret")
-            assert result is None
-
-    @pytest.mark.asyncio
-    async def test_get_secret_caching(self):
-        """Test secret caching functionality"""
-        manager = PersonalSecretManager()
-
-        with patch.dict(os.environ, {"CACHED_SECRET": "cached_value"}):
-            # First call should access environment
-            result1 = await manager.get_secret("cached-secret")
-            assert result1 == "cached_value"
-
-            # Second call should use cache
-            with patch.dict(os.environ, {}, clear=True):
-                result2 = await manager.get_secret("cached-secret")
-                assert result2 == "cached_value"
-
-    def test_clear_cache(self):
-        """Test cache clearing"""
-        manager = PersonalSecretManager()
-        manager._cache["test"] = "value"
-
-        manager.clear_cache()
-        assert len(manager._cache) == 0
-
-
-class TestGoogleSecretManager:
-    """Tests for the Google Secret Manager wrapper."""
-
-    @pytest.mark.asyncio
-    async def test_fetch_secret(self):
-        class _Payload:
-            def __init__(self, data: bytes):
-                self.data = data
-
-        class _Response:
-            def __init__(self, data: bytes):
-                self.payload = _Payload(data)
-
-        mock_client = AsyncMock()
-        mock_client.access_secret_version.return_value = _Response(b"gcp-value")
-
-        manager = GoogleSecretManager(project_id="my-project", client=mock_client)
-
-        result = await manager.get_secret("discord-bot-token")
-
-        mock_client.access_secret_version.assert_awaited_once_with(
-            name="projects/my-project/secrets/discord-bot-token/versions/latest"
-        )
-        assert result == "gcp-value"
-
-    def test_create_secret_manager_strategy(self):
-        env_manager = create_secret_manager()
-        assert isinstance(env_manager, PersonalSecretManager)
-
-        with pytest.raises(ValueError):
-            create_secret_manager("gcp")
-
-        mock_client = AsyncMock()
-        gcp_manager = create_secret_manager(
-            "google", project_id="proj", client=mock_client
-        )
-        assert isinstance(gcp_manager, GoogleSecretManager)
-
-    def test_create_config_manager_uses_factory(self):
-        cfg = create_config_manager()
-        assert isinstance(cfg, ConfigManager)
-        assert isinstance(cfg.secret_manager, PersonalSecretManager)
-
-
-class TestPersonalConfigManager:
-    """Test PersonalConfigManager functionality"""
-
-    def test_init(self):
-        """Test initialization"""
-        manager = PersonalConfigManager()
-        assert manager.secret_manager is not None
-
-    @pytest.mark.asyncio
-    async def test_get_config_value_discord_token(self):
-        """Test getting Discord token via config value"""
-        manager = PersonalConfigManager()
-
-        with patch.object(
-            manager.secret_manager, "get_secret", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = "discord_token_123"
-            result = await manager.get_config_value("discord_bot_token")
-            assert result == "discord_token_123"
-            mock_get.assert_called_once_with("discord-bot-token", version="latest")
-
-    @pytest.mark.asyncio
-    async def test_get_config_value_gemini_key(self):
-        """Test getting Gemini API key via config value"""
-        manager = PersonalConfigManager()
-
-        with patch.object(
-            manager.secret_manager, "get_secret", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = "gemini_key_123"
-            result = await manager.get_config_value("gemini_api_key")
-            assert result == "gemini_key_123"
-            mock_get.assert_called_once_with("gemini-api-key", version="latest")
 
 
 class TestAccessLogger:
@@ -415,15 +255,6 @@ class TestSecurityHelpers:
         assert SecurityEventType.LOGIN_ATTEMPT.value == "login_attempt"
         assert SecurityEventType.COMMAND_EXECUTION.value == "command_execution"
         assert SecurityEventType.SUSPICIOUS_ACTIVITY.value == "suspicious_activity"
-
-    @pytest.mark.asyncio
-    async def test_error_handling_in_secret_manager(self):
-        """Test error handling in secret manager"""
-        manager = PersonalSecretManager()
-
-        # Test with empty string
-        result = await manager.get_secret("")
-        assert result is None
 
     def test_security_event_creation(self):
         """Test SecurityEvent creation"""

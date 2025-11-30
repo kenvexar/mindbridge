@@ -46,10 +46,6 @@ class Settings(BaseSettings):
     garmin_cache_dir: Path | None = None
     garmin_cache_hours: float = 24.0
 
-    # Secret Manager configuration
-    secret_manager_strategy: str = "env"
-    secret_manager_project_id: str | None = None
-
     # Personal API Limits (Google Cloud 無料枠最適化)
     gemini_api_daily_limit: int = 1500  # Gemini 無料枠: 1,500 回/日
     gemini_api_minute_limit: int = 15  # Gemini 無料枠: 15 回/分
