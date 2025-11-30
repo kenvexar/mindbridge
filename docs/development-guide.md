@@ -35,7 +35,6 @@ uv run python tests/manual/quick_voice_test.py
 
 ## 4. 管理スクリプトの便利機能
 - `./scripts/manage.sh clean` — キャッシュ削除（`--with-uv-cache` で uv キャッシュも削除）
-- `./scripts/manage.sh secrets <PROJECT_ID>` — Secret Manager へ一括登録
 - `./scripts/manage.sh run --once` — 短時間だけ起動したいときに便利
 
 新しい運用タスクは可能な限りこのスクリプトに統合してください。
@@ -48,7 +47,7 @@ uv run python tests/manual/quick_voice_test.py
 | `src/obsidian/` | Vault 書き込み、テンプレート、統計、GitHub 同期 |
 | `src/integrations/`, `src/lifelog/`, `src/health_analysis/` | Garmin / Calendar / 健康分析、Scheduler |
 | `src/tasks/`, `src/finance/` | タスク・家計管理モジュール |
-| `src/security/`, `src/monitoring/` | Secret Manager 抽象化、ヘルスチェックサーバ |
+| `src/security/`, `src/monitoring/` | アクセスログとヘルスチェックサーバ |
 
 ## 6. コーディングの心得
 - 4 スペースインデント、公開 API には型ヒント必須。

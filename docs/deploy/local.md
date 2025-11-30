@@ -10,7 +10,7 @@ uv sync --dev              # 依存インストール
 `.env` に必須シークレットが入ります。音声/Garmin/Calendar など追加で使うものがあれば追記してください。
 
 ### ひとり運用のポイント
-- `SECRET_MANAGER_STRATEGY=env` のままにしておけば `.env` だけで完結。
+-.env だけで完結するため追加設定は不要。
 - `.env` は権限を絞る (`chmod 600 .env`)。Git にはコミットしない。
 - 最低限の例:
   ```env
@@ -18,7 +18,6 @@ uv sync --dev              # 依存インストール
   DISCORD_GUILD_ID=...
   GEMINI_API_KEY=...
   OBSIDIAN_VAULT_PATH=/Users/you/Obsidian/MindBridge
-  SECRET_MANAGER_STRATEGY=env
   ```
 
 ## 2. `uv run` で直接動かす

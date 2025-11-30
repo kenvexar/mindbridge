@@ -5,11 +5,11 @@ Obsidian Vault を GitHub にバックアップするための設定と運用の
 ## 必要なシークレット
 | 変数 | 用途 | 置き場の例 |
 | --- | --- | --- |
-| `GITHUB_TOKEN` | `repo` 権限の PAT | `.env` / Secret Manager (`github-token`) |
+| `GITHUB_TOKEN` | `repo` 権限の PAT | `.env` |
 | `OBSIDIAN_BACKUP_REPO` | Vault 用リモート | `git@github.com:owner/vault.git` など |
 | `OBSIDIAN_BACKUP_BRANCH` | 使用するブランチ | 例: `main` |
 
-Secret Manager を使わない場合は `.env` に追記します。SSH キー運用なら Deploy Key と `known_hosts` の配置を忘れずに。
+`.env` に追記します。SSH キー運用なら Deploy Key と `known_hosts` の配置を忘れずに。
 
 ## 初回セットアップ
 1. Vault ディレクトリ（既定 `./vault`）で `git init` し、リモートを追加。
@@ -22,7 +22,7 @@ Secret Manager を使わない場合は `.env` に追記します。SSH キー�
 - **ログ監視**: `logs/github_sync.log`（ローカル）や Cloud Logging (`GitHubObsidianSync`) を確認し、`exit status 128` などを早期に検出。
 
 ## ありがちなエラーと対処
-- `fatal: could not read Username` — PAT 権限または Secret Manager のバージョンを確認。
+- `fatal: could not read Username` — PAT 権限を確認。
 - `Host key verification failed` — `known_hosts` を更新し、必要なら `ssh-keyscan github.com`。
 - 自動 push されない — ログの `GitHub sync disabled` を確認し、`OBSIDIAN_BACKUP_REPO` が設定されているかをチェック。
 

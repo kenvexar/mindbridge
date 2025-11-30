@@ -11,7 +11,7 @@
 | `commands/` | タスク、統計、設定などの Slash コマンド実装 |
 | `handlers/` | メッセージ・ファイル・音声などのイベント処理 |
 | `message_processor.py` | 受信メッセージを解析し AI/Obsidian へルーティング |
-| `config_manager.py` | ボット設定・認証情報の検証および Secret Manager 連携 |
+| `config_manager.py` | ボット設定・認証情報の検証（Secret Manager 連携は廃止） |
 | `metrics.py` | API 利用状況とレート管理の集計 |
 
 ## 外部依存

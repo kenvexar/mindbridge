@@ -41,8 +41,7 @@ Garmin と Google Calendar 連携モジュールの要点をコンパクトに�
 
 ## 共通ノート
 
-- 設定値は `.env` もしくは Secret Manager からロードされます
-  （`SECRET_MANAGER_STRATEGY` を参照）。
+- 設定値は `.env` からロードされます（Secret Manager 連携は廃止）。
 - 連携結果は `src/lifelog/` 配下のパイプラインへ渡され、
   Obsidian ノートに反映されます。
 - 連携に失敗した場合は `logs/` の最新ファイルと Cloud Logging を確認し、

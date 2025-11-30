@@ -16,7 +16,7 @@
 ## レイヤー別の主役
 | レイヤー | モジュール | 役割 |
 | --- | --- | --- |
-| 設定/セキュリティ | `src/config/settings.py`, `src/security/secret_manager.py`, `src/security/access_logger.py` | `.env` / Secret Manager の読み込み、シークレット検証、監査ログ出力 |
+| 設定/セキュリティ | `src/config/settings.py`, `src/config/secure_settings.py`, `src/security/access_logger.py` | `.env` による設定・シークレット読み込みと監査ログ出力 |
 | エントリポイント | `src/main.py` | 設定検証、GitHub 同期セットアップ、Bot/スケジューラ起動 |
 | Discord Bot | `src/bot/client.py`, `src/bot/message_processor.py`, `src/bot/commands/*`, `src/bot/handlers/*` | Slash コマンドとメッセージ処理、通知、統計、音声・ノート生成ハンドラ |
 | AI パイプライン | `src/ai/ai_processor.py`, `src/ai/gemini_client.py`, `src/ai/advanced_note_analyzer.py`, `src/ai/url_processor.py` | Gemini 呼び出し、レート制御、キャッシュ、URL 解析、類似ノート推定 |

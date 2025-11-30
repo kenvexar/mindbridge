@@ -26,7 +26,6 @@
 | データ処理 | `numpy`, `scikit-learn`, `beautifulsoup4`, `python-dateutil` | ライフログ解析、URL パース、統計 | `lifelog` で利用 |
 | 設定/セキュリティ | `pydantic`, `pydantic-settings`, `cryptography`, `pyyaml` | 設定管理・暗号化・YAML | Secret 暗号化に `Fernet` |
 | 開発 | `pytest`, `pytest-asyncio`, `mypy`, `ruff`, `pre-commit` | テスト/静的解析/整形 | CI でも使用 |
-| 任意 | `google-cloud-secret-manager`, `google-api-python-client` | Secret Manager / Google API | `pyproject.toml` の optional deps |
 
 追加・アップデート時は `pyproject.toml` とこのファイルを更新し、理由を記しておく。脆弱性確認は `uv run pip-audit --progress-spinner off` を活用。
 
