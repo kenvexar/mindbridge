@@ -7,7 +7,6 @@ from datetime import date, timedelta
 from typing import Any
 
 from src.ai.processor import AIProcessor
-from src.garmin.models import HealthData
 from src.health_analysis.models import (
     AnalysisReport,
     AnalysisType,
@@ -17,6 +16,7 @@ from src.health_analysis.models import (
     TrendAnalysis,
     WeeklyHealthSummary,
 )
+from src.integrations.garmin.models import HealthData
 from src.utils.mixins import LoggerMixin
 
 # Settings loaded lazily to avoid circular imports

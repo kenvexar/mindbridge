@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.garmin.models import HealthData
+from src.integrations.garmin.models import HealthData
 
 if TYPE_CHECKING:
     pass

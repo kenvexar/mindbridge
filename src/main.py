@@ -150,7 +150,7 @@ async def build_runtime_context(
         return AIProcessor()
 
     def create_garmin_client():
-        from src.garmin import GarminClient
+        from src.integrations.garmin.client import GarminClient
 
         return GarminClient()
 

@@ -6,12 +6,11 @@ import asyncio
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from src.garmin.client import GarminClient
-
 # LoggerMixin は使用しない - 直接 structlog を使用
 from src.health_analysis.analyzer import HealthDataAnalyzer
 from src.health_analysis.integrator import HealthActivityIntegrator
 from src.health_analysis.models import AnalysisReport, ChangeDetection, ChangeType
+from src.integrations.garmin.client import GarminClient
 from src.obsidian.daily_integration import DailyNoteIntegration
 
 # Settings loaded lazily to avoid circular imports

@@ -13,7 +13,7 @@ class StubSettings:
 
 
 def create_client(monkeypatch: pytest.MonkeyPatch):
-    from src.garmin import client as client_module
+    from src.integrations.garmin import client as client_module
 
     monkeypatch.setattr(client_module, "get_settings", lambda: StubSettings())
 
@@ -48,7 +48,9 @@ def test_network_connectivity_check(monkeypatch: pytest.MonkeyPatch) -> None:
             raise OSError("network down")
         return MagicMock()
 
-    monkeypatch.setattr("src.garmin.client.socket.create_connection", fake_connection)
+    monkeypatch.setattr(
+        "src.integrations.garmin.client.socket.create_connection", fake_connection
+    )
 
     assert client._check_network_connectivity() is False
     assert client._check_network_connectivity() is True
