@@ -1,6 +1,6 @@
 # ローカルデプロイガイド
 
-開発や小規模運用で使うローカル実行と Docker/Podman Compose の手順をまとめました。
+開発や小規模運用で使うローカル実行と Docker Compose の手順をまとめました。
 
 ## 1. 共通準備
 ```bash
@@ -28,10 +28,10 @@ uv sync --dev              # 依存インストール
 
 特徴: 最軽量でコード変更が即反映。個人利用やデバッグに向きます。
 
-## 3. Docker / Podman Compose で動かす
+## 3. Docker Compose で動かす
 ```bash
 cp .env .env.docker                # 必要なら編集
-docker compose up -d mindbridge    # または podman-compose up -d mindbridge
+docker compose up -d mindbridge
 docker compose logs -f mindbridge
 ```
 停止は `docker compose down`。ボリュームごと消すときは `docker compose down -v`。

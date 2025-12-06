@@ -27,4 +27,4 @@
 ## トラブルシューティング
 
 - `./scripts/manage.sh clean --with-uv-cache` でキャッシュを掃除
-- `docker compose logs -f` または `podman-compose logs -f` でコンテナログ確認
+- `docker compose logs -f` でコンテナログ確認
