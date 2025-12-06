@@ -32,7 +32,8 @@ class GitHubObsidianSync(LoggerMixin):
             or "github",
         )
         self.git_provider = provider_raw.lower()
-        self.token_env_var = "GIT_REMOTE_TOKEN"
+        # 環境変数名の保持であり秘密値ではないためBandit除外
+        self.token_env_var = "GIT_REMOTE_TOKEN"  # nosec B105
         self.github_token = self._resolve_git_token()
         self.github_repo_url = self.settings.obsidian_backup_repo or os.getenv(
             "OBSIDIAN_BACKUP_REPO"
@@ -61,13 +62,15 @@ class GitHubObsidianSync(LoggerMixin):
         gitlab_token = getattr(self.settings, "gitlab_token", None)
         if self.git_provider.startswith("gitlab") and gitlab_token is not None:
             # テストが期待する環境変数名に合わせて保持
-            self.token_env_var = "GITLAB_TOKEN"
+            # テスト互換の環境変数名を明示（秘密値ではない）
+            self.token_env_var = "GITLAB_TOKEN"  # nosec B105
             return str(gitlab_token.get_secret_value())
 
         github_token = self.settings.github_token
         if github_token is not None:
             # GitHub トークンを設定から取得した場合も環境変数名を明示
-            self.token_env_var = "GITHUB_TOKEN"
+            # 設定由来のトークン使用時も環境変数名を保持（秘密値ではない）
+            self.token_env_var = "GITHUB_TOKEN"  # nosec B105
             return str(github_token.get_secret_value())
 
         env_order = ["GIT_REMOTE_TOKEN"]
