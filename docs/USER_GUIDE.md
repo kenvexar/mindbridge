@@ -69,8 +69,8 @@ Slash コマンドの同期に数秒〜数十秒かかります。`/status` が�
 2. `/calendar_auth` で表示された URL にアクセスし、認可コードを `/calendar_token` へ渡す。
 3. `/calendar_test` で予定が取得できれば完了。日次ノートへ自動追記されます。
 
-### GitHub Vault バックアップ
-- `GITHUB_TOKEN` と `OBSIDIAN_BACKUP_REPO` を設定すると、起動時に `git pull`、終了時に `git push` を実行します。
+### GitHub / GitLab Vault バックアップ
+- `GIT_PROVIDER`（`github` / `gitlab`）と、対応するトークン（`GITHUB_TOKEN` or `GITLAB_TOKEN`）・`OBSIDIAN_BACKUP_REPO` を設定すると、起動時に `git pull`、終了時に `git push` を実行します。
 - SSH 鍵で運用する場合は Deploy Key を用意し、Vault ディレクトリに `known_hosts` を配置してください。
 - 詳細な運用ノートは `docs/maintenance/github-sync.md` へ。
 

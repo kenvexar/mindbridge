@@ -68,8 +68,10 @@ class Settings(BaseSettings):
     # Environment
     environment: str = "personal"
 
-    # Personal GitHub Backup
+    # Personal Git Backup
+    git_provider: str = "github"
     github_token: SecretStr | None = None
+    gitlab_token: SecretStr | None = None
     obsidian_backup_repo: str | None = None
     obsidian_backup_branch: str = "main"
     git_user_name: str = "Personal MindBridge"

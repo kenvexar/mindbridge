@@ -25,11 +25,12 @@ class GitHubObsidianSync(LoggerMixin):
     def __init__(self) -> None:
         self.settings = get_settings()
         self.vault_path = self.settings.obsidian_vault_path
-        self.github_token = (
-            str(self.settings.github_token.get_secret_value())
-            if self.settings.github_token
-            else os.getenv("GITHUB_TOKEN")
-        )
+        self.git_provider = (
+            os.getenv("GIT_PROVIDER")
+            or getattr(self.settings, "git_provider", "github")
+        ).lower()
+        self.token_env_var = "GIT_REMOTE_TOKEN"
+        self.github_token = self._resolve_git_token()
         self.github_repo_url = self.settings.obsidian_backup_repo or os.getenv(
             "OBSIDIAN_BACKUP_REPO"
         )
@@ -47,17 +48,50 @@ class GitHubObsidianSync(LoggerMixin):
 
         self._validate_configuration()
 
+    def _resolve_git_token(self) -> str | None:
+        """プロバイダに応じたトークンを解決する。
+
+        優先順位: 設定ファイルの `github_token` → `GIT_REMOTE_TOKEN`
+        → プロバイダ別の環境変数（GitLab: `GITLAB_TOKEN`, GitHub: `GITHUB_TOKEN`）。
+        """
+
+        if self.git_provider.startswith("gitlab") and getattr(
+            self.settings, "gitlab_token", None
+        ):
+            return str(self.settings.gitlab_token.get_secret_value())
+
+        if self.settings.github_token:
+            return str(self.settings.github_token.get_secret_value())
+
+        env_order = ["GIT_REMOTE_TOKEN"]
+        if self.git_provider.startswith("gitlab"):
+            env_order.append("GITLAB_TOKEN")
+        env_order.append("GITHUB_TOKEN")
+
+        for key in env_order:
+            value = os.getenv(key)
+            if value:
+                # ヘルパー内で参照する環境変数名を保持
+                self.token_env_var = key
+                return value
+
+        return None
+
     def _validate_configuration(self) -> None:
         """設定の検証"""
         if not self.github_token:
-            self.logger.warning("GITHUB_TOKEN not set, GitHub sync disabled")
+            self.logger.warning("Git token not set, remote sync disabled")
             return
 
         if not self.github_repo_url:
-            self.logger.warning("OBSIDIAN_BACKUP_REPO not set, GitHub sync disabled")
+            self.logger.warning("OBSIDIAN_BACKUP_REPO not set, remote sync disabled")
             return
 
-        self.logger.info("GitHub sync configuration validated")
+        self.logger.info(
+            "Git sync configuration validated",
+            git_provider=self.git_provider,
+            repo=self.github_repo_url,
+        )
 
     @property
     def is_configured(self) -> bool:
@@ -111,8 +145,9 @@ class GitHubObsidianSync(LoggerMixin):
     async def _setup_remote_repository(self) -> None:
         """リモートリポジトリの設定
 
-        リモート URL には認証トークンを含めず、`git -c credential.helper=...`
-        で指定したヘルパー経由で `GITHUB_TOKEN` を安全に供給する。
+        リモート URL には認証トークンを含めず、
+        `git -c credential.helper=...` で指定したヘルパー経由で
+        トークン（`GIT_REMOTE_TOKEN` など）を安全に供給する。
         """
         try:
             # Git リポジトリが初期化されているかチェック
@@ -163,8 +198,14 @@ class GitHubObsidianSync(LoggerMixin):
         self.logger.debug("Git user configuration set")
 
     def _build_credential_helper(self) -> str:
-        """Return the credential helper script that reads `GITHUB_TOKEN` at runtime."""
-        return "!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f"
+        """Return the credential helper script that reads the selected token at runtime."""
+        username = (
+            "oauth2" if self.git_provider.startswith("gitlab") else "x-access-token"
+        )
+        return (
+            "!f() { echo username="
+            f"{username}; echo password=${self.token_env_var}; }}; f"
+        )
 
     async def _setup_gitignore(self) -> None:
         """.gitignore の設定"""
@@ -191,11 +232,11 @@ Thumbs.db
     def _get_authenticated_repo_url(self) -> str:
         """Return repository URL without embedding secrets.
 
-        認証情報は `_build_credential_helper` が `GITHUB_TOKEN` を差し込むため、
+        認証情報は `_build_credential_helper` がトークンを差し込むため、
         ここではプレーンな HTTPS URL のみを扱う。
         """
         if self.github_repo_url is None:
-            raise GitHubSyncError("GitHub repository URL is not configured")
+            raise GitHubSyncError("Remote repository URL is not configured")
 
         if not self.github_repo_url.startswith("https://"):
             self.logger.warning(
@@ -441,7 +482,7 @@ Thumbs.db
         # 環境変数をコピー（シンプルな実装）
         env = os.environ.copy()
         if self.github_token:
-            env["GITHUB_TOKEN"] = self.github_token
+            env[self.token_env_var] = self.github_token
             env.setdefault("GIT_TERMINAL_PROMPT", "0")
 
         try:

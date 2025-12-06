@@ -12,7 +12,7 @@ Discord の監視チャンネルで `/status` が返ってきたら準備完了�
 ## できること（ざっくり）
 - **Discord 取り込み**: 投稿・添付・URL を整形し、メタデータ付きで保存。
 - **AI 整理**: Gemini 2.5 Flash で要約・タグ・カテゴリ分類。類似ノート提案も可能。
-- **Obsidian 連携**: テンプレート駆動で Markdown 生成、Daily Note 反映、Vault 統計、GitHub 同期。
+- **Obsidian 連携**: テンプレート駆動で Markdown 生成、Daily Note 反映、Vault 統計、GitHub/GitLab 同期。
 - **音声メモ**: Google Speech-to-Text で文字起こし。失敗時はファイルのみ保存するフォールバック付き。
 - **ライフログ/健康**: Garmin・Calendar を同期し、睡眠/活動インサイトを日次ノートに追加。
 - **タスク/家計**: Slash コマンドでタスクや支出を登録し、集計を返答。
@@ -22,7 +22,7 @@ Discord の監視チャンネルで `/status` が返ってきたら準備完了�
 1. `src/main.py` が設定とシークレットを読み込み、Discord Bot と外部連携を初期化。
 2. 投稿を `MessageProcessor` が整形し、`AIProcessor` / `AdvancedNoteAnalyzer` が要約とタグ付け。
 3. `TemplateEngine` が YAML フロントマター付き Markdown を生成し、`ObsidianFileManager` が Vault に保存。
-4. `DailyNoteIntegration` や各スケジューラが Garmin / Calendar / GitHub 同期をバックグラウンドで処理。
+4. `DailyNoteIntegration` や各スケジューラが Garmin / Calendar / GitHub/GitLab 同期をバックグラウンドで処理。
 5. `/status` や HTTP ヘルスエンドポイントが稼働状況を返し、セキュリティイベントは構造化ログに残ります。
 
 ## デプロイの選択肢

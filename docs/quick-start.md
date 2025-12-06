@@ -42,6 +42,6 @@ Discord の監視チャンネルに投稿し、`/status` が返ってくれば�
 ## オプション設定の例
 - 音声文字起こし: `GOOGLE_CLOUD_SPEECH_API_KEY` またはサービスアカウント JSON
 - Garmin / Calendar: `GARMIN_EMAIL`, `GARMIN_PASSWORD`, `GOOGLE_CALENDAR_*`
-- GitHub バックアップ: `GITHUB_TOKEN`, `OBSIDIAN_BACKUP_REPO`
+- GitHub/GitLab バックアップ: `GIT_PROVIDER`, `GITHUB_TOKEN` or `GITLAB_TOKEN`, `OBSIDIAN_BACKUP_REPO`
 
 より詳しい操作やトラブル対応は `docs/basic-usage.md` と `docs/USER_GUIDE.md` へ。
