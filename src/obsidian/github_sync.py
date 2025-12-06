@@ -7,7 +7,7 @@ import os
 import subprocess  # nosec: B404 - subprocess used safely for git operations with validation
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from src.config import get_settings
 from src.utils.mixins import LoggerMixin
@@ -25,10 +25,13 @@ class GitHubObsidianSync(LoggerMixin):
     def __init__(self) -> None:
         self.settings = get_settings()
         self.vault_path = self.settings.obsidian_vault_path
-        self.git_provider = (
+        provider_raw = cast(
+            str,
             os.getenv("GIT_PROVIDER")
-            or getattr(self.settings, "git_provider", "github")
-        ).lower()
+            or getattr(self.settings, "git_provider", None)
+            or "github",
+        )
+        self.git_provider = provider_raw.lower()
         self.token_env_var = "GIT_REMOTE_TOKEN"
         self.github_token = self._resolve_git_token()
         self.github_repo_url = self.settings.obsidian_backup_repo or os.getenv(
@@ -55,13 +58,17 @@ class GitHubObsidianSync(LoggerMixin):
         → プロバイダ別の環境変数（GitLab: `GITLAB_TOKEN`, GitHub: `GITHUB_TOKEN`）。
         """
 
-        if self.git_provider.startswith("gitlab") and getattr(
-            self.settings, "gitlab_token", None
-        ):
-            return str(self.settings.gitlab_token.get_secret_value())
+        gitlab_token = getattr(self.settings, "gitlab_token", None)
+        if self.git_provider.startswith("gitlab") and gitlab_token is not None:
+            # テストが期待する環境変数名に合わせて保持
+            self.token_env_var = "GITLAB_TOKEN"
+            return str(gitlab_token.get_secret_value())
 
-        if self.settings.github_token:
-            return str(self.settings.github_token.get_secret_value())
+        github_token = self.settings.github_token
+        if github_token is not None:
+            # GitHub トークンを設定から取得した場合も環境変数名を明示
+            self.token_env_var = "GITHUB_TOKEN"
+            return str(github_token.get_secret_value())
 
         env_order = ["GIT_REMOTE_TOKEN"]
         if self.git_provider.startswith("gitlab"):
