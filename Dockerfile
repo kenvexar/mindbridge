@@ -1,5 +1,5 @@
 # Personal MindBridge Docker image for self-hosted/container deployments
-FROM python:3.13.9-slim as builder
+FROM python:3.14.2-slim as builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -24,7 +24,7 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev
 
 # Production stage
-FROM python:3.13.9-slim
+FROM python:3.14.2-slim
 
 # セキュリティ: セキュリティアップデートを適用してからパッケージインストール
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
